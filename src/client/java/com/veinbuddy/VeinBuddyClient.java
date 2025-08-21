@@ -4,14 +4,21 @@ import org.lwjgl.BufferUtils;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GLCapabilities;
 import org.lwjgl.opengl.GL30;
+import org.lwjgl.opengl.GL46;
 import org.lwjgl.system.MemoryUtil;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 
-import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.pipeline.BlendFunction;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.platform.TextureUtil;
+import com.mojang.blaze3d.systems.CommandEncoder;
+import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -35,19 +42,23 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalDouble;
+import java.util.OptionalInt;
 import java.util.Queue;
 import java.util.Set;
 import java.util.Scanner;
 import java.util.Spliterator;
 
+import net.minecraft.client.gl.Framebuffer;
 import net.minecraft.client.gl.GlImportProcessor;
+import net.minecraft.client.gl.UniformType;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.Mouse;
 import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.client.network.ServerInfo;
-import net.minecraft.item.PickaxeItem;
+import net.minecraft.item.Item;
 import net.minecraft.text.Text;
 import net.minecraft.resource.Resource;
 import net.minecraft.resource.ResourceFactory;
@@ -105,29 +116,34 @@ public class VeinBuddyClient implements ClientModInitializer {
   private Set<Vec3i> wallBlocks = new ConcurrentSkipListSet<Vec3i>();
   private Map<Vec3i, WallGroup> wallBlockWalls = new ConcurrentHashMap<Vec3i, WallGroup>();
 
-  private ByteBuffer selectionBuffer = null;
-  private ByteBuffer wallBuffer = null;
-  private ByteBuffer gridBuffer = null;
-  private boolean updateBuffers = true;
+  private GpuBuffer posBlockVertexBuffer = null;
+  private int posBlockVertexCount = 0;
+  private GpuBuffer selectionWireframeVertexBuffer = null;
+  private int selectionWireframeVertexCount = 0;
+  private GpuBuffer selectionVertexBuffer = null;
+  private int selectionVertexCount = 0;
+  private GpuBuffer wallVertexBuffer = null;
+  private int wallVertexCount = 0;
+  private GpuBuffer gridVertexBuffer = null;
+  private int gridVertexCount = 0;
 
-  private int vao = 0;
-  private int selectionVBO = 0;
-  private int wallVBO = 0;
-  private int gridVBO = 0;
-
+  private int identityShaderProgram = 0;
   private int selectionShaderProgram = 0;
   private int wallShaderProgram = 0;
   private int gridShaderProgram = 0; 
 
+  private RenderPipeline WIREFRAMES = null;
+  private RenderPipeline SELECTIONS = null;
+  private RenderPipeline WALLS = null;
+  private RenderPipeline GRIDS = null;
 
   @Override
   public void onInitializeClient() {
-    ClientLifecycleEvents.CLIENT_STARTED.register(this::loadShaders);
+    ClientLifecycleEvents.CLIENT_STARTED.register(this::createPipelines);
     ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> onStart(client));
     ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
     ClientTickEvents.END_CLIENT_TICK.register(this::saveSelections);
-    WorldRenderEvents.AFTER_TRANSLUCENT.register(this::afterTranslucent);
-    WorldRenderEvents.LAST.register(this::wireframeOverlays);
+    WorldRenderEvents.LAST.register(this::onRender);
 
     ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
       ClientCommandManager.literal("veinbuddy")
@@ -157,65 +173,42 @@ public class VeinBuddyClient implements ClientModInitializer {
     return new File(client.runDirectory, "data/veinbuddy/" + address + ".txt");
   }
 
-  private void loadShaders(MinecraftClient client) {
-    int selectionVertexShader = loadShaderProgram("selections", ".vsh", GL30.GL_VERTEX_SHADER);
-    int wallVertexShader = loadShaderProgram("walls", ".vsh", GL30.GL_VERTEX_SHADER);
-    int gridVertexShader = loadShaderProgram("grids", ".vsh", GL30.GL_VERTEX_SHADER);
-    int identityFragmentShader = loadShaderProgram("identity", ".fsh", GL30.GL_FRAGMENT_SHADER);
-    selectionShaderProgram = GL30.glCreateProgram();
-    GL30.glAttachShader(selectionShaderProgram, selectionVertexShader);
-    GL30.glAttachShader(selectionShaderProgram, identityFragmentShader);
-    GL30.glLinkProgram(selectionShaderProgram);
-    wallShaderProgram = GL30.glCreateProgram();
-    GL30.glAttachShader(wallShaderProgram, wallVertexShader);
-    GL30.glAttachShader(wallShaderProgram, identityFragmentShader);
-    GL30.glLinkProgram(wallShaderProgram);
-    gridShaderProgram = GL30.glCreateProgram();
-    GL30.glAttachShader(gridShaderProgram, gridVertexShader);
-    GL30.glAttachShader(gridShaderProgram, identityFragmentShader);
-    GL30.glLinkProgram(gridShaderProgram);
-
-    vao = GL30.glGenVertexArrays();
-    selectionVBO = GL30.glGenBuffers();
-    wallVBO = GL30.glGenBuffers();
-    gridVBO = GL30.glGenBuffers();
-  }
-
-  private int loadShaderProgram(String name, String extension, int type) {
-    try {
-      boolean file_present = true;
-      ResourceFactory resourceFactory = MinecraftClient.getInstance().getResourceManager();
-      Optional<Resource> resource = resourceFactory.getResource(Identifier.of("renderer", "shader/" + name + extension));
-      int i = GL30.glCreateShader(type);
-      if (resource.isPresent()) {
-        GL30.glShaderSource(i, readResourceAsString(resource.get().getInputStream()));
-      } else file_present = false;
-      GL30.glCompileShader(i);
-      if (0 == GL30.glGetShaderi(i, GL30.GL_COMPILE_STATUS) || !file_present) {
-        String shaderInfo = StringUtils.trim(GL30.glGetShaderInfoLog(i, 32768));
-	throw new IOException("Couldn't compile " + name + extension + ": " + shaderInfo);
-      }
-      return i;
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
-    return 0;
-  }
-
-  private String readResourceAsString(InputStream inputStream) {
-    ByteBuffer byteBuffer = null;
-    try {
-      byteBuffer = TextureUtil.readResource(inputStream);
-      int i = byteBuffer.position();
-      byteBuffer.rewind();
-      return MemoryUtil.memASCII(byteBuffer, i);
-    } catch (IOException ignored) {
-    } finally {
-      if (byteBuffer != null) {
-        MemoryUtil.memFree(byteBuffer);
-      }
-    }
-    return null;
+  private void createPipelines(MinecraftClient client) {
+    WIREFRAMES = RenderPipeline.builder()
+      .withLocation(Identifier.of("veinbuddy", "triangle_pipeline"))
+      .withVertexShader(Identifier.of("veinbuddy", "wireframes"))
+      .withFragmentShader(Identifier.of("veinbuddy", "identity"))
+      .withBlend(BlendFunction.TRANSLUCENT)
+      .withVertexFormat(VertexFormats.POSITION, VertexFormat.DrawMode.DEBUG_LINES)
+      .withUniform("u_projection", UniformType.UNIFORM_BUFFER)
+      .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+      .build();
+    SELECTIONS = RenderPipeline.builder()
+      .withLocation(Identifier.of("veinbuddy", "selections_pipeline"))
+      .withVertexShader(Identifier.of("veinbuddy", "selections"))
+      .withFragmentShader(Identifier.of("veinbuddy", "identity"))
+      .withBlend(BlendFunction.TRANSLUCENT)
+      .withVertexFormat(VertexFormats.POSITION, VertexFormat.DrawMode.TRIANGLES)
+      .withUniform("u_projection", UniformType.UNIFORM_BUFFER)
+      .withCull(false)
+      .build();
+    WALLS = RenderPipeline.builder()
+      .withLocation(Identifier.of("veinbuddy", "walls_pipeline"))
+      .withVertexShader(Identifier.of("veinbuddy", "walls"))
+      .withFragmentShader(Identifier.of("veinbuddy", "identity"))
+      .withBlend(BlendFunction.TRANSLUCENT)
+      .withVertexFormat(VertexFormats.POSITION, VertexFormat.DrawMode.TRIANGLES)
+      .withUniform("u_projection", UniformType.UNIFORM_BUFFER)
+      .withCull(false)
+      .build();
+    GRIDS = RenderPipeline.builder()
+      .withLocation(Identifier.of("veinbuddy", "grids_pipeline"))
+      .withVertexShader(Identifier.of("veinbuddy", "grids"))
+      .withFragmentShader(Identifier.of("veinbuddy", "identity"))
+      .withBlend(BlendFunction.TRANSLUCENT)
+      .withVertexFormat(VertexFormats.POSITION, VertexFormat.DrawMode.DEBUG_LINES)
+      .withUniform("u_projection", UniformType.UNIFORM_BUFFER)
+      .build();
   }
 
   private void saveSelections(MinecraftClient client) {
@@ -401,7 +394,8 @@ public class VeinBuddyClient implements ClientModInitializer {
     if (null == client.player) return;
     if (null == client.mouse) return;
     if (null == client.world) return;
-    if (!(client.player.getInventory().getMainHandStack().getItem() instanceof PickaxeItem)) {
+    Item item = client.player.getInventory().getSelectedStack().getItem();
+    if (!item.getName().toString().contains("pickaxe")) {
       pos = null;
       posBlock = null;
       selectionTicks = 0;
@@ -892,49 +886,40 @@ public class VeinBuddyClient implements ClientModInitializer {
     return wallGroup;
   }
 
-  private void wireframeOverlays(WorldRenderContext ctx) {
-    if (null == mc.player) return;
-    if (null == posBlock && (!showOutlines || selections.isEmpty())) return;
-    
-    Vec3d camPos = ctx.camera().getPos();
-    MatrixStack stack = ctx.matrixStack();
-    stack.push();
-    stack.translate(-camPos.getX(), -camPos.getY(), -camPos.getZ());
-    Matrix4f mat = stack.peek().getPositionMatrix();
-    Tessellator tessellator = Tessellator.getInstance();
-    BufferBuilder buffer = tessellator.begin(VertexFormat.DrawMode.DEBUG_LINES, VertexFormats.POSITION_COLOR);
-
-    if (null != posBlock){
-      buildVerticesOutline(buffer, mat, posBlock);
-    }
-
-    if (showOutlines && !selections.isEmpty()) {
-      for(Vec3i selection : selections) {
-	 buildVerticesOutline(buffer, mat, selection);
-      }
-    }
-
-    RenderSystem.setShader(GameRenderer::getPositionColorProgram);
-    RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-
-    BufferRenderer.drawWithGlobalProgram(buffer.end());
-
-    stack.pop();
+  private void refreshBuffer() {
+    refreshPosBlockBuffer();
+    refreshSelectionBlockBuffers();
   }
 
-  private void refreshBuffer() {
+  private void refreshPosBlockBuffer() {
+    if (null == posBlock) return;
+    posBlockVertexCount = 12 * 2; //twelve lines, two vertices per line
+    ByteBuffer posBlockBuffer = BufferUtils.createByteBuffer(posBlockVertexCount * 3 * 4); //three floats per vertex, four bytes per float
+    buildVerticesOutline(posBlockBuffer, posBlock);
+    posBlockBuffer.flip();
+    posBlockVertexBuffer = RenderSystem.getDevice().createBuffer(() -> "Wireframes", 0, posBlockBuffer);
+  }
+
+  private void refreshSelectionBlockBuffers() {
     if (selections.isEmpty()) return;
     int numWalls = 0;
     for (Vec3i wallBlock : wallBlocks) {
         WallGroup group = wallBlockWalls.get(wallBlock);
 	numWalls += group.getSize();
     }
-    selectionBuffer = BufferUtils.createByteBuffer(selections.size() * 6 * 6 * 3 * 4); // six walls, six vertices per wall, three floats per vertex, four bytes per float
-    wallBuffer = BufferUtils.createByteBuffer(numWalls * 6 * 3 * 4); // six vertices per wall, three floats per vertex, four bytes per float
-    gridBuffer = BufferUtils.createByteBuffer(numWalls * 8 * 3 * 4); // eight vertices per wall, three floats per vertex, four bytes per float
+    selectionWireframeVertexCount = selections.size() * 12 * 2; // twelve lines, two vertices per line
+    selectionVertexCount = selections.size() * 6 * 6; // six walls, six vertices per wall
+    wallVertexCount = numWalls * 6; // three vertices per triangle, two triangles per wall
+    gridVertexCount = numWalls * 8; // four lines per wall, two vertices per line
+
+    ByteBuffer selectionWireframeBuffer = BufferUtils.createByteBuffer(selectionWireframeVertexCount * 3 * 4); //three floats per vertex, four bytes per float
+    ByteBuffer selectionBuffer = BufferUtils.createByteBuffer(selectionVertexCount * 3 * 4); // three floats per vertex, four bytes per float
+    ByteBuffer wallBuffer = BufferUtils.createByteBuffer(wallVertexCount * 3 * 4); // three floats per vertex, four bytes per float
+    ByteBuffer gridBuffer = BufferUtils.createByteBuffer(gridVertexCount * 3 * 4); // three floats per vertex, four bytes per float
 
     for (Vec3i selection : selections) {
       WallGroup group = selectionWalls.get(selection);
+      buildVerticesOutline(selectionWireframeBuffer, selection);
       buildVerticesSelection(selectionBuffer, group);
     }
 
@@ -943,68 +928,110 @@ public class VeinBuddyClient implements ClientModInitializer {
       buildVerticesWallBlockGroup(wallBuffer, group);
       buildVerticesWallBlockGroupOutline(gridBuffer, group);
     }
+
     // flip buffers for reading
+    selectionWireframeBuffer.flip();
     selectionBuffer.flip();
     wallBuffer.flip();
     gridBuffer.flip();
-    updateBuffers = true;
+
+    if (null != selectionWireframeVertexBuffer) selectionWireframeVertexBuffer.close();
+    selectionWireframeVertexBuffer = RenderSystem.getDevice().createBuffer(() -> "Wireframes", 0, selectionWireframeBuffer);
+    if (null != selectionVertexBuffer) selectionVertexBuffer.close();
+    selectionVertexBuffer = RenderSystem.getDevice().createBuffer(() -> "Selections", 0, selectionBuffer);
+    if (null != wallVertexBuffer) wallVertexBuffer.close();
+    wallVertexBuffer = RenderSystem.getDevice().createBuffer(() -> "Walls", 0, wallBuffer);
+    if (null != gridVertexBuffer) gridVertexBuffer.close();
+    gridVertexBuffer = RenderSystem.getDevice().createBuffer(() -> "Grids", 0, gridBuffer);
   }
 
-  private void afterTranslucent(WorldRenderContext ctx) {
-    if (selections.isEmpty() || !render) return;
+  private void onRender(WorldRenderContext ctx) {
+    if (!render) return;
 
     Vec3d camPos = ctx.camera().getPos();
     Vector3f camVec = new Vector3f(-(float)camPos.getX(), -(float)camPos.getY(), -(float)camPos.getZ());
     Quaternionf camQuat = ctx.camera().getRotation().invert();
 
-    FloatBuffer mat = (new Matrix4f(ctx.projectionMatrix())).rotate(camQuat).translate(camVec).get(BufferUtils.createFloatBuffer(16));
+    ByteBuffer mat = (new Matrix4f(ctx.projectionMatrix())).rotate(camQuat).translate(camVec).get(BufferUtils.createByteBuffer(64));
+    GpuBuffer matBuffer = RenderSystem.getDevice().createBuffer(() -> "u_projection", 0, mat);
 
-    RenderSystem.enableBlend();
-    RenderSystem.disableCull();
+    Framebuffer fb = BlockRenderLayerGroup.TRANSLUCENT.getFramebuffer();
 
-    if (updateBuffers) {
-      GL30.glBindBuffer(GL30.GL_ARRAY_BUFFER, selectionVBO);
-      GL30.glBufferData(GL30.GL_ARRAY_BUFFER, selectionBuffer, GL30.GL_STATIC_DRAW);
-      GL30.glBindBuffer(GL30.GL_ARRAY_BUFFER, wallVBO);
-      GL30.glBufferData(GL30.GL_ARRAY_BUFFER, wallBuffer, GL30.GL_STATIC_DRAW);
-      GL30.glBindBuffer(GL30.GL_ARRAY_BUFFER, gridVBO);
-      GL30.glBufferData(GL30.GL_ARRAY_BUFFER, gridBuffer, GL30.GL_STATIC_DRAW);
+    CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
+
+    if (null != posBlock) {
+      refreshPosBlockBuffer();
+      RenderPass posBlockPass = encoder.createRenderPass(
+       () -> "PositionBlock",
+       fb.getColorAttachmentView(),
+       OptionalInt.empty(),
+       fb.getDepthAttachmentView(),
+       OptionalDouble.empty()
+      );
+      posBlockPass.setPipeline(WIREFRAMES);
+      posBlockPass.setUniform("u_projection", matBuffer);
+      posBlockPass.setVertexBuffer(0, posBlockVertexBuffer);
+      posBlockPass.draw(0, posBlockVertexCount);
+      posBlockPass.close();
     }
 
-    GL30.glBindBuffer(GL30.GL_ARRAY_BUFFER, selectionVBO);
-    GL30.glBindVertexArray(vao);
-    GL30.glEnableVertexAttribArray(0);
-    GL30.glVertexAttribPointer(0, 3, GL30.GL_FLOAT, false, 0, 0);
+    if (selections.isEmpty()) return;
 
-    GL30.glUseProgram(selectionShaderProgram);
-    GL30.glUniformMatrix4fv(GL30.glGetUniformLocation(selectionShaderProgram, "u_projection"), false, mat);
-    GL30.glDrawArrays(GL30.GL_TRIANGLES, 0, selectionBuffer.capacity() / 3 / 4); //three floats per vertex, four bytes per float
-    GL30.glUseProgram(0);
+    if (showOutlines) {
+      RenderPass selectionWireframePass = encoder.createRenderPass(
+        () -> "SelectionWireframes",
+        fb.getColorAttachmentView(),
+        OptionalInt.empty(),
+        fb.getDepthAttachmentView(),
+        OptionalDouble.empty()
+      );
+      selectionWireframePass.setPipeline(WIREFRAMES); 
+      selectionWireframePass.setUniform("u_projection", matBuffer);
+      selectionWireframePass.setVertexBuffer(0, selectionWireframeVertexBuffer);
+      selectionWireframePass.draw(0, selectionWireframeVertexCount);
+      selectionWireframePass.close();
+    }
 
-    GL30.glBindBuffer(GL30.GL_ARRAY_BUFFER, wallVBO);
-    GL30.glBindVertexArray(vao);
-    GL30.glEnableVertexAttribArray(0);
-    GL30.glVertexAttribPointer(0, 3, GL30.GL_FLOAT, false, 0, 0);
+    RenderPass selectionsPass = encoder.createRenderPass(
+      () -> "Selections",
+      fb.getColorAttachmentView(),
+      OptionalInt.empty(),
+      fb.getDepthAttachmentView(),
+      OptionalDouble.empty()
+    );
+    selectionsPass.setPipeline(SELECTIONS); 
+    selectionsPass.setVertexBuffer(0, selectionVertexBuffer);
+    selectionsPass.setUniform("u_projection", matBuffer);
+    selectionsPass.draw(0, selectionVertexCount);
+    selectionsPass.close();
 
-    GL30.glUseProgram(wallShaderProgram);
-    GL30.glUniformMatrix4fv(GL30.glGetUniformLocation(wallShaderProgram, "u_projection"), false, mat);
-    GL30.glDrawArrays(GL30.GL_TRIANGLES, 0, wallBuffer.capacity() / 3 / 4); //three floats per vertex, four bytes per float
-    GL30.glUseProgram(0);
+    RenderPass wallsPass = encoder.createRenderPass(
+      () -> "Walls",
+      fb.getColorAttachmentView(),
+      OptionalInt.empty(),
+      fb.getDepthAttachmentView(),
+      OptionalDouble.empty()
+    );
+    wallsPass.setPipeline(WALLS);
+    wallsPass.setVertexBuffer(0, wallVertexBuffer);
+    wallsPass.setUniform("u_projection", matBuffer);
+    wallsPass.draw(0, wallVertexCount);
+    wallsPass.close();
 
-    GL30.glBindBuffer(GL30.GL_ARRAY_BUFFER, gridVBO);
-    GL30.glBindVertexArray(vao);
-    GL30.glEnableVertexAttribArray(0);
-    GL30.glVertexAttribPointer(0, 3, GL30.GL_FLOAT, false, 0, 0);
+    RenderPass gridsPass = encoder.createRenderPass(
+      () -> "Walls",
+      fb.getColorAttachmentView(),
+      OptionalInt.empty(),
+      fb.getDepthAttachmentView(),
+      OptionalDouble.empty()
+    );
+    gridsPass.setPipeline(GRIDS);
+    gridsPass.setVertexBuffer(0, gridVertexBuffer);
+    gridsPass.setUniform("u_projection", matBuffer);
+    gridsPass.draw(0, gridVertexCount);
+    gridsPass.close();
 
-    GL30.glUseProgram(gridShaderProgram);
-    GL30.glUniformMatrix4fv(GL30.glGetUniformLocation(gridShaderProgram, "u_projection"), false, mat);
-    GL30.glDrawArrays(GL30.GL_LINES, 0, gridBuffer.capacity() / 3 / 4); //three vertices per vertex, four bytes per float
-    GL30.glUseProgram(0);
-
-    updateBuffers = false;
-
-    RenderSystem.disableBlend();
-    RenderSystem.enableCull();
+    matBuffer.close();
   }
 
   private void buildVerticesSelection(ByteBuffer vertices, WallGroup group) {
@@ -1124,7 +1151,7 @@ public class VeinBuddyClient implements ClientModInitializer {
     vertices.putFloat(g.v00.z);
   }
 
-  private void buildVerticesOutline(BufferBuilder buffer, Matrix4f mat, Vec3i block){
+  private void buildVerticesOutline(ByteBuffer vertices, Vec3i block){
     float minX = (float)block.getX();
     float minY = (float)block.getY();
     float minZ = (float)block.getZ();
@@ -1133,32 +1160,101 @@ public class VeinBuddyClient implements ClientModInitializer {
     float maxY = minY + 1.0f;
     float maxZ = minZ + 1.0f;
 
-    buffer.vertex(mat, minX, minY, minZ).color(0xFF000000);
-    buffer.vertex(mat, minX, minY, maxZ).color(0xFF000000);
-    buffer.vertex(mat, minX, minY, maxZ).color(0xFF000000);
-    buffer.vertex(mat, maxX, minY, maxZ).color(0xFF000000);
-    buffer.vertex(mat, maxX, minY, maxZ).color(0xFF000000);
-    buffer.vertex(mat, maxX, minY, minZ).color(0xFF000000);
-    buffer.vertex(mat, maxX, minY, minZ).color(0xFF000000);
-    buffer.vertex(mat, minX, minY, minZ).color(0xFF000000);
+    vertices.putFloat(minX);
+    vertices.putFloat(minY);
+    vertices.putFloat(minZ);
 
-    buffer.vertex(mat, minX, maxY, minZ).color(0xFF000000);
-    buffer.vertex(mat, minX, maxY, maxZ).color(0xFF000000);
-    buffer.vertex(mat, minX, maxY, maxZ).color(0xFF000000);
-    buffer.vertex(mat, maxX, maxY, maxZ).color(0xFF000000);
-    buffer.vertex(mat, maxX, maxY, maxZ).color(0xFF000000);
-    buffer.vertex(mat, maxX, maxY, minZ).color(0xFF000000);
-    buffer.vertex(mat, maxX, maxY, minZ).color(0xFF000000);
-    buffer.vertex(mat, minX, maxY, minZ).color(0xFF000000);
+    vertices.putFloat(minX);
+    vertices.putFloat(minY);
+    vertices.putFloat(maxZ);
 
-    buffer.vertex(mat, minX, minY, minZ).color(0xFF000000);
-    buffer.vertex(mat, minX, maxY, minZ).color(0xFF000000);
-    buffer.vertex(mat, minX, minY, maxZ).color(0xFF000000);
-    buffer.vertex(mat, minX, maxY, maxZ).color(0xFF000000);
-    buffer.vertex(mat, maxX, minY, maxZ).color(0xFF000000);
-    buffer.vertex(mat, maxX, maxY, maxZ).color(0xFF000000);
-    buffer.vertex(mat, maxX, minY, minZ).color(0xFF000000);
-    buffer.vertex(mat, maxX, maxY, minZ).color(0xFF000000);
+    vertices.putFloat(minX);
+    vertices.putFloat(minY);
+    vertices.putFloat(maxZ);
+
+    vertices.putFloat(maxX);
+    vertices.putFloat(minY);
+    vertices.putFloat(maxZ);
+
+    vertices.putFloat(maxX);
+    vertices.putFloat(minY);
+    vertices.putFloat(maxZ);
+
+    vertices.putFloat(maxX);
+    vertices.putFloat(minY);
+    vertices.putFloat(minZ);
+
+    vertices.putFloat(maxX);
+    vertices.putFloat(minY);
+    vertices.putFloat(minZ);
+
+    vertices.putFloat(minX);
+    vertices.putFloat(minY);
+    vertices.putFloat(minZ);
+
+    vertices.putFloat(minX);
+    vertices.putFloat(maxY);
+    vertices.putFloat(minZ);
+
+    vertices.putFloat(minX);
+    vertices.putFloat(maxY);
+    vertices.putFloat(maxZ);
+
+    vertices.putFloat(minX);
+    vertices.putFloat(maxY);
+    vertices.putFloat(maxZ);
+
+    vertices.putFloat(maxX);
+    vertices.putFloat(maxY);
+    vertices.putFloat(maxZ);
+
+    vertices.putFloat(maxX);
+    vertices.putFloat(maxY);
+    vertices.putFloat(maxZ);
+
+    vertices.putFloat(maxX);
+    vertices.putFloat(maxY);
+    vertices.putFloat(minZ);
+
+    vertices.putFloat(maxX);
+    vertices.putFloat(maxY);
+    vertices.putFloat(minZ);
+
+    vertices.putFloat(minX);
+    vertices.putFloat(maxY);
+    vertices.putFloat(minZ);
+
+    vertices.putFloat(minX);
+    vertices.putFloat(minY);
+    vertices.putFloat(minZ);
+
+    vertices.putFloat(minX);
+    vertices.putFloat(maxY);
+    vertices.putFloat(minZ);
+
+    vertices.putFloat(minX);
+    vertices.putFloat(minY);
+    vertices.putFloat(maxZ);
+
+    vertices.putFloat(minX);
+    vertices.putFloat(maxY);
+    vertices.putFloat(maxZ);
+
+    vertices.putFloat(maxX);
+    vertices.putFloat(minY);
+    vertices.putFloat(maxZ);
+
+    vertices.putFloat(maxX);
+    vertices.putFloat(maxY);
+    vertices.putFloat(maxZ);
+
+    vertices.putFloat(maxX);
+    vertices.putFloat(minY);
+    vertices.putFloat(maxZ);
+
+    vertices.putFloat(maxX);
+    vertices.putFloat(maxY);
+    vertices.putFloat(maxZ);
   }
 
   private class WallVertexGroup {
