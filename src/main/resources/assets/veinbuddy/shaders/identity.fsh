@@ -1,4 +1,4 @@
-#version 300 es
+#version 460
 
 in mediump vec4 vertexColor;
 
