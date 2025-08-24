@@ -221,7 +221,7 @@ public class VeinBuddyClient implements ClientModInitializer {
       FileWriter fileWriter = new FileWriter(saveFile, false);
       fileWriter.write("Version 2\n");
       for (Vec3i selection : selections) {
-	 Vec3i ranges = selectionRanges.get(selection);
+         Vec3i ranges = selectionRanges.get(selection);
          fileWriter.write(selection.getX() + " " + selection.getY() + " " + selection.getZ() + " " + ranges.getX() + " " + ranges.getY() + " " + ranges.getZ() + "\n");
       }
       fileWriter.close();
@@ -234,42 +234,48 @@ public class VeinBuddyClient implements ClientModInitializer {
   private void onStart(MinecraftClient client) {
     File configFile = getConfigFile(client);
     File saveFile = getSaveFile(client);
-    if (null != configFile) {
+    if (configFile.exists()) {
       try {
         Scanner sc = new Scanner(configFile);
+	if (null != sc.findInLine("\\d+ \\d+ \\d+")) {
           int x = sc.nextInt();
           int y = sc.nextInt();
           int z = sc.nextInt();
-	  digRange = new Vec3i(x, y, z);
+          digRange = new Vec3i(x, y, z);
+	}
       } catch (IOException e) {
         System.out.println("Mad!");
       }
     }
-    if (null == saveFile)
+    if (null == saveFile || !saveFile.exists())
       return;
     try {
       Scanner sc = new Scanner(saveFile);
-      String found = sc.next("Version \\d*");
-      if (null == found) { // Version 1
-        while (sc.hasNext()){
+      if (!sc.hasNext("Version")) { //Version 1
+        while (null != sc.findInLine("\\d+ \\d+ \\d+")) {
           int x = sc.nextInt();
           int y = sc.nextInt();
           int z = sc.nextInt();
           addSelection(new Vec3i(x, y, z), new Vec3i(defaultDigRange, defaultDigRange, defaultDigRange), true);
           sc.nextLine();
         }
-      } else if ("Version 2" == found) { // Version 2
-	sc.nextLine();
-        while (sc.hasNext()){
-	  int x = sc.nextInt();
-	  int y = sc.nextInt();
-	  int z = sc.nextInt();
-          int xRange = sc.nextInt();
-          int yRange = sc.nextInt();
-	  int zRange = sc.nextInt();
-          addSelection(new Vec3i(x, y, z), new Vec3i(xRange, yRange, zRange), true);
+      } 
+      else {
+	sc.next();
+        String found = sc.next("\\d+");
+        if (found.equals("2")) { // Version 2
           sc.nextLine();
-	}
+	  while (sc.hasNext()) {
+            int x = sc.nextInt();
+            int y = sc.nextInt();
+            int z = sc.nextInt();
+            int xRange = sc.nextInt();
+            int yRange = sc.nextInt();
+            int zRange = sc.nextInt();
+            addSelection(new Vec3i(x, y, z), new Vec3i(xRange, yRange, zRange), true);
+            sc.nextLine();
+	  }
+        }
       }
     } catch (IOException e) {
       System.out.println("Bad!");
