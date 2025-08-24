@@ -94,6 +94,7 @@ public class VeinBuddyClient implements ClientModInitializer {
   private final static double placeRange = 6.0;
   private final static int maxTicks = (int) (placeRange / speed);
   private final static int delay = 5;
+  private final static float adjustment = .05f;
 
   private Vec3i digRange = new Vec3i(defaultDigRange, defaultDigRange, defaultDigRange);
 
@@ -560,7 +561,6 @@ public class VeinBuddyClient implements ClientModInitializer {
     float maxX = minX + 1.0f;
     float maxY = minY + 1.0f;
     float maxZ = minZ + 1.0f;
-    float adjustment = 0.01f;
     minX -= adjustment;
     minY -= adjustment;
     minZ -= adjustment;
@@ -709,7 +709,6 @@ public class VeinBuddyClient implements ClientModInitializer {
     float maxX = minX + 1.0f;
     float maxY = minY + 1.0f;
     float maxZ = minZ + 1.0f;
-    float adjustment = 0.01f;
 
     float maxXAdjusted = maxX;
     float maxYAdjusted = maxY;
