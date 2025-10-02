@@ -20,6 +20,7 @@ import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
@@ -79,6 +80,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
+import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -88,7 +90,7 @@ import org.joml.Vector4f;
 public class VeinBuddyClient implements ClientModInitializer {
 
   private final static MinecraftClient mc = MinecraftClient.getInstance();
-  private final static int defaultDigRange = 7;
+  private final static int defaultDigRange = 5;
   private final static double speed = 0.2f;
   private final static double radius = 0.5;
   private final static double placeRange = 6.0;
@@ -106,6 +108,12 @@ public class VeinBuddyClient implements ClientModInitializer {
   private int changeNumber = 0;
   private boolean showOutlines = false;
   private boolean render = true;
+  
+  // Sharing functionality
+  private boolean sharingEnabled = false;
+  private String shareGroup = "Bozos";
+  private Map<Vec3i, Long> selectionTimestamps = new ConcurrentHashMap<Vec3i, Long>();
+  private Set<Vec3i> sharedSelections = new ConcurrentSkipListSet<Vec3i>();
 
   private Set<Vec3i> selections = new ConcurrentSkipListSet<Vec3i>();
   private Map<Vec3i, Vec3i> selectionRanges = new ConcurrentHashMap<Vec3i, Vec3i>();
@@ -144,7 +152,9 @@ public class VeinBuddyClient implements ClientModInitializer {
     ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> onStart(client));
     ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
     ClientTickEvents.END_CLIENT_TICK.register(this::saveSelections);
+    ClientTickEvents.END_CLIENT_TICK.register(this::checkForSharingOpportunities);
     WorldRenderEvents.LAST.register(this::onRender);
+    ClientReceiveMessageEvents.GAME.register(this::onChatMessage);
 
     ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
       ClientCommandManager.literal("veinbuddy")
@@ -159,6 +169,11 @@ public class VeinBuddyClient implements ClientModInitializer {
       .then(ClientCommandManager.literal("hideOutlines").executes(this::onHideOutlines))
       .then(ClientCommandManager.literal("showOutlines").executes(this::onShowOutlines))
       .then(ClientCommandManager.literal("toggleRender").executes(this::onToggleRender))
+      .then(ClientCommandManager.literal("shareGroup")
+        .then(ClientCommandManager.argument("groupName", StringArgumentType.string())
+          .executes(this::onSetShareGroup)))
+      .then(ClientCommandManager.literal("enableSharing").executes(this::onEnableSharing))
+      .then(ClientCommandManager.literal("disableSharing").executes(this::onDisableSharing))
     ));
   }
 
@@ -397,6 +412,92 @@ public class VeinBuddyClient implements ClientModInitializer {
     return 0;
   }
 
+  private int onSetShareGroup(CommandContext<FabricClientCommandSource> ctx) {
+    shareGroup = StringArgumentType.getString(ctx, "groupName");
+    mc.player.sendMessage(Text.literal("§aVeinBuddy sharing group set to: " + shareGroup), false);
+    return 0;
+  }
+
+  private int onEnableSharing(CommandContext<FabricClientCommandSource> ctx) {
+    if (shareGroup.isEmpty()) {
+      mc.player.sendMessage(Text.literal("§cPlease set a share group first with /veinbuddy shareGroup <groupName>"), false);
+      return 1;
+    }
+    sharingEnabled = true;
+    mc.player.sendMessage(Text.literal("§aVeinBuddy sharing enabled for group: " + shareGroup), false);
+    return 0;
+  }
+
+  private int onDisableSharing(CommandContext<FabricClientCommandSource> ctx) {
+    sharingEnabled = false;
+    mc.player.sendMessage(Text.literal("§cVeinBuddy sharing disabled"), false);
+    return 0;
+  }
+
+  private void onChatMessage(Text message, boolean overlay) {
+    if (overlay) return;
+    String messageString = message.getString();
+    
+    if (messageString.contains("[VeinBuddy]") && messageString.contains("MARK:")) {
+      // Parse format: [VeinBuddy] MARK: x y z xRange yRange zRange
+      String[] parts = messageString.split("MARK:")[1].trim().split(" ");
+      if (parts.length >= 6) {
+        try {
+          int x = Integer.parseInt(parts[0]);
+          int y = Integer.parseInt(parts[1]);
+          int z = Integer.parseInt(parts[2]);
+          int xRange = Integer.parseInt(parts[3]);
+          int yRange = Integer.parseInt(parts[4]);
+          int zRange = Integer.parseInt(parts[5]);
+          
+          Vec3i selection = new Vec3i(x, y, z);
+          Vec3i range = new Vec3i(xRange, yRange, zRange);
+          
+          // Only import if we don't already have this selection
+          if (!selections.contains(selection)) {
+            addSelection(selection, range, true);
+            mc.player.sendMessage(Text.literal("§aImported VeinBuddy mark at " + x + " " + y + " " + z), false);
+          }
+        } catch (NumberFormatException e) {
+          // Ignore malformed messages
+        }
+      }
+    }
+  }
+
+  private void checkForSharingOpportunities(MinecraftClient client) {
+    if (!sharingEnabled || shareGroup.isEmpty() || client.player == null) {
+      return;
+    }
+    
+    long currentTime = System.currentTimeMillis();
+    
+    // Check selections that are old enough to share (10 seconds)
+    for (Vec3i selection : selections) {
+      if (!sharedSelections.contains(selection)) {
+        Long timestamp = selectionTimestamps.get(selection);
+        if (timestamp != null && (currentTime - timestamp) >= 10000) {
+          // This selection is ready to be shared
+          Vec3i range = selectionRanges.get(selection);
+          if (range != null) {
+            shareSelection(selection, range);
+            sharedSelections.add(selection);
+          }
+        }
+      }
+    }
+  }
+
+  private void shareSelection(Vec3i selection, Vec3i range) {
+    String message = String.format("[VeinBuddy] MARK: %d %d %d %d %d %d", 
+        selection.getX(), selection.getY(), selection.getZ(),
+        range.getX(), range.getY(), range.getZ());
+    
+    // Send to namelayer group
+    String command = "/g " + shareGroup + " " + message;
+    mc.getNetworkHandler().sendChatCommand(command.substring(1)); // Remove the leading /
+  }
+
   private void onTick(MinecraftClient client) {
     if (null == client.player) return;
     if (null == client.mouse) return;
@@ -585,6 +686,11 @@ public class VeinBuddyClient implements ClientModInitializer {
     }
     selectionRanges.put(selection, range);
     selections.add(selection);
+    
+    // Record timestamp for sharing (only for new selections, not bulk imports)
+    if (!bulk) {
+      selectionTimestamps.put(selection, System.currentTimeMillis());
+    }
 
     if (!bulk) {
       changeNumber += 1;
@@ -619,6 +725,10 @@ public class VeinBuddyClient implements ClientModInitializer {
     selectionNeighbors.remove(selection);
     selectionRanges.remove(selection);
     selections.remove(selection);
+    
+    // Clean up sharing-related data
+    selectionTimestamps.remove(selection);
+    sharedSelections.remove(selection);
 
     Set<Vec3i> caught = new HashSet<Vec3i>();
     Set<Vec3i> orphaned = new HashSet<Vec3i>();
