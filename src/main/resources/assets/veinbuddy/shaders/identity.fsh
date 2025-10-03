@@ -1,9 +1,9 @@
 #version 460
 
-in mediump vec4 vertexColor;
+uniform mediump vec4 color;
 
 out mediump vec4 fragmentColor;
 
 void main() {
-  fragmentColor = vertexColor;
+  fragmentColor = color;
 }
