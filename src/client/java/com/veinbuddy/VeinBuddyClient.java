@@ -1,89 +1,36 @@
 package com.veinbuddy;
 
-import org.lwjgl.BufferUtils;
-import org.lwjgl.glfw.GLFW;
-import org.lwjgl.opengl.GLCapabilities;
-import org.lwjgl.opengl.GL30;
-import org.lwjgl.opengl.GL46;
-import org.lwjgl.system.MemoryUtil;
-
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.StringUtils;
-
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.platform.TextureUtil;
-import com.mojang.blaze3d.systems.CommandEncoder;
-import com.mojang.blaze3d.systems.RenderPass;
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
-import com.mojang.brigadier.builder.ArgumentBuilder;
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
-
-import java.io.File;
-import java.io.FileWriter;
-import java.io.InputStream;
-import java.io.IOException;
-import java.lang.Math;
-import java.nio.charset.StandardCharsets;
-import java.nio.ByteBuffer;
-import java.nio.FloatBuffer;
-import java.util.ArrayList;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ConcurrentSkipListSet;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Optional;
-import java.util.OptionalDouble;
-import java.util.OptionalInt;
-import java.util.Queue;
-import java.util.Set;
-import java.util.Scanner;
-import java.util.Spliterator;
-
-import net.minecraft.client.gl.Framebuffer;
-import net.minecraft.client.gl.GlImportProcessor;
-import net.minecraft.client.gl.UniformType;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.Mouse;
-import net.minecraft.client.render.*;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.client.network.ServerInfo;
-import net.minecraft.item.Item;
-import net.minecraft.text.Text;
-import net.minecraft.resource.Resource;
-import net.minecraft.resource.ResourceFactory;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.Position;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.math.Vec3i;
-
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gl.RenderPipelines;
+import net.minecraft.client.gl.UniformType;
+import net.minecraft.client.network.ServerInfo;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexFormats;
+import net.minecraft.item.Item;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.Vec3i;
+import org.joml.Vector3i;
 
-import org.joml.Matrix4f;
-import org.joml.Quaternionf;
-import org.joml.Vector3f;
-import org.joml.Vector4f;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
 
 public class VeinBuddyClient implements ClientModInitializer {
 
@@ -107,16 +54,6 @@ public class VeinBuddyClient implements ClientModInitializer {
   private boolean showOutlines = false;
   private boolean render = true;
 
-  private Set<Vec3i> selections = new ConcurrentSkipListSet<Vec3i>();
-  private Map<Vec3i, Vec3i> selectionRanges = new ConcurrentHashMap<Vec3i, Vec3i>();
-  private Map<Vec3i, Set<Vec3i>> selectionNeighbors = new ConcurrentHashMap<Vec3i, Set<Vec3i>>();
-
-  private Map<Vec3i, WallGroup> selectionWalls = new ConcurrentHashMap<Vec3i, WallGroup>();
-
-  private Set<Vec3i> boundary = new ConcurrentSkipListSet<Vec3i>();
-  private Set<Vec3i> wallBlocks = new ConcurrentSkipListSet<Vec3i>();
-  private Map<Vec3i, WallGroup> wallBlockWalls = new ConcurrentHashMap<Vec3i, WallGroup>();
-
   private GpuBuffer posBlockVertexBuffer = null;
   private int posBlockVertexCount = 0;
   private GpuBuffer selectionWireframeVertexBuffer = null;
@@ -128,29 +65,31 @@ public class VeinBuddyClient implements ClientModInitializer {
   private GpuBuffer gridVertexBuffer = null;
   private int gridVertexCount = 0;
 
-  private int identityShaderProgram = 0;
-  private int selectionShaderProgram = 0;
-  private int wallShaderProgram = 0;
-  private int gridShaderProgram = 0; 
-
-  private RenderPipeline WIREFRAMES = null;
-  private RenderPipeline SELECTIONS = null;
-  private RenderPipeline WALLS = null;
-  private RenderPipeline GRIDS = null;
+  private final RenderPipeline WALLS = RenderPipeline.builder()
+          .withLocation(Identifier.of("veinbuddy", "walls_pipeline"))
+          .withVertexShader(Identifier.of("veinbuddy", "identity"))
+          .withFragmentShader(Identifier.of("veinbuddy", "identity"))
+          .withBlend(BlendFunction.TRANSLUCENT)
+          .withVertexFormat(VertexFormats.POSITION, VertexFormat.DrawMode.QUADS)
+          .withUniform("u_projection", UniformType.UNIFORM_BUFFER)
+          .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
+          .withColorWrite(true,true)
+          //.withDepthBias()
+          .withCull(false)
+          .build();
 
   @Override
   public void onInitializeClient() {
     ClientLifecycleEvents.CLIENT_STARTED.register(this::createPipelines);
-    ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> onStart(client));
+    //ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> onStart(client));
     ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
-    ClientTickEvents.END_CLIENT_TICK.register(this::saveSelections);
-    WorldRenderEvents.LAST.register(this::onRender);
+    //ClientTickEvents.END_CLIENT_TICK.register(this::saveSelections);
+    WorldRenderEvents.BEFORE_DEBUG_RENDER.register(this::onRender);
+
+    buildMesh();
 
     ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
       ClientCommandManager.literal("veinbuddy")
-      .then(ClientCommandManager.literal("clearAll").executes(this::onClearAll))
-      .then(ClientCommandManager.literal("clearFar").executes(this::onClearFar))
-      .then(ClientCommandManager.literal("clearNear").executes(this::onClearNear))
       .then(ClientCommandManager.literal("digRange")
         .then(ClientCommandManager.argument("x", IntegerArgumentType.integer(1, 10))
         .then(ClientCommandManager.argument("y", IntegerArgumentType.integer(1, 10))
@@ -175,196 +114,93 @@ public class VeinBuddyClient implements ClientModInitializer {
   }
 
   private void createPipelines(MinecraftClient client) {
-    WIREFRAMES = RenderPipeline.builder()
-      .withLocation(Identifier.of("veinbuddy", "triangle_pipeline"))
-      .withVertexShader(Identifier.of("veinbuddy", "wireframes"))
-      .withFragmentShader(Identifier.of("veinbuddy", "identity"))
-      .withBlend(BlendFunction.TRANSLUCENT)
-      .withVertexFormat(VertexFormats.POSITION, VertexFormat.DrawMode.DEBUG_LINES)
-      .withUniform("u_projection", UniformType.UNIFORM_BUFFER)
-      .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-      .build();
-    SELECTIONS = RenderPipeline.builder()
-      .withLocation(Identifier.of("veinbuddy", "selections_pipeline"))
-      .withVertexShader(Identifier.of("veinbuddy", "selections"))
-      .withFragmentShader(Identifier.of("veinbuddy", "identity"))
-      .withBlend(BlendFunction.TRANSLUCENT)
-      .withVertexFormat(VertexFormats.POSITION, VertexFormat.DrawMode.TRIANGLES)
-      .withUniform("u_projection", UniformType.UNIFORM_BUFFER)
-      .withCull(false)
-      .build();
-    WALLS = RenderPipeline.builder()
-      .withLocation(Identifier.of("veinbuddy", "walls_pipeline"))
-      .withVertexShader(Identifier.of("veinbuddy", "walls"))
-      .withFragmentShader(Identifier.of("veinbuddy", "identity"))
-      .withBlend(BlendFunction.TRANSLUCENT)
-      .withVertexFormat(VertexFormats.POSITION, VertexFormat.DrawMode.TRIANGLES)
-      .withUniform("u_projection", UniformType.UNIFORM_BUFFER)
-      .withCull(false)
-      .build();
-    GRIDS = RenderPipeline.builder()
-      .withLocation(Identifier.of("veinbuddy", "grids_pipeline"))
-      .withVertexShader(Identifier.of("veinbuddy", "grids"))
-      .withFragmentShader(Identifier.of("veinbuddy", "identity"))
-      .withBlend(BlendFunction.TRANSLUCENT)
-      .withVertexFormat(VertexFormats.POSITION, VertexFormat.DrawMode.DEBUG_LINES)
-      .withUniform("u_projection", UniformType.UNIFORM_BUFFER)
-      .build();
+//    WALLS = RenderPipeline.builder()
+//            .withLocation(Identifier.of("veinbuddy", "walls_pipeline"))
+//            .withVertexShader(Identifier.of("veinbuddy", "identity"))
+//            .withFragmentShader(Identifier.of("veinbuddy", "identity"))
+//            .withBlend(BlendFunction.TRANSLUCENT)
+//            .withVertexFormat(VertexFormats.POSITION, VertexFormat.DrawMode.QUADS)
+//            .withUniform("u_projection", UniformType.UNIFORM_BUFFER)
+//            .withUniform("color", UniformType.UNIFORM_BUFFER)
+//            .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
+//            .withColorWrite(true,true)
+//            //.withDepthBias()
+//            .withCull(false)
+//            .build();
   }
 
-  private void saveSelections(MinecraftClient client) {
-    if (!(changeNumber > saveNumber)) return;
-    try {
-      File saveFile = getSaveFile(client);
-      if (null == saveFile)
-        return;
-      saveFile.getParentFile().mkdirs();
-      FileWriter fileWriter = new FileWriter(saveFile, false);
-      fileWriter.write("Version 2\n");
-      for (Vec3i selection : selections) {
-         Vec3i ranges = selectionRanges.get(selection);
-         fileWriter.write(selection.getX() + " " + selection.getY() + " " + selection.getZ() + " " + ranges.getX() + " " + ranges.getY() + " " + ranges.getZ() + "\n");
-      }
-      fileWriter.close();
-      saveNumber = changeNumber;
-    } catch (IOException e){
-      System.out.println("Sad!");
-    }
-  }
+//  private void saveSelections(MinecraftClient client) {
+//    if (!(changeNumber > saveNumber)) return;
+//    try {
+//      File saveFile = getSaveFile(client);
+//      if (null == saveFile)
+//        return;
+//      saveFile.getParentFile().mkdirs();
+//      FileWriter fileWriter = new FileWriter(saveFile, false);
+//      fileWriter.write("Version 2\n");
+//      for (Vec3i selection : selections) {
+//         Vec3i ranges = selectionRanges.get(selection);
+//         fileWriter.write(selection.getX() + " " + selection.getY() + " " + selection.getZ() + " " + ranges.getX() + " " + ranges.getY() + " " + ranges.getZ() + "\n");
+//      }
+//      fileWriter.close();
+//      saveNumber = changeNumber;
+//    } catch (IOException e){
+//      System.out.println("Sad!");
+//    }
+//  }
 
-  private void onStart(MinecraftClient client) {
-    File configFile = getConfigFile(client);
-    File saveFile = getSaveFile(client);
-    if (configFile.exists()) {
-      try {
-        Scanner sc = new Scanner(configFile);
-	if (null != sc.findInLine("\\d+ \\d+ \\d+")) {
-          int x = sc.nextInt();
-          int y = sc.nextInt();
-          int z = sc.nextInt();
-          digRange = new Vec3i(x, y, z);
-	}
-      } catch (IOException e) {
-        System.out.println("Mad!");
-      }
-    }
-    if (null == saveFile || !saveFile.exists())
-      return;
-    try {
-      Scanner sc = new Scanner(saveFile);
-      if (!sc.hasNext("Version")) { //Version 1
-        while (null != sc.findInLine("\\d+ \\d+ \\d+")) {
-          int x = sc.nextInt();
-          int y = sc.nextInt();
-          int z = sc.nextInt();
-          addSelection(new Vec3i(x, y, z), new Vec3i(defaultDigRange, defaultDigRange, defaultDigRange), true);
-          sc.nextLine();
-        }
-      } 
-      else {
-	sc.next();
-        String found = sc.next("\\d+");
-        if (found.equals("2")) { // Version 2
-          sc.nextLine();
-	  while (sc.hasNext()) {
-            int x = sc.nextInt();
-            int y = sc.nextInt();
-            int z = sc.nextInt();
-            int xRange = sc.nextInt();
-            int yRange = sc.nextInt();
-            int zRange = sc.nextInt();
-            addSelection(new Vec3i(x, y, z), new Vec3i(xRange, yRange, zRange), true);
-            sc.nextLine();
-	  }
-        }
-      }
-    } catch (IOException e) {
-      System.out.println("Bad!");
-    }
-    updateWalls();
-    refreshBuffer();
-  }
-
-  private int onClearAll(CommandContext<FabricClientCommandSource> ctx) {
-    selections = new ConcurrentSkipListSet<Vec3i>();
-    selectionWalls = new ConcurrentHashMap<Vec3i, WallGroup>();
-
-    boundary = new ConcurrentSkipListSet<Vec3i>();
-    wallBlocks = new ConcurrentSkipListSet<Vec3i>();
-    wallBlockWalls = new ConcurrentHashMap<Vec3i, WallGroup>();
-
-    changeNumber += 1;
-
-    return 0;
-  }
-
-  private int onClearNear(CommandContext<FabricClientCommandSource> ctx) {
-    onClear(true);
-    return 0;
-  }
-
-  private int onClearFar(CommandContext<FabricClientCommandSource> ctx) {
-    onClear(false);
-    return 0;
-  }
-
-  private static Vec3i find(Map<Vec3i, Vec3i> vecMap, Vec3i vec) {
-     Vec3i parent = vecMap.get(vec);
-     if (vec == parent) 
-       return parent;
-     parent = find(vecMap, parent);
-     vecMap.put(vec, parent);
-     return parent;
-  }
-
-  private void onClear(boolean clearNear) {
-    Vec3d pos = mc.player.getPos();
-    posBlock = new Vec3i((int)Math.floor(pos.getX()), 
-                         (int)Math.floor(pos.getY()), 
-	                 (int)Math.floor(pos.getZ()));
-
-    Map<Vec3i, Vec3i> selectionGroup = new HashMap<Vec3i, Vec3i>();
-    Set<Vec3i> nearSelections = new HashSet<Vec3i>();
-
-    for (Vec3i selection : selections) {
-      Vec3i distance = selection.subtract(posBlock);
-      Vec3i range = selectionRanges.get(selection);
-      if (Math.abs(distance.getX()) <= range.getX() &&
-          Math.abs(distance.getY()) <= range.getY() &&
-          Math.abs(distance.getZ()) <= range.getZ())
-        nearSelections.add(selection);
-    }
-
-    for (Vec3i selection : selections) {
-      selectionGroup.put(selection, selection);
-    }
-    for (Vec3i selection : selections) {
-      Set<Vec3i> neighbors = selectionNeighbors.get(selection);
-      for (Vec3i neighbor : neighbors) {
-        Vec3i group = find(selectionGroup, selection);
-	Vec3i neighborGroup = find(selectionGroup, neighbor);
-	selectionGroup.put(group, neighborGroup);
-      }
-    }
-    Set<Vec3i> nearSelectionsGroups = new HashSet<Vec3i>();
-    for (Vec3i selection : nearSelections) {
-      nearSelectionsGroups.add(find(selectionGroup, selection));
-    }
-    for (Vec3i selection : selections) {
-      if (clearNear) {
-        if (nearSelectionsGroups.contains(find(selectionGroup, selection))) {
-          removeSelection(selection, true);
-        }
-      } else {
-        if (!nearSelectionsGroups.contains(find(selectionGroup, selection))) {
-          removeSelection(selection, true);
-        }
-      }
-    }
-    changeNumber += 1;
-    updateWalls();
-    refreshBuffer();
-  }
+//  private void onStart(MinecraftClient client) {
+//    File configFile = getConfigFile(client);
+//    File saveFile = getSaveFile(client);
+//    if (configFile.exists()) {
+//      try {
+//        Scanner sc = new Scanner(configFile);
+//	if (null != sc.findInLine("\\d+ \\d+ \\d+")) {
+//          int x = sc.nextInt();
+//          int y = sc.nextInt();
+//          int z = sc.nextInt();
+//          digRange = new Vec3i(x, y, z);
+//	}
+//      } catch (IOException e) {
+//        System.out.println("Mad!");
+//      }
+//    }
+//    if (null == saveFile || !saveFile.exists())
+//      return;
+//    try {
+//      Scanner sc = new Scanner(saveFile);
+//      if (!sc.hasNext("Version")) { //Version 1
+//        while (null != sc.findInLine("\\d+ \\d+ \\d+")) {
+//          int x = sc.nextInt();
+//          int y = sc.nextInt();
+//          int z = sc.nextInt();
+//          addSelection(new Vec3i(x, y, z), new Vec3i(defaultDigRange, defaultDigRange, defaultDigRange), true);
+//          sc.nextLine();
+//        }
+//      }
+//      else {
+//	sc.next();
+//        String found = sc.next("\\d+");
+//        if (found.equals("2")) { // Version 2
+//          sc.nextLine();
+//	  while (sc.hasNext()) {
+//            int x = sc.nextInt();
+//            int y = sc.nextInt();
+//            int z = sc.nextInt();
+//            int xRange = sc.nextInt();
+//            int yRange = sc.nextInt();
+//            int zRange = sc.nextInt();
+//            addSelection(new Vec3i(x, y, z), new Vec3i(xRange, yRange, zRange), true);
+//            sc.nextLine();
+//	  }
+//        }
+//      }
+//    } catch (IOException e) {
+//      System.out.println("Bad!");
+//    }
+//    updateWalls();
+//    refreshBuffer();
+//  }
 
   private int onHideOutlines(CommandContext<FabricClientCommandSource> ctx) {
     showOutlines = false;
@@ -412,10 +248,10 @@ public class VeinBuddyClient implements ClientModInitializer {
     Vec3d playerPos = client.player.getPos().add(0.0f, 1.6f, 0.0f);
     Vec3d playerDir = client.player.getRotationVector();
     if (!rightClick && 0 != selectionTicks && 10 > selectionTicks) {
-      removeLookedAtSelection(playerPos, playerDir);
+      //removeLookedAtSelection(playerPos, playerDir);
     }
     if (!rightClick && 10 <= selectionTicks) {
-      addSelection(posBlock, digRange, false);
+      //addSelection(posBlock, digRange, false);
     }
     if (!rightClick) {
       pos = null;
@@ -430,945 +266,37 @@ public class VeinBuddyClient implements ClientModInitializer {
                          (int)Math.floor(pos.getZ()));
   }
 
-  private boolean rayIntersectsSphere(Vec3d orig, Vec3d rot, Vec3d center) {
-    Vec3d L = orig.subtract(center);
-    double a = rot.dotProduct(rot);
-    double b = 2.0 * rot.dotProduct(L);
-    double c = L.dotProduct(L) - radius * radius;
-    double discr = b*b - 4.0 * a * c;
-    if (discr < 0)
-      return false;
-    double q = (b > 0.0) ? -.5 * (b + Math.sqrt(discr)) : -.5 * (b - Math.sqrt(discr));
-    double t0 = q / a;
-    double t1 = c / q;
-    if (t0 < 0 && t1 < 0)
-	return false;
-    return true;
-  }
-
-  private boolean rayIntersectsXFace(Vec3d orig, Vec3d rot, Vec3i block){
-    double minX = (double)block.getX();
-    double minY = (double)block.getY();
-    double minZ = (double)block.getZ();
-    double maxX = minX + 1.0;
-    double maxY = minY + 1.0;
-    double maxZ = minZ + 1.0;
-    if (0.0 == rot.getX()) return false;
-    double nearX = (minX > orig.getX()) ? minX : maxX;
-    double tX =  (nearX - orig.getX()) / rot.getX();
-    Vec3d iPos = orig.add(rot.multiply(tX));
-    return minY <= iPos.getY() && iPos.getY() <= maxY && minZ <= iPos.getZ() && iPos.getZ() <= maxZ;
-  }
-
-  private boolean rayIntersectsYFace(Vec3d orig, Vec3d rot, Vec3i block){
-    double minX = (double)block.getX();
-    double minY = (double)block.getY();
-    double minZ = (double)block.getZ();
-    double maxX = minX + 1.0;
-    double maxY = minY + 1.0;
-    double maxZ = minZ + 1.0;
-    if (0.0 == rot.getY()) return false;
-    double nearY = (minY > orig.getY()) ? minY : maxY;
-    double tY =  (nearY - orig.getY()) / rot.getY();
-    Vec3d iPos = orig.add(rot.multiply(tY));
-    return minX <= iPos.getX() && iPos.getX() <= maxX && minZ <= iPos.getZ() && iPos.getZ() <= maxZ;
-  }
-
-  private boolean rayIntersectsZFace(Vec3d orig, Vec3d rot, Vec3i block){
-    double minX = (double)block.getX();
-    double minY = (double)block.getY();
-    double minZ = (double)block.getZ();
-    double maxX = minX + 1.0;
-    double maxY = minY + 1.0;
-    double maxZ = minZ + 1.0;
-    if (0.0 == rot.getZ()) return false;
-    double nearZ = (minZ > orig.getZ()) ? minZ : maxZ;
-    double tZ = (nearZ - orig.getZ()) / rot.getZ();
-    Vec3d iPos = orig.add(rot.multiply(tZ));
-    return minX <= iPos.getX() && iPos.getX() <= maxX && minY <= iPos.getY() && iPos.getY() <= maxY;
-  }
-
-  private void addSelection(Vec3i selection, Vec3i range, boolean bulk){
-    if (selections.contains(selection)) return;
-
-    Set<Vec3i> neighbors = new ConcurrentSkipListSet<Vec3i>();
-    for (Vec3i neighbor : selections) {
-      Vec3i neighborRange = selectionRanges.get(neighbor);
-      Vec3i distances = selection.subtract(neighbor);
-      if (Math.abs(distances.getX()) <= (neighborRange.getX() + range.getX()) &&
-          Math.abs(distances.getY()) <= (neighborRange.getY() + range.getY()) &&
-          Math.abs(distances.getZ()) <= (neighborRange.getZ() + range.getZ()));
-	  neighbors.add(neighbor);
-    }
-
-    Set<Vec3i> potentialWallBlocks = new HashSet<Vec3i>();
-    int digXRange = range.getX();
-    int digYRange = range.getY();
-    int digZRange = range.getZ();
-    int boundaryXRange = range.getX() + 1;
-    int boundaryYRange = range.getY() + 1;
-    int boundaryZRange = range.getZ() + 1;
-
-    for (int x = -1 * boundaryXRange; x <= boundaryXRange; ++x){
-      for (int y = -1 * boundaryYRange; y <= boundaryYRange; ++y){
-        for (int z = -1 * boundaryZRange; z <= boundaryZRange; ++z){
-          Vec3i block = selection.add(x, y, z);
-          boolean xWall = Math.abs(x) == digXRange;
-          boolean yWall = Math.abs(y) == digYRange;
-          boolean zWall = Math.abs(z) == digZRange;
-          boolean xBoundary = Math.abs(x) == boundaryXRange;
-          boolean yBoundary = Math.abs(y) == boundaryYRange;
-          boolean zBoundary = Math.abs(z) == boundaryZRange;
-	  boolean pBoundary = xBoundary || yBoundary || zBoundary;
-          if ((xWall || yWall || zWall) && !pBoundary)
-            potentialWallBlocks.add(block);
-          if (pBoundary) {
-            for(Vec3i neighbor : neighbors) {
-              Vec3i neighborRange = selectionRanges.get(neighbor);
-              int neighborXLeast = neighbor.getX() - neighborRange.getX();
-              int neighborYLeast = neighbor.getY() - neighborRange.getY();
-              int neighborZLeast = neighbor.getZ() - neighborRange.getZ();
-              int neighborXMost = neighbor.getX() + neighborRange.getX();
-              int neighborYMost = neighbor.getY() + neighborRange.getY();
-              int neighborZMost = neighbor.getZ() + neighborRange.getZ();
-	      pBoundary = pBoundary && !(neighborXLeast <= block.getX() && block.getX() <= neighborXMost &&
-                                         neighborYLeast <= block.getY() && block.getY() <= neighborYMost &&
-                                         neighborZLeast <= block.getZ() && block.getZ() <= neighborZMost);
-	    }
-	  } 
-          if (pBoundary)
-            boundary.add(block);
-          else
-            boundary.remove(block);
-        }
-      }
-    }
-
-    for (Vec3i block : potentialWallBlocks) {
-      boolean pWest  = boundary.contains(block.add(-1,  0,  0));
-      boolean pEast  = boundary.contains(block.add( 1,  0,  0));
-      boolean pDown  = boundary.contains(block.add( 0, -1,  0));
-      boolean pUp    = boundary.contains(block.add( 0,  1,  0));
-      boolean pSouth = boundary.contains(block.add( 0,  0, -1));
-      boolean pNorth = boundary.contains(block.add( 0,  0,  1));
-      if (pWest || pEast || pDown || pUp || pSouth || pNorth)
-        wallBlocks.add(block);
-    }
-
-    float minX = selection.getX();
-    float minY = selection.getY();
-    float minZ = selection.getZ();
-    float maxX = minX + 1.0f;
-    float maxY = minY + 1.0f;
-    float maxZ = minZ + 1.0f;
-    minX -= adjustment;
-    minY -= adjustment;
-    minZ -= adjustment;
-    maxX += adjustment;
-    maxY += adjustment;
-    maxZ += adjustment;
-    WallGroup group = new WallGroup(true, true, true, true, true, true);
-    group.putVertex(new Vector3f(minX, minY, minZ), false, false, false);
-    group.putVertex(new Vector3f(minX, minY, maxZ), false, false, true);
-    group.putVertex(new Vector3f(minX, maxY, minZ), false, true, false);
-    group.putVertex(new Vector3f(minX, maxY, maxZ), false, true, true);
-    group.putVertex(new Vector3f(maxX, minY, minZ), true, false, false);
-    group.putVertex(new Vector3f(maxX, minY, maxZ), true, false, true);
-    group.putVertex(new Vector3f(maxX, maxY, minZ), true, true, false);
-    group.putVertex(new Vector3f(maxX, maxY, maxZ), true, true, true);
-
-    selectionWalls.put(selection, group);
-    selectionNeighbors.put(selection, neighbors);
-    for (Vec3i neighbor : neighbors){
-      Set<Vec3i> neighborNeighbors = selectionNeighbors.get(neighbor);
-      neighborNeighbors.add(selection);
-    }
-    selectionRanges.put(selection, range);
-    selections.add(selection);
-
-    if (!bulk) {
-      changeNumber += 1;
-      updateWalls();
-      refreshBuffer();
-    }
-  }
-
-  private void removeLookedAtSelection(Vec3d pos, Vec3d dir) {
-    for (int i = 0; i < 2.0 * maxTicks; ++i) {
-      Vec3i block = new Vec3i((int)Math.floor(pos.getX()), 
-                              (int)Math.floor(pos.getY()), 
-	                      (int)Math.floor(pos.getZ()));
-      if (selections.contains(block)) {
-         removeSelection(block, false);
-         return;
-      }
-      pos = pos.add(dir.multiply(0.2));
-    }
-  }
-
-  private void removeSelection(Vec3i selection, boolean bulk){
-    Vec3i range = selectionRanges.get(selection);
-    Set<Vec3i> neighbors = selectionNeighbors.get(selection);
-
-    for (Vec3i neighbor : neighbors) {
-      Set<Vec3i> neighborNeighbors = selectionNeighbors.get(neighbor);
-      neighborNeighbors.remove(selection);
-    }
-
-    selectionWalls.remove(selection);
-    selectionNeighbors.remove(selection);
-    selectionRanges.remove(selection);
-    selections.remove(selection);
-
-    Set<Vec3i> caught = new HashSet<Vec3i>();
-    Set<Vec3i> orphaned = new HashSet<Vec3i>();
-    int boundXRange = range.getX() + 1;
-    int boundYRange = range.getY() + 1;
-    int boundZRange = range.getZ() + 1;
-    for (int x = -1 * boundXRange; x <= boundXRange; ++x){
-      for (int y = -1 * boundYRange; y <= boundYRange; ++y){
-        for (int z = -1 * boundZRange; z <= boundZRange; ++z){
-          Vec3i block = selection.add(x, y, z);
-          wallBlocks.remove(block);
-          wallBlockWalls.remove(block);
-          boundary.remove(block);
-	  boolean pCaught = false;
-          for(Vec3i neighbor : neighbors) {
-            Vec3i neighborRange = selectionRanges.get(neighbor);
-            int neighborXLeast = neighbor.getX() - neighborRange.getX();
-            int neighborYLeast = neighbor.getY() - neighborRange.getY();
-            int neighborZLeast = neighbor.getZ() - neighborRange.getZ();
-            int neighborXMost = neighbor.getX() + neighborRange.getX();
-            int neighborYMost = neighbor.getY() + neighborRange.getY();
-            int neighborZMost = neighbor.getZ() + neighborRange.getZ();
-	    pCaught = pCaught || (neighborXLeast <= block.getX() && block.getX() <= neighborXMost &&
-                                  neighborYLeast <= block.getY() && block.getY() <= neighborYMost &&
-                                  neighborZLeast <= block.getZ() && block.getZ() <= neighborZMost);
-          }
-          if (pCaught)
-            caught.add(block);
-          else
-            orphaned.add(block);
-        }
-      }
-    }
-    for (Vec3i block : orphaned) {
-      Vec3i vWest  = block.add(-1,  0,  0);
-      Vec3i vEast  = block.add( 1,  0,  0);
-      Vec3i vDown  = block.add( 0, -1,  0);
-      Vec3i vUp    = block.add( 0,  1,  0);
-      Vec3i vSouth = block.add( 0,  0, -1);
-      Vec3i vNorth = block.add( 0,  0,  1);
-      boolean pWest   = wallBlocks.contains(vWest)  || caught.contains(vWest);
-      boolean pEast   = wallBlocks.contains(vEast)  || caught.contains(vEast);
-      boolean pDown   = wallBlocks.contains(vDown)  || caught.contains(vDown);
-      boolean pUp     = wallBlocks.contains(vUp)    || caught.contains(vUp);
-      boolean pSouth  = wallBlocks.contains(vSouth) || caught.contains(vSouth);
-      boolean pNorth  = wallBlocks.contains(vNorth) || caught.contains(vNorth);
-      if (pWest || pEast || pDown || pUp || pSouth || pNorth)
-        boundary.add(block);
-    }
-    for (Vec3i block : caught) {
-      boolean pWest  = boundary.contains(block.add(-1,  0,  0));
-      boolean pEast  = boundary.contains(block.add( 1,  0,  0));
-      boolean pDown  = boundary.contains(block.add( 0, -1,  0));
-      boolean pUp    = boundary.contains(block.add( 0,  1,  0));
-      boolean pSouth = boundary.contains(block.add( 0,  0, -1));
-      boolean pNorth = boundary.contains(block.add( 0,  0,  1));
-      if (pWest || pEast || pDown || pUp || pSouth || pNorth)
-        wallBlocks.add(block);
-    }
-    if (!bulk) {
-      changeNumber += 1;
-      updateWalls();
-      refreshBuffer();
-    }
-  }
-
-  private void updateWalls() {
-    for (Vec3i block : wallBlocks) {
-      WallGroup group = updateWall(block);
-      wallBlockWalls.put(block, group);
-    }
-  }
-
-  private WallGroup updateWall(Vec3i block) {
-    boolean pWest  = boundary.contains(block.add(-1,  0,  0));
-    boolean pEast  = boundary.contains(block.add( 1,  0,  0));
-    boolean pDown  = boundary.contains(block.add( 0, -1,  0));
-    boolean pUp    = boundary.contains(block.add( 0,  1,  0));
-    boolean pSouth = boundary.contains(block.add( 0,  0, -1));
-    boolean pNorth = boundary.contains(block.add( 0,  0,  1));
-
-    if ((pWest && pEast) || (pDown && pUp) || (pSouth && pNorth))
-      System.out.println("Error!");
-
-    float minX = block.getX();
-    float minY = block.getY();
-    float minZ = block.getZ();
-    float maxX = minX + 1.0f;
-    float maxY = minY + 1.0f;
-    float maxZ = minZ + 1.0f;
-
-    float maxXAdjusted = maxX;
-    float maxYAdjusted = maxY;
-    float maxZAdjusted = maxZ;
-    float minXAdjusted = minX;
-    float minYAdjusted = minY;
-    float minZAdjusted = minZ;
-
-    float xVal = minX+adjustment;
-    float yVal = minY+adjustment;
-    float zVal = minZ+adjustment;
-    int xBlock = -1;
-    int yBlock = -1;
-    int zBlock = -1;
-
-    if (pEast) {
-      xVal = maxX-adjustment;
-      xBlock = 1;
-    }
-    if (pUp) {
-      yVal = maxY-adjustment;
-      yBlock = 1;
-    }
-    if (pNorth) {
-      zVal = maxZ-adjustment;
-      zBlock = 1;
-    }
-
-    if (pWest || pEast) {
-      boolean upNorth     = !boundary.contains(block.add(xBlock, 1, 1));
-      boolean up          = !boundary.contains(block.add(xBlock, 1, 0));
-      boolean upSouth     = !boundary.contains(block.add(xBlock, 1, -1));
-
-      boolean north       = !boundary.contains(block.add(xBlock, 0, 1));
-      boolean neutral     = !boundary.contains(block.add(xBlock, 0, 0));
-      boolean south       = !boundary.contains(block.add(xBlock, 0, -1));
-
-      boolean downNorth   = !boundary.contains(block.add(xBlock, -1, 1));
-      boolean down        = !boundary.contains(block.add(xBlock, -1, 0));
-      boolean downSouth   = !boundary.contains(block.add(xBlock, -1, -1));
-
-      boolean upNorthCorner = upNorth && !up && !north;
-      boolean upSouthCorner = upSouth && !up && !south;
-      boolean downNorthCorner = downNorth && !down && !north;
-      boolean downSouthCorner = downSouth && !down && !south;
-
-      if ((!neutral && up) || upNorthCorner || upSouthCorner)
-        maxYAdjusted = maxY + adjustment;
-      if ((!neutral && down) || downNorthCorner || downSouthCorner)
-        minYAdjusted = minY - adjustment;
-      if ((!neutral && north) || upNorthCorner || downNorthCorner)
-        maxZAdjusted = maxZ + adjustment;
-      if ((!neutral && south) || upSouthCorner || downSouthCorner)
-        minZAdjusted = minZ - adjustment;
-
-      if ((!upSouth && south) || (!upNorth && north))
-        maxYAdjusted = maxY - adjustment;
-      if ((!downSouth && south) || (!downNorth && north))
-        minYAdjusted = minY + adjustment;
-      if ((!upNorth && up) || (!downNorth && down))
-        maxZAdjusted = maxZ - adjustment;
-      if ((!upSouth && up) || (!downSouth && down))
-        minZAdjusted = minZ + adjustment;
-    }
-
-    if (pDown || pUp) {
-      boolean northEast = !boundary.contains(block.add(1, yBlock, 1));
-      boolean north     = !boundary.contains(block.add(0, yBlock, 1));
-      boolean northWest = !boundary.contains(block.add(-1, yBlock, 1));
-
-      boolean east      = !boundary.contains(block.add(1, yBlock, 0));
-      boolean neutral   = !boundary.contains(block.add(0, yBlock, 0));
-      boolean west      = !boundary.contains(block.add(-1, yBlock, 0));
-
-      boolean southEast = !boundary.contains(block.add(1, yBlock, -1));
-      boolean south     = !boundary.contains(block.add(0, yBlock, -1));
-      boolean southWest = !boundary.contains(block.add(-1, yBlock, -1));
-
-      boolean northEastCorner = northEast && !north && !east;
-      boolean northWestCorner = northWest && !north && !west;
-      boolean southEastCorner = southEast && !south && !east;
-      boolean southWestCorner = southWest && !south && !west;
-
-      if ((!neutral && east) || northEastCorner || southEastCorner)
-        maxXAdjusted = maxX + adjustment;
-      if ((!neutral && west) || northWestCorner || southWestCorner)
-        minXAdjusted = minX - adjustment;
-      if ((!neutral && north) || northEastCorner || northWestCorner)
-        maxZAdjusted = maxZ + adjustment;
-      if ((!neutral && south) || southEastCorner || southWestCorner)
-        minZAdjusted = minZ - adjustment;
-
-      if ((!northEast && north) || (!southEast && south))
-        maxXAdjusted = maxX - adjustment;
-      if ((!northWest && north) || (!southWest && south))
-        minXAdjusted = minX + adjustment;
-      if ((!northEast && east) || (!northWest && west))
-        maxZAdjusted = maxZ - adjustment;
-      if ((!southEast && east) || (!southWest && west))
-        minZAdjusted = minZ + adjustment;
-    }
-
-    if (pSouth || pNorth) {
-      boolean upEast    = !boundary.contains(block.add(1, 1, zBlock));
-      boolean up        = !boundary.contains(block.add(0, 1, zBlock));
-      boolean upWest    = !boundary.contains(block.add(-1, 1, zBlock));
-
-      boolean east      = !boundary.contains(block.add(1, 0, zBlock));
-      boolean neutral   = !boundary.contains(block.add(0, 0, zBlock));
-      boolean west      = !boundary.contains(block.add(-1, 0, zBlock));
-
-      boolean downEast  = !boundary.contains(block.add(1, -1, zBlock));
-      boolean down      = !boundary.contains(block.add(0, -1, zBlock));
-      boolean downWest  = !boundary.contains(block.add(-1, -1, zBlock));
-
-      boolean upEastCorner = upEast && !up && !east;
-      boolean upWestCorner = upWest && !up && !west;
-      boolean downEastCorner = downEast && !down && !east;
-      boolean downWestCorner = downWest && !down && !west;
-
-      if ((!neutral && east) || upEastCorner || downEastCorner)
-        maxXAdjusted = maxX + adjustment;
-      if ((!neutral && west) || upWestCorner || downWestCorner)
-        minXAdjusted = minX - adjustment;
-      if ((!neutral && up) || upEastCorner || upWestCorner)
-        maxYAdjusted = maxY + adjustment;
-      if ((!neutral && down) || downEastCorner || downWestCorner)
-        minYAdjusted = minY - adjustment;
-
-      if ((!upEast && up) || (!downEast && down))
-        maxXAdjusted = maxX - adjustment;
-      if ((!upWest && up) || (!downWest && down))
-        minXAdjusted = minX + adjustment;
-      if ((!upEast && east) || (!upWest && west))
-        maxYAdjusted = maxY - adjustment;
-      if ((!downEast && east) || (!downWest && west))
-        minYAdjusted = minY + adjustment;
-    }
-
-    WallGroup wallGroup = new WallGroup(pWest, pEast, pDown, pUp, pSouth, pNorth);
-
-    if (pWest || pEast) {
-      wallGroup.putVertex(new Vector3f(xVal, minYAdjusted, minZAdjusted), pEast, false, false);
-      wallGroup.putVertex(new Vector3f(xVal, minYAdjusted, maxZAdjusted), pEast, false, true);
-      wallGroup.putVertex(new Vector3f(xVal, maxYAdjusted, minZAdjusted), pEast, true, false);
-      wallGroup.putVertex(new Vector3f(xVal, maxYAdjusted, maxZAdjusted), pEast, true, true);
-    }
-
-    if (pDown || pUp) {
-      wallGroup.putVertex(new Vector3f(minXAdjusted, yVal, minZAdjusted), false, pUp, false);
-      wallGroup.putVertex(new Vector3f(minXAdjusted, yVal, maxZAdjusted), false, pUp, true);
-      wallGroup.putVertex(new Vector3f(maxXAdjusted, yVal, minZAdjusted), true, pUp, false);
-      wallGroup.putVertex(new Vector3f(maxXAdjusted, yVal, maxZAdjusted), true, pUp, true);
-    }
-
-    if (pSouth || pNorth) {
-      wallGroup.putVertex(new Vector3f(minXAdjusted, minYAdjusted, zVal), false, false, pNorth);
-      wallGroup.putVertex(new Vector3f(minXAdjusted, maxYAdjusted, zVal), false, true, pNorth);
-      wallGroup.putVertex(new Vector3f(maxXAdjusted, minYAdjusted, zVal), true, false, pNorth);
-      wallGroup.putVertex(new Vector3f(maxXAdjusted, maxYAdjusted, zVal), true, true, pNorth);
-    }
-
-    if ((pWest || pEast) && (pDown || pUp)) {
-      wallGroup.putVertex(new Vector3f(xVal, yVal, minZAdjusted), pEast, pUp, false);
-      wallGroup.putVertex(new Vector3f(xVal, yVal, maxZAdjusted), pEast, pUp, true);
-    }
-    if ((pWest || pEast) && (pSouth || pNorth)) {
-      wallGroup.putVertex(new Vector3f(xVal, minYAdjusted, zVal), pEast, false, pNorth);
-      wallGroup.putVertex(new Vector3f(xVal, maxYAdjusted, zVal), pEast, true, pNorth);
-    }
-    if ((pDown || pUp) && (pSouth || pNorth)) {
-      wallGroup.putVertex(new Vector3f(minXAdjusted, yVal, zVal), false, pUp, pNorth);
-      wallGroup.putVertex(new Vector3f(maxXAdjusted, yVal, zVal), true, pUp, pNorth);
-    }
-
-    if ((pWest || pEast) && (pDown || pUp) && (pSouth || pNorth)) {
-      wallGroup.putVertex(new Vector3f(xVal, yVal, zVal), pEast, pUp, pNorth);
-    }
-
-    return wallGroup;
-  }
-
-  private void refreshBuffer() {
-    refreshPosBlockBuffer();
-    refreshSelectionBlockBuffers();
-  }
-
-  private void refreshPosBlockBuffer() {
-    if (null == posBlock) return;
-    posBlockVertexCount = 12 * 2; //twelve lines, two vertices per line
-    ByteBuffer posBlockBuffer = BufferUtils.createByteBuffer(posBlockVertexCount * 3 * 4); //three floats per vertex, four bytes per float
-    buildVerticesOutline(posBlockBuffer, posBlock);
-    posBlockBuffer.flip();
-    posBlockVertexBuffer = RenderSystem.getDevice().createBuffer(() -> "Wireframes", 0, posBlockBuffer);
-  }
-
-  private void refreshSelectionBlockBuffers() {
-    if (selections.isEmpty()) return;
-    int numWalls = 0;
-    for (Vec3i wallBlock : wallBlocks) {
-        WallGroup group = wallBlockWalls.get(wallBlock);
-	numWalls += group.getSize();
-    }
-    selectionWireframeVertexCount = selections.size() * 12 * 2; // twelve lines, two vertices per line
-    selectionVertexCount = selections.size() * 6 * 6; // six walls, six vertices per wall
-    wallVertexCount = numWalls * 6; // three vertices per triangle, two triangles per wall
-    gridVertexCount = numWalls * 8; // four lines per wall, two vertices per line
-
-    ByteBuffer selectionWireframeBuffer = BufferUtils.createByteBuffer(selectionWireframeVertexCount * 3 * 4); //three floats per vertex, four bytes per float
-    ByteBuffer selectionBuffer = BufferUtils.createByteBuffer(selectionVertexCount * 3 * 4); // three floats per vertex, four bytes per float
-    ByteBuffer wallBuffer = BufferUtils.createByteBuffer(wallVertexCount * 3 * 4); // three floats per vertex, four bytes per float
-    ByteBuffer gridBuffer = BufferUtils.createByteBuffer(gridVertexCount * 3 * 4); // three floats per vertex, four bytes per float
-
-    for (Vec3i selection : selections) {
-      WallGroup group = selectionWalls.get(selection);
-      buildVerticesOutline(selectionWireframeBuffer, selection);
-      buildVerticesSelection(selectionBuffer, group);
-    }
-
-    for (Vec3i wallBlock : wallBlocks) {
-      WallGroup group = wallBlockWalls.get(wallBlock);
-      buildVerticesWallBlockGroup(wallBuffer, group);
-      buildVerticesWallBlockGroupOutline(gridBuffer, group);
-    }
-
-    // flip buffers for reading
-    selectionWireframeBuffer.flip();
-    selectionBuffer.flip();
-    wallBuffer.flip();
-    gridBuffer.flip();
-
-    if (null != selectionWireframeVertexBuffer) selectionWireframeVertexBuffer.close();
-    selectionWireframeVertexBuffer = RenderSystem.getDevice().createBuffer(() -> "Wireframes", 0, selectionWireframeBuffer);
-    if (null != selectionVertexBuffer) selectionVertexBuffer.close();
-    selectionVertexBuffer = RenderSystem.getDevice().createBuffer(() -> "Selections", 0, selectionBuffer);
-    if (null != wallVertexBuffer) wallVertexBuffer.close();
-    wallVertexBuffer = RenderSystem.getDevice().createBuffer(() -> "Walls", 0, wallBuffer);
-    if (null != gridVertexBuffer) gridVertexBuffer.close();
-    gridVertexBuffer = RenderSystem.getDevice().createBuffer(() -> "Grids", 0, gridBuffer);
-  }
-
   private void onRender(WorldRenderContext ctx) {
-    if (!render) return;
 
-    Vec3d camPos = ctx.camera().getPos();
-    Vector3f camVec = new Vector3f(-(float)camPos.getX(), -(float)camPos.getY(), -(float)camPos.getZ());
-    Quaternionf camQuat = ctx.camera().getRotation().invert();
+    RenderLayer debugQuads = RenderLayer.getDebugQuads();
+    //VertexConsumer buffer = ctx.consumers().getBuffer(debugQuads);
 
-    ByteBuffer mat = (new Matrix4f(ctx.projectionMatrix())).rotate(camQuat).translate(camVec).get(BufferUtils.createByteBuffer(64));
-    GpuBuffer matBuffer = RenderSystem.getDevice().createBuffer(() -> "u_projection", 0, mat);
-
-    Framebuffer fb = BlockRenderLayerGroup.TRANSLUCENT.getFramebuffer();
-
-    CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
-
-    if (null != posBlock) {
-      refreshPosBlockBuffer();
-      RenderPass posBlockPass = encoder.createRenderPass(
-       () -> "PositionBlock",
-       fb.getColorAttachmentView(),
-       OptionalInt.empty(),
-       fb.getDepthAttachmentView(),
-       OptionalDouble.empty()
-      );
-      posBlockPass.setPipeline(WIREFRAMES);
-      posBlockPass.setUniform("u_projection", matBuffer);
-      posBlockPass.setVertexBuffer(0, posBlockVertexBuffer);
-      posBlockPass.draw(0, posBlockVertexCount);
-      posBlockPass.close();
+    for (Wall wall : walls) {
+      //wall.AddToBuffer(buffer);
     }
 
-    if (selections.isEmpty()) return;
-
-    if (showOutlines) {
-      RenderPass selectionWireframePass = encoder.createRenderPass(
-        () -> "SelectionWireframes",
-        fb.getColorAttachmentView(),
-        OptionalInt.empty(),
-        fb.getDepthAttachmentView(),
-        OptionalDouble.empty()
-      );
-      selectionWireframePass.setPipeline(WIREFRAMES); 
-      selectionWireframePass.setUniform("u_projection", matBuffer);
-      selectionWireframePass.setVertexBuffer(0, selectionWireframeVertexBuffer);
-      selectionWireframePass.draw(0, selectionWireframeVertexCount);
-      selectionWireframePass.close();
-    }
-
-    RenderPass selectionsPass = encoder.createRenderPass(
-      () -> "Selections",
-      fb.getColorAttachmentView(),
-      OptionalInt.empty(),
-      fb.getDepthAttachmentView(),
-      OptionalDouble.empty()
-    );
-    selectionsPass.setPipeline(SELECTIONS); 
-    selectionsPass.setVertexBuffer(0, selectionVertexBuffer);
-    selectionsPass.setUniform("u_projection", matBuffer);
-    selectionsPass.draw(0, selectionVertexCount);
-    selectionsPass.close();
-
-    RenderPass wallsPass = encoder.createRenderPass(
-      () -> "Walls",
-      fb.getColorAttachmentView(),
-      OptionalInt.empty(),
-      fb.getDepthAttachmentView(),
-      OptionalDouble.empty()
-    );
-    wallsPass.setPipeline(WALLS);
-    wallsPass.setVertexBuffer(0, wallVertexBuffer);
-    wallsPass.setUniform("u_projection", matBuffer);
-    wallsPass.draw(0, wallVertexCount);
-    wallsPass.close();
-
-    RenderPass gridsPass = encoder.createRenderPass(
-      () -> "Walls",
-      fb.getColorAttachmentView(),
-      OptionalInt.empty(),
-      fb.getDepthAttachmentView(),
-      OptionalDouble.empty()
-    );
-    gridsPass.setPipeline(GRIDS);
-    gridsPass.setVertexBuffer(0, gridVertexBuffer);
-    gridsPass.setUniform("u_projection", matBuffer);
-    gridsPass.draw(0, gridVertexCount);
-    gridsPass.close();
-
-    matBuffer.close();
+    //matBuffer.close();
   }
+  public final ArrayList<Wall> walls = new ArrayList<>();
+  public void buildMesh(){
+    ArrayList<Bounds> selections = new ArrayList<>();
+    selections.add(new Bounds(new Vector3i(0,10,0), new Vector3i(5,5,5)));
 
-  private void buildVerticesSelection(ByteBuffer vertices, WallGroup group) {
-    buildVerticesWall(vertices, group.getWestWall());
-    buildVerticesWall(vertices, group.getEastWall());
-    buildVerticesWall(vertices, group.getDownWall());
-    buildVerticesWall(vertices, group.getUpWall());
-    buildVerticesWall(vertices, group.getSouthWall());
-    buildVerticesWall(vertices, group.getNorthWall());
-  }
-
-  private void buildVerticesWallBlockGroup(ByteBuffer vertices, WallGroup group) { 
-    WallVertexGroup west, east, down, up, south, north;
-    west  = group.getWestWall();
-    east  = group.getEastWall();
-    down  = group.getDownWall();
-    up    = group.getUpWall();
-    south = group.getSouthWall();
-    north = group.getNorthWall();
-
-    if (null != west)
-      buildVerticesWall(vertices, west);
-    if (null != east)
-      buildVerticesWall(vertices, east);
-    if (null != down)
-      buildVerticesWall(vertices, down);
-    if (null != up)
-      buildVerticesWall(vertices, up);
-    if (null != south)
-      buildVerticesWall(vertices, south);
-    if (null != north)
-      buildVerticesWall(vertices, north);
-  }
-
-  private void buildVerticesWall(ByteBuffer vertices, WallVertexGroup g) {
-    vertices.putFloat(g.v00.x);
-    vertices.putFloat(g.v00.y);
-    vertices.putFloat(g.v00.z);
-
-    vertices.putFloat(g.v01.x);
-    vertices.putFloat(g.v01.y);
-    vertices.putFloat(g.v01.z);
-
-    vertices.putFloat(g.v11.x);
-    vertices.putFloat(g.v11.y);
-    vertices.putFloat(g.v11.z);
-
-    vertices.putFloat(g.v00.x);
-    vertices.putFloat(g.v00.y);
-    vertices.putFloat(g.v00.z);
-
-    vertices.putFloat(g.v10.x);
-    vertices.putFloat(g.v10.y);
-    vertices.putFloat(g.v10.z);
-
-    vertices.putFloat(g.v11.x);
-    vertices.putFloat(g.v11.y);
-    vertices.putFloat(g.v11.z);
-  }
-
-  private void buildVerticesWallBlockGroupOutline(ByteBuffer vertices, WallGroup group) {
-    WallVertexGroup west, east, down, up, south, north;
-
-    west  = group.getWestWall();
-    east  = group.getEastWall();
-    down  = group.getDownWall();
-    up    = group.getUpWall();
-    south = group.getSouthWall();
-    north = group.getNorthWall();
-
-    int walls = 0;
-    if (null != west)
-      buildVerticesWallOutline(vertices, west);
-    if (null != east)
-      buildVerticesWallOutline(vertices, east);
-    if (null != down)
-      buildVerticesWallOutline(vertices, down);
-    if (null != up)
-      buildVerticesWallOutline(vertices, up);
-    if (null != south)
-      buildVerticesWallOutline(vertices, south);
-    if (null != north)
-      buildVerticesWallOutline(vertices, north);
-  }
-
-  private void buildVerticesWallOutline(ByteBuffer vertices, WallVertexGroup g) {
-    vertices.putFloat(g.v00.x);
-    vertices.putFloat(g.v00.y);
-    vertices.putFloat(g.v00.z);
-
-    vertices.putFloat(g.v01.x);
-    vertices.putFloat(g.v01.y);
-    vertices.putFloat(g.v01.z);
-
-    vertices.putFloat(g.v01.x);
-    vertices.putFloat(g.v01.y);
-    vertices.putFloat(g.v01.z);
-
-    vertices.putFloat(g.v11.x);
-    vertices.putFloat(g.v11.y);
-    vertices.putFloat(g.v11.z);
-
-    vertices.putFloat(g.v11.x);
-    vertices.putFloat(g.v11.y);
-    vertices.putFloat(g.v11.z);
-
-    vertices.putFloat(g.v10.x);
-    vertices.putFloat(g.v10.y);
-    vertices.putFloat(g.v10.z);
-
-    vertices.putFloat(g.v10.x);
-    vertices.putFloat(g.v10.y);
-    vertices.putFloat(g.v10.z);
-
-    vertices.putFloat(g.v00.x);
-    vertices.putFloat(g.v00.y);
-    vertices.putFloat(g.v00.z);
-  }
-
-  private void buildVerticesOutline(ByteBuffer vertices, Vec3i block){
-    float minX = (float)block.getX();
-    float minY = (float)block.getY();
-    float minZ = (float)block.getZ();
-
-    float maxX = minX + 1.0f;
-    float maxY = minY + 1.0f;
-    float maxZ = minZ + 1.0f;
-
-    vertices.putFloat(minX);
-    vertices.putFloat(minY);
-    vertices.putFloat(minZ);
-
-    vertices.putFloat(minX);
-    vertices.putFloat(minY);
-    vertices.putFloat(maxZ);
-
-    vertices.putFloat(minX);
-    vertices.putFloat(minY);
-    vertices.putFloat(maxZ);
-
-    vertices.putFloat(maxX);
-    vertices.putFloat(minY);
-    vertices.putFloat(maxZ);
-
-    vertices.putFloat(maxX);
-    vertices.putFloat(minY);
-    vertices.putFloat(maxZ);
-
-    vertices.putFloat(maxX);
-    vertices.putFloat(minY);
-    vertices.putFloat(minZ);
-
-    vertices.putFloat(maxX);
-    vertices.putFloat(minY);
-    vertices.putFloat(minZ);
-
-    vertices.putFloat(minX);
-    vertices.putFloat(minY);
-    vertices.putFloat(minZ);
-
-    vertices.putFloat(minX);
-    vertices.putFloat(maxY);
-    vertices.putFloat(minZ);
-
-    vertices.putFloat(minX);
-    vertices.putFloat(maxY);
-    vertices.putFloat(maxZ);
-
-    vertices.putFloat(minX);
-    vertices.putFloat(maxY);
-    vertices.putFloat(maxZ);
-
-    vertices.putFloat(maxX);
-    vertices.putFloat(maxY);
-    vertices.putFloat(maxZ);
-
-    vertices.putFloat(maxX);
-    vertices.putFloat(maxY);
-    vertices.putFloat(maxZ);
-
-    vertices.putFloat(maxX);
-    vertices.putFloat(maxY);
-    vertices.putFloat(minZ);
-
-    vertices.putFloat(maxX);
-    vertices.putFloat(maxY);
-    vertices.putFloat(minZ);
-
-    vertices.putFloat(minX);
-    vertices.putFloat(maxY);
-    vertices.putFloat(minZ);
-
-    vertices.putFloat(minX);
-    vertices.putFloat(minY);
-    vertices.putFloat(minZ);
-
-    vertices.putFloat(minX);
-    vertices.putFloat(maxY);
-    vertices.putFloat(minZ);
-
-    vertices.putFloat(minX);
-    vertices.putFloat(minY);
-    vertices.putFloat(maxZ);
-
-    vertices.putFloat(minX);
-    vertices.putFloat(maxY);
-    vertices.putFloat(maxZ);
-
-    vertices.putFloat(maxX);
-    vertices.putFloat(minY);
-    vertices.putFloat(maxZ);
-
-    vertices.putFloat(maxX);
-    vertices.putFloat(maxY);
-    vertices.putFloat(maxZ);
-
-    vertices.putFloat(maxX);
-    vertices.putFloat(minY);
-    vertices.putFloat(maxZ);
-
-    vertices.putFloat(maxX);
-    vertices.putFloat(maxY);
-    vertices.putFloat(maxZ);
-  }
-
-  private class WallVertexGroup {
-    public Vector3f v00, v01, v10, v11;
-
-    public WallVertexGroup() {
+    // find boundaries
+    for (Bounds selection : selections) {
+      Wall.CreateWalls(walls, selection);
     }
 
-    public void updateGroup(Vector3f v00, Vector3f v01, Vector3f v10, Vector3f v11) {
-      this.v00 = v00;
-      this.v01 = v01;
-      this.v10 = v10;
-      this.v11 = v11;
-    }
-  }
-
-  private class WallGroup {
-    protected Vector3f v000, v001, v010, v011, v100, v101, v110, v111;
-    protected WallVertexGroup west, east, down, up, south, north;
-    protected int size;
-
-    public WallGroup() {
-      this(false, false, false, false, false, false);
+    // mark overlapping
+    Vector3i temp = new Vector3i();
+    for (Wall wall : walls) {
+      for (Bounds selection : selections) {
+        wall.AddSelection(selection, temp);
+        if (!wall.IsWall()) break;
+      }
     }
 
-    public WallGroup(boolean pWest, boolean pEast, boolean pDown, boolean pUp, boolean pSouth, boolean pNorth) {
-      west  = pWest  ? new WallVertexGroup() : null;
-      east  = pEast  ? new WallVertexGroup() : null;
-      down  = pDown  ? new WallVertexGroup() : null;
-      up    = pUp    ? new WallVertexGroup() : null;
-      south = pSouth ? new WallVertexGroup() : null;
-      north = pNorth ? new WallVertexGroup() : null;
-      size = 0;
-      size = pWest  ? size : size + 1;
-      size = pEast  ? size : size + 1;
-      size = pDown  ? size : size + 1;
-      size = pUp    ? size : size + 1;
-      size = pSouth ? size : size + 1;
-      size = pNorth ? size : size + 1;
-      v000 = null;
-      v001 = null;
-      v010 = null;
-      v011 = null;
-      v100 = null;
-      v101 = null;
-      v110 = null;
-      v111 = null;
-    }
-
-    public int getSize() {
-      return size;
-    }
-
-    public WallVertexGroup getWestWall() {
-      if (null != west)
-        west.updateGroup(v000, v001, v010, v011);
-      return west;
-    }
-
-    public WallVertexGroup getEastWall() {
-      if (null != east)
-        east.updateGroup(v100, v101, v110, v111);
-      return east;
-    }
-
-    public WallVertexGroup getDownWall() {
-      if (null != down)
-        down.updateGroup(v000, v001, v100, v101);
-      return down;
-    }
-
-    public WallVertexGroup getUpWall() {
-      if (null != up)
-        up.updateGroup(v010, v011, v110, v111);
-      return up;
-    }
-
-    public WallVertexGroup getSouthWall() {
-      if (null != south)
-        south.updateGroup(v000, v010, v100, v110);
-      return south;
-    }
-
-    public WallVertexGroup getNorthWall() {
-      if (null != north)
-        north.updateGroup(v001, v011, v101, v111);
-      return north;
-    }
-
-    public void putVertex(Vector3f vec, boolean east, boolean up, boolean north) {
-      boolean west = !east;
-      boolean down = !up;
-      boolean south = !north;
-      if (west && down && south)
-	v000 = vec;
-      if (west && down && north)
-	v001 = vec;
-      if (west && up && south)
-	v010 = vec;
-      if (west && up && north)
-	v011 = vec;
-      if (east && down && south)
-	v100 = vec;
-      if (east && down && north)
-	v101 = vec;
-      if (east && up && south)
-	v110 = vec;
-      if (east && up && north)
-	v111 = vec;
-    }
+    // remove non-walls
+    walls.removeIf(Wall::IsNotWall);
   }
 }
