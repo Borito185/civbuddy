@@ -5,7 +5,6 @@ import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.systems.ProjectionType;
 import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.systems.VertexSorter;
@@ -330,25 +329,25 @@ public class VeinBuddyClient implements ClientModInitializer {
 
     // find boundaries
     for (Bounds selection : selections) {
-      Wall.CreateWalls(walls, selection);
+      Wall.createWalls(walls, selection, new Vector4f(1,0,0,0.5f));
     }
 
     // mark overlapping
     Vector3i temp = new Vector3i();
     for (Wall wall : walls) {
       for (Bounds selection : selections) {
-        wall.AddSelection(selection, temp);
-        if (!wall.IsWall()) break;
+        wall.addSelection(selection, temp);
+        if (!wall.isWall()) break;
       }
     }
 
     // remove non-walls
-    walls.removeIf(Wall::IsNotWall);
+    walls.removeIf(Wall::isNotWall);
 
     BufferBuilder builder = new BufferBuilder(allocator, WALLS.getVertexFormatMode(), WALLS.getVertexFormat());
 
     for (Wall wall : walls) {
-      wall.AddToBuffer(builder);
+      wall.addToBuffer(builder);
     }
     buffer = builder.end();
 
