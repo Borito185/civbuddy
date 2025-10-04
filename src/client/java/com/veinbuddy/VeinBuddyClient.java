@@ -5,8 +5,10 @@ import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.DepthTestFunction;
+import com.mojang.blaze3d.systems.ProjectionType;
 import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.systems.VertexSorter;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
@@ -64,7 +66,7 @@ public class VeinBuddyClient implements ClientModInitializer {
   private final RenderPipeline WALLS = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.POSITION_COLOR_SNIPPET)
           .withLocation(Identifier.of("veinbuddy", "walls_pipeline"))
           .withBlend(BlendFunction.TRANSLUCENT)
-          .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.TRIANGLES)
+          .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS)
           .withDepthBias(-2.0f, -0.002f)
           .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
           .withCull(false)
@@ -268,13 +270,15 @@ public class VeinBuddyClient implements ClientModInitializer {
   private static void draw(WorldRenderContext ctx, RenderPipeline pipeline, BuiltBuffer builtBuffer, GpuBuffer vertices) {
     BuiltBuffer.DrawParameters drawParameters = builtBuffer.getDrawParameters();
     VertexFormat format = drawParameters.format();
+    Vec3d camera = ctx.camera().getPos();
 
     GpuBuffer indices;
     VertexFormat.IndexType indexType;
 
     if (pipeline.getVertexFormatMode() == VertexFormat.DrawMode.QUADS) {
       // Sort the quads if there is translucency
-      builtBuffer.sortQuads(allocator, RenderSystem.getProjectionType().getVertexSorter());
+      builtBuffer.sortQuads(allocator, VertexSorter.byDistance(camera.toVector3f()));
+
       // Upload the index buffer
       indices = pipeline.getVertexFormat().uploadImmediateIndexBuffer(builtBuffer.getSortedBuffer());
       indexType = builtBuffer.getDrawParameters().indexType();
@@ -286,8 +290,6 @@ public class VeinBuddyClient implements ClientModInitializer {
     }
 
     // Actually execute the draw
-    Vec3d camera = ctx.camera().getPos();
-
     Matrix4f m = new Matrix4f(RenderSystem.getModelViewMatrix());
     m.translate((float)-camera.x, (float)-camera.y, (float)-camera.z);
 
