@@ -21,19 +21,15 @@ public class Wall {
         // bottom (0,-1,0)
         if (!neighbors[nIdx(0, -1, 0)]) {
             buffer.vertex(x,   y, z).color(255,255,255,128);
-            buffer.vertex(x+1, y, z+1).color(255,255,255,128);
             buffer.vertex(x+1, y, z).color(255,255,255,128);
-            buffer.vertex(x,   y, z).color(255,255,255,128);
-            buffer.vertex(x,   y, z+1).color(255,255,255,128);
             buffer.vertex(x+1, y, z+1).color(255,255,255,128);
+            buffer.vertex(x,   y, z+1).color(255,255,255,128);
         }
 
         // top (0,1,0)
         if (!neighbors[nIdx(0, 1, 0)]) {
             buffer.vertex(x,   y+1, z).color(255,255,255,128);
             buffer.vertex(x+1, y+1, z).color(255,255,255,128);
-            buffer.vertex(x+1, y+1, z+1).color(255,255,255,128);
-            buffer.vertex(x,   y+1, z).color(255,255,255,128);
             buffer.vertex(x+1, y+1, z+1).color(255,255,255,128);
             buffer.vertex(x,   y+1, z+1).color(255,255,255,128);
         }
@@ -43,37 +39,29 @@ public class Wall {
             buffer.vertex(x+1, y,   z).color(255,255,255,128);
             buffer.vertex(x+1, y,   z+1).color(255,255,255,128);
             buffer.vertex(x+1, y+1, z+1).color(255,255,255,128);
-            buffer.vertex(x+1, y,   z).color(255,255,255,128);
-            buffer.vertex(x+1, y+1, z+1).color(255,255,255,128);
             buffer.vertex(x+1, y+1, z).color(255,255,255,128);
         }
 
         // back (0,0,-1)
         if (!neighbors[nIdx(0, 0, -1)]) {
             buffer.vertex(x, y,   z).color(255,255,255,128);
-            buffer.vertex(x, y+1, z+1).color(255,255,255,128);
             buffer.vertex(x, y,   z+1).color(255,255,255,128);
-            buffer.vertex(x, y,   z).color(255,255,255,128);
-            buffer.vertex(x, y+1, z).color(255,255,255,128);
             buffer.vertex(x, y+1, z+1).color(255,255,255,128);
+            buffer.vertex(x, y+1, z).color(255,255,255,128);
         }
 
         // left (-1,0,0)
         if (!neighbors[nIdx(-1, 0, 0)]) {
             buffer.vertex(x,   y, z).color(255,255,255,128);
-            buffer.vertex(x+1, y+1, z).color(255,255,255,128);
             buffer.vertex(x+1, y, z).color(255,255,255,128);
-            buffer.vertex(x,   y, z).color(255,255,255,128);
-            buffer.vertex(x,   y+1, z).color(255,255,255,128);
             buffer.vertex(x+1, y+1, z).color(255,255,255,128);
+            buffer.vertex(x,   y+1, z).color(255,255,255,128);
         }
 
         // right (1,0,0)
         if (!neighbors[nIdx(1, 0, 0)]) {
             buffer.vertex(x,   y,   z+1).color(255,255,255,128);
             buffer.vertex(x+1, y,   z+1).color(255,255,255,128);
-            buffer.vertex(x+1, y+1, z+1).color(255,255,255,128);
-            buffer.vertex(x,   y,   z+1).color(255,255,255,128);
             buffer.vertex(x+1, y+1, z+1).color(255,255,255,128);
             buffer.vertex(x,   y+1, z+1).color(255,255,255,128);
         }
