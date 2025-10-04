@@ -3,7 +3,6 @@
 	"package": "com.veinbuddy.mixin.client",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
-		"ParticleMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
