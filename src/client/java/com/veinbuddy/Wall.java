@@ -3,6 +3,8 @@ package com.veinbuddy;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.VertexConsumer;
 import org.joml.Vector3i;
+
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 
 public class Wall {
@@ -11,44 +13,71 @@ public class Wall {
     private int z;
 
     private final boolean[] neighbors = new boolean[27];
-    public void AddToBuffer(VertexConsumer buffer) {
-        // just add whole block for now
+    private static int nIdx(int dx, int dy, int dz) {
+        // z-major: (dx+1) + (dy+1)*3 + (dz+1)*9
+        return (dx + 1) + (dy + 1) * 3 + (dz + 1) * 9;
+    }
 
-        // floor (y)
-        buffer.vertex(x,   y, z);
-        buffer.vertex(x+1, y, z);
-        buffer.vertex(x+1, y, z+1);
-        buffer.vertex(x,   y, z+1);
+    public void AddToBuffer(BufferBuilder buffer) {
+        // bottom (0,-1,0)
+        if (!neighbors[nIdx(0, -1, 0)]) {
+            buffer.vertex(x,   y, z);
+            buffer.vertex(x+1, y, z+1);
+            buffer.vertex(x+1, y, z);
+            buffer.vertex(x,   y, z);
+            buffer.vertex(x,   y, z+1);
+            buffer.vertex(x+1, y, z+1);
+        }
 
-        // roof (y+1)
-        buffer.vertex(x,   y+1, z);
-        buffer.vertex(x,   y+1, z+1);
-        buffer.vertex(x+1, y+1, z+1);
-        buffer.vertex(x+1, y+1, z);
+        // top (0,1,0)
+        if (!neighbors[nIdx(0, 1, 0)]) {
+            buffer.vertex(x,   y+1, z);
+            buffer.vertex(x+1, y+1, z);
+            buffer.vertex(x+1, y+1, z+1);
+            buffer.vertex(x,   y+1, z);
+            buffer.vertex(x+1, y+1, z+1);
+            buffer.vertex(x,   y+1, z+1);
+        }
 
-        // forward (z+1)
-        buffer.vertex(x,   y,   z+1);
-        buffer.vertex(x+1, y,   z+1);
-        buffer.vertex(x+1, y+1, z+1);
-        buffer.vertex(x,   y+1, z+1);
+        // front (0,0,1)  (z+1)
+        if (!neighbors[nIdx(0, 0, 1)]) {
+            buffer.vertex(x+1, y,   z);
+            buffer.vertex(x+1, y,   z+1);
+            buffer.vertex(x+1, y+1, z+1);
+            buffer.vertex(x+1, y,   z);
+            buffer.vertex(x+1, y+1, z+1);
+            buffer.vertex(x+1, y+1, z);
+        }
 
-        // backwards (z)
-        buffer.vertex(x,   y+1, z);
-        buffer.vertex(x+1, y+1, z);
-        buffer.vertex(x+1, y,   z);
-        buffer.vertex(x,   y,   z);
+        // back (0,0,-1)
+        if (!neighbors[nIdx(0, 0, -1)]) {
+            buffer.vertex(x, y,   z);
+            buffer.vertex(x, y+1, z+1);
+            buffer.vertex(x, y,   z+1);
+            buffer.vertex(x, y,   z);
+            buffer.vertex(x, y+1, z);
+            buffer.vertex(x, y+1, z+1);
+        }
 
-        // left (x)
-        buffer.vertex(x,   y,   z+1);
-        buffer.vertex(x,   y,   z);
-        buffer.vertex(x,   y+1, z);
-        buffer.vertex(x,   y+1, z+1);
+        // left (-1,0,0)
+        if (!neighbors[nIdx(-1, 0, 0)]) {
+            buffer.vertex(x,   y, z);
+            buffer.vertex(x+1, y+1, z);
+            buffer.vertex(x+1, y, z);
+            buffer.vertex(x,   y, z);
+            buffer.vertex(x,   y+1, z);
+            buffer.vertex(x+1, y+1, z);
+        }
 
-        // right (x+1)
-        buffer.vertex(x+1, y,   z);
-        buffer.vertex(x+1, y,   z+1);
-        buffer.vertex(x+1, y+1, z+1);
-        buffer.vertex(x+1, y+1, z);
+        // right (1,0,0)
+        if (!neighbors[nIdx(1, 0, 0)]) {
+            buffer.vertex(x,   y,   z+1);
+            buffer.vertex(x+1, y,   z+1);
+            buffer.vertex(x+1, y+1, z+1);
+            buffer.vertex(x,   y,   z+1);
+            buffer.vertex(x+1, y+1, z+1);
+            buffer.vertex(x,   y+1, z+1);
+        }
     }
     // Fill from some world/block source
     public Wall(Vector3i center) {
@@ -67,7 +96,7 @@ public class Wall {
         boolean hasTrue = false;
         boolean hasFalse = false;
 
-        if (!neighbors[14]) return false;
+        if (!neighbors[13]) return false;
 
         for (boolean b : neighbors) {
             if (b)
@@ -93,6 +122,7 @@ public class Wall {
         for (int lz = -1; lz <= 1; lz++) {
             mem.set(x + lx, y + ly, z + lz);
             neighbors[i] = neighbors[i] || bounds.contains(mem);
+            i++;
         }
     }
 

@@ -1,9 +1,14 @@
 package com.veinbuddy;
 
 import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.DepthTestFunction;
+import com.mojang.blaze3d.systems.CommandEncoder;
+import com.mojang.blaze3d.systems.RenderPass;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.systems.VertexSorter;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
@@ -15,22 +20,31 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
+import net.minecraft.SharedConstants;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gl.Framebuffer;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gl.UniformType;
 import net.minecraft.client.network.ServerInfo;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.VertexFormats;
+import net.minecraft.client.render.*;
+import net.minecraft.client.util.BufferAllocator;
 import net.minecraft.item.Item;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.Vec3i;
+import org.joml.Matrix4f;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 import org.joml.Vector3i;
+import org.lwjgl.BufferUtils;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.OptionalDouble;
+import java.util.OptionalInt;
 
 public class VeinBuddyClient implements ClientModInitializer {
 
@@ -65,28 +79,29 @@ public class VeinBuddyClient implements ClientModInitializer {
   private GpuBuffer gridVertexBuffer = null;
   private int gridVertexCount = 0;
 
+  private static final BufferAllocator allocator = new BufferAllocator(RenderLayer.CUTOUT_BUFFER_SIZE);
+  private BufferBuilder buffer;
   private final RenderPipeline WALLS = RenderPipeline.builder()
           .withLocation(Identifier.of("veinbuddy", "walls_pipeline"))
           .withVertexShader(Identifier.of("veinbuddy", "identity"))
           .withFragmentShader(Identifier.of("veinbuddy", "identity"))
           .withBlend(BlendFunction.TRANSLUCENT)
-          .withVertexFormat(VertexFormats.POSITION, VertexFormat.DrawMode.QUADS)
+          .withVertexFormat(VertexFormats.POSITION, VertexFormat.DrawMode.TRIANGLES)
           .withUniform("u_projection", UniformType.UNIFORM_BUFFER)
+          .withDepthBias(-2.0f, -0.002f)
           .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-          .withColorWrite(true,true)
-          //.withDepthBias()
           .withCull(false)
           .build();
 
   @Override
   public void onInitializeClient() {
+    SharedConstants.isDevelopment = true;
+
     ClientLifecycleEvents.CLIENT_STARTED.register(this::createPipelines);
     //ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> onStart(client));
     ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
     //ClientTickEvents.END_CLIENT_TICK.register(this::saveSelections);
-    WorldRenderEvents.BEFORE_DEBUG_RENDER.register(this::onRender);
-
-    buildMesh();
+    WorldRenderEvents.LAST.register(this::onRender);
 
     ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
       ClientCommandManager.literal("veinbuddy")
@@ -98,6 +113,7 @@ public class VeinBuddyClient implements ClientModInitializer {
       .then(ClientCommandManager.literal("hideOutlines").executes(this::onHideOutlines))
       .then(ClientCommandManager.literal("showOutlines").executes(this::onShowOutlines))
       .then(ClientCommandManager.literal("toggleRender").executes(this::onToggleRender))
+              .then(ClientCommandManager.literal("buildMesh").executes(this::buildMesh))
     ));
   }
 
@@ -267,18 +283,38 @@ public class VeinBuddyClient implements ClientModInitializer {
   }
 
   private void onRender(WorldRenderContext ctx) {
+    if (walls.isEmpty()) return;
 
-    RenderLayer debugQuads = RenderLayer.getDebugQuads();
-    //VertexConsumer buffer = ctx.consumers().getBuffer(debugQuads);
+    Vec3d camPos = ctx.camera().getPos();
+    Vector3f camVec = new Vector3f(-(float)camPos.getX(), -(float)camPos.getY(), -(float)camPos.getZ());
+    Quaternionf camQuat = ctx.camera().getRotation().invert();
 
-    for (Wall wall : walls) {
-      //wall.AddToBuffer(buffer);
-    }
+    ByteBuffer mat = (new Matrix4f(ctx.projectionMatrix())).rotate(camQuat).translate(camVec).get(BufferUtils.createByteBuffer(64));
+    GpuBuffer matBuffer = RenderSystem.getDevice().createBuffer(() -> "u_projection", GpuBuffer.USAGE_UNIFORM, mat);
 
-    //matBuffer.close();
+    CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
+
+    Framebuffer fb = BlockRenderLayerGroup.TRANSLUCENT.getFramebuffer();
+
+    RenderPass wallsPass = encoder.createRenderPass(
+            () -> "Walls",
+            fb.getColorAttachmentView(),
+            OptionalInt.empty(),
+            fb.getDepthAttachmentView(),
+            OptionalDouble.empty()
+    );
+    wallsPass.setIndexBuffer(null, VertexFormat.IndexType.INT);
+    wallsPass.setPipeline(WALLS);
+    wallsPass.setVertexBuffer(0, wallVertexBuffer);
+    wallsPass.setUniform("u_projection", matBuffer);
+    wallsPass.draw(0, wallVertexBuffer.size);
+    wallsPass.close();
+
+    matBuffer.close();
   }
+
   public final ArrayList<Wall> walls = new ArrayList<>();
-  public void buildMesh(){
+  public int buildMesh(CommandContext<FabricClientCommandSource> ctx){
     ArrayList<Bounds> selections = new ArrayList<>();
     selections.add(new Bounds(new Vector3i(0,10,0), new Vector3i(5,5,5)));
 
@@ -298,5 +334,20 @@ public class VeinBuddyClient implements ClientModInitializer {
 
     // remove non-walls
     walls.removeIf(Wall::IsNotWall);
+
+    wallVertexCount = walls.size() * 4 * 6;
+    ByteBuffer wallBuffer = BufferUtils.createByteBuffer(wallVertexCount);
+
+    BufferBuilder builder = new BufferBuilder(allocator, VertexFormat.DrawMode.QUADS, VertexFormats.POSITION);
+    //todo write
+    for (Wall wall : walls) {
+      wall.AddToBuffer(builder);
+    }
+
+    BuiltBuffer built = builder.end();
+
+    if (null != wallVertexBuffer) wallVertexBuffer.close();
+    wallVertexBuffer = RenderSystem.getDevice().createBuffer(() -> "Walls", GpuBuffer.USAGE_VERTEX, built.getBuffer());
+    return 0;
   }
 }

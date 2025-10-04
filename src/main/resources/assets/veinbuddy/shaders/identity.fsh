@@ -1,9 +1,7 @@
 #version 460
 
-uniform mediump vec4 color;
-
 out mediump vec4 fragmentColor;
 
 void main() {
-  fragmentColor = color;
+  fragmentColor = vec4(1,0,0,0.5);
 }
