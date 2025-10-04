@@ -1,5 +1,5 @@
 package com.veinbuddy;
-
+import com.veinbuddy.VeinBuddyShare;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GLCapabilities;
@@ -108,12 +108,6 @@ public class VeinBuddyClient implements ClientModInitializer {
   private int changeNumber = 0;
   private boolean showOutlines = false;
   private boolean render = true;
-  
-  // Sharing functionality
-  private boolean sharingEnabled = false;
-  private String shareGroup = "Bozos";
-  private Map<Vec3i, Long> selectionTimestamps = new ConcurrentHashMap<Vec3i, Long>();
-  private Set<Vec3i> sharedSelections = new ConcurrentSkipListSet<Vec3i>();
 
   private Set<Vec3i> selections = new ConcurrentSkipListSet<Vec3i>();
   private Map<Vec3i, Vec3i> selectionRanges = new ConcurrentHashMap<Vec3i, Vec3i>();
@@ -152,9 +146,11 @@ public class VeinBuddyClient implements ClientModInitializer {
     ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> onStart(client));
     ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
     ClientTickEvents.END_CLIENT_TICK.register(this::saveSelections);
-    ClientTickEvents.END_CLIENT_TICK.register(this::checkForSharingOpportunities);
     WorldRenderEvents.LAST.register(this::onRender);
-    ClientReceiveMessageEvents.GAME.register(this::onChatMessage);
+    
+    // Initialize sharing system
+    VeinBuddyShare.initialize();
+    VeinBuddyShare.setImportCallback(this::addSelection);
 
     ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
       ClientCommandManager.literal("veinbuddy")
@@ -169,11 +165,6 @@ public class VeinBuddyClient implements ClientModInitializer {
       .then(ClientCommandManager.literal("hideOutlines").executes(this::onHideOutlines))
       .then(ClientCommandManager.literal("showOutlines").executes(this::onShowOutlines))
       .then(ClientCommandManager.literal("toggleRender").executes(this::onToggleRender))
-      .then(ClientCommandManager.literal("shareGroup")
-        .then(ClientCommandManager.argument("groupName", StringArgumentType.string())
-          .executes(this::onSetShareGroup)))
-      .then(ClientCommandManager.literal("enableSharing").executes(this::onEnableSharing))
-      .then(ClientCommandManager.literal("disableSharing").executes(this::onDisableSharing))
     ));
   }
 
@@ -412,92 +403,6 @@ public class VeinBuddyClient implements ClientModInitializer {
     return 0;
   }
 
-  private int onSetShareGroup(CommandContext<FabricClientCommandSource> ctx) {
-    shareGroup = StringArgumentType.getString(ctx, "groupName");
-    mc.player.sendMessage(Text.literal("§aVeinBuddy sharing group set to: " + shareGroup), false);
-    return 0;
-  }
-
-  private int onEnableSharing(CommandContext<FabricClientCommandSource> ctx) {
-    if (shareGroup.isEmpty()) {
-      mc.player.sendMessage(Text.literal("§cPlease set a share group first with /veinbuddy shareGroup <groupName>"), false);
-      return 1;
-    }
-    sharingEnabled = true;
-    mc.player.sendMessage(Text.literal("§aVeinBuddy sharing enabled for group: " + shareGroup), false);
-    return 0;
-  }
-
-  private int onDisableSharing(CommandContext<FabricClientCommandSource> ctx) {
-    sharingEnabled = false;
-    mc.player.sendMessage(Text.literal("§cVeinBuddy sharing disabled"), false);
-    return 0;
-  }
-
-  private void onChatMessage(Text message, boolean overlay) {
-    if (overlay) return;
-    String messageString = message.getString();
-    
-    if (messageString.contains("[VeinBuddy]") && messageString.contains("MARK:")) {
-      // Parse format: [VeinBuddy] MARK: x y z xRange yRange zRange
-      String[] parts = messageString.split("MARK:")[1].trim().split(" ");
-      if (parts.length >= 6) {
-        try {
-          int x = Integer.parseInt(parts[0]);
-          int y = Integer.parseInt(parts[1]);
-          int z = Integer.parseInt(parts[2]);
-          int xRange = Integer.parseInt(parts[3]);
-          int yRange = Integer.parseInt(parts[4]);
-          int zRange = Integer.parseInt(parts[5]);
-          
-          Vec3i selection = new Vec3i(x, y, z);
-          Vec3i range = new Vec3i(xRange, yRange, zRange);
-          
-          // Only import if we don't already have this selection
-          if (!selections.contains(selection)) {
-            addSelection(selection, range, true);
-            mc.player.sendMessage(Text.literal("§aImported VeinBuddy mark at " + x + " " + y + " " + z), false);
-          }
-        } catch (NumberFormatException e) {
-          // Ignore malformed messages
-        }
-      }
-    }
-  }
-
-  private void checkForSharingOpportunities(MinecraftClient client) {
-    if (!sharingEnabled || shareGroup.isEmpty() || client.player == null) {
-      return;
-    }
-    
-    long currentTime = System.currentTimeMillis();
-    
-    // Check selections that are old enough to share (10 seconds)
-    for (Vec3i selection : selections) {
-      if (!sharedSelections.contains(selection)) {
-        Long timestamp = selectionTimestamps.get(selection);
-        if (timestamp != null && (currentTime - timestamp) >= 10000) {
-          // This selection is ready to be shared
-          Vec3i range = selectionRanges.get(selection);
-          if (range != null) {
-            shareSelection(selection, range);
-            sharedSelections.add(selection);
-          }
-        }
-      }
-    }
-  }
-
-  private void shareSelection(Vec3i selection, Vec3i range) {
-    String message = String.format("[VeinBuddy] MARK: %d %d %d %d %d %d", 
-        selection.getX(), selection.getY(), selection.getZ(),
-        range.getX(), range.getY(), range.getZ());
-    
-    // Send to namelayer group
-    String command = "/g " + shareGroup + " " + message;
-    mc.getNetworkHandler().sendChatCommand(command.substring(1)); // Remove the leading /
-  }
-
   private void onTick(MinecraftClient client) {
     if (null == client.player) return;
     if (null == client.mouse) return;
@@ -529,6 +434,7 @@ public class VeinBuddyClient implements ClientModInitializer {
     posBlock = new Vec3i((int)Math.floor(pos.getX()), 
                          (int)Math.floor(pos.getY()), 
                          (int)Math.floor(pos.getZ()));
+    VeinBuddyShare.checkForSharingOpportunities(selections, selectionRanges);
   }
 
   private boolean rayIntersectsSphere(Vec3d orig, Vec3d rot, Vec3d center) {
@@ -689,7 +595,7 @@ public class VeinBuddyClient implements ClientModInitializer {
     
     // Record timestamp for sharing (only for new selections, not bulk imports)
     if (!bulk) {
-      selectionTimestamps.put(selection, System.currentTimeMillis());
+      VeinBuddyShare.recordNewSelection(selection);
     }
 
     if (!bulk) {
@@ -727,8 +633,7 @@ public class VeinBuddyClient implements ClientModInitializer {
     selections.remove(selection);
     
     // Clean up sharing-related data
-    selectionTimestamps.remove(selection);
-    sharedSelections.remove(selection);
+    VeinBuddyShare.cleanupSelection(selection);
 
     Set<Vec3i> caught = new HashSet<Vec3i>();
     Set<Vec3i> orphaned = new HashSet<Vec3i>();
