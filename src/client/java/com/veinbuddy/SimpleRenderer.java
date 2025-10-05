@@ -19,7 +19,6 @@ import net.minecraft.util.Pair;
 import net.minecraft.util.math.Vec3d;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
-import org.joml.Vector3i;
 import org.joml.Vector4f;
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -29,9 +28,9 @@ public class SimpleRenderer implements AutoCloseable {
             .withLocation(Identifier.of("veinbuddy", "walls_pipeline"))
             .withBlend(BlendFunction.TRANSLUCENT)
             .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS)
-            .withDepthBias(-1.0f, -0.001f)
-            .withDepthWrite(true)
-            .withCull(false)
+            .withDepthBias(-1.0f, -0.001f) // ensures it draws over blocks
+            .withDepthWrite(true) // hides clouds cus the look weird
+            .withCull(false) // shows the backface
             .build());
 
     private final RenderPipeline GRID = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.POSITION_COLOR_SNIPPET)
@@ -42,32 +41,35 @@ public class SimpleRenderer implements AutoCloseable {
             .build());
 
     private static final BufferAllocator allocator = new BufferAllocator(RenderLayer.SOLID_BUFFER_SIZE);
-    private BuiltBuffer wallBuiltBuffer;
+    private BuiltBuffer wallBuffer;
     private GpuBuffer wallVertices;
     private GpuBuffer gridVertices;
 
     public SimpleRenderer() {
-        WorldRenderEvents.AFTER_TRANSLUCENT.register(this::onRender);
+        WorldRenderEvents.LAST.register(this::onRender);
     }
 
     private void onRender(WorldRenderContext ctx) {
         if (gridVertices != null)
             draw(ctx, GRID, gridVertices, null);
-        if (wallBuiltBuffer != null) {
-            draw(ctx, WALLS, wallVertices, createWallIndices(ctx));
-        }
+        if (wallVertices != null)
+            draw(ctx, WALLS, wallVertices, getWallIndices(ctx));
     }
 
-    private Pair<GpuBuffer, VertexFormat.IndexType> createWallIndices(WorldRenderContext ctx) {
+    private GpuBuffer wallIndices;
+    private Pair<GpuBuffer, VertexFormat.IndexType> getWallIndices(WorldRenderContext ctx) {
+        // sort quads for correct translucency
         Vec3d camera = ctx.camera().getPos();
-        wallBuiltBuffer.sortQuads(allocator, VertexSorter.byDistance(camera.toVector3f()));
-        ByteBuffer sortedBuffer = wallBuiltBuffer.getSortedBuffer();
-        GpuBuffer gpuBuffer = WALLS.getVertexFormat().uploadImmediateIndexBuffer(sortedBuffer);
-        return new Pair<>(gpuBuffer, wallBuiltBuffer.getDrawParameters().indexType());
+        wallBuffer.sortQuads(allocator, VertexSorter.byDistance(camera.toVector3f()));
+        ByteBuffer sortedBuffer = wallBuffer.getSortedBuffer();
+
+        // send to gpu
+        wallIndices = WALLS.getVertexFormat().uploadImmediateIndexBuffer(sortedBuffer);
+        return new Pair<>(wallIndices, wallBuffer.getDrawParameters().indexType());
     }
 
     private void draw(WorldRenderContext ctx, RenderPipeline pipeline, GpuBuffer vertices, @Nullable Pair<GpuBuffer, VertexFormat.IndexType> indices) {
-        Framebuffer fb = BlockRenderLayerGroup.TRANSLUCENT.getFramebuffer();
+        Framebuffer fb = BlockRenderLayer.TRANSLUCENT.getFramebuffer();
 
         Vec3d camera = ctx.camera().getPos();
         Matrix4f m = new Matrix4f(RenderSystem.getModelViewMatrix());
@@ -90,71 +92,56 @@ public class SimpleRenderer implements AutoCloseable {
             renderPass.setUniform("DynamicTransforms", dynamicTransforms);
 
             renderPass.setVertexBuffer(0, vertices);
-            if (indices != null) {
-                GpuBuffer indicesBuffer = indices.getLeft();
-                VertexFormat.IndexType indexType = indices.getRight();
-                renderPass.setIndexBuffer(indicesBuffer, indexType);
-                renderPass.drawIndexed(0, 0, indicesBuffer.size() / indexType.size, 1);
-            } else {
+            if (indices == null) {
                 renderPass.draw(0, vertices.size() / pipeline.getVertexFormat().getVertexSize());
+                return;
             }
-
+            GpuBuffer indicesBuffer = indices.getLeft();
+            VertexFormat.IndexType indexType = indices.getRight();
+            renderPass.setIndexBuffer(indicesBuffer, indexType);
+            renderPass.drawIndexed(0, 0, indicesBuffer.size() / indexType.size, 1);
         }
     }
 
-    public void buildMesh(List<Bounds> selections){
-        if (wallBuiltBuffer != null) {
-            wallBuiltBuffer.close();
-            wallBuiltBuffer = null;
-        }
-        if (gridVertices != null) {
-            gridVertices.close();
-            gridVertices = null;
-        }
+    public void draw(Collection<Wall> walls){
+        clear();
+        if (walls.isEmpty()) return;
 
-        HashSet<Wall> walls = new HashSet<>();
-
-        // find boundaries
-        for (Bounds selection : selections) {
-            Wall.createWalls(walls, selection, new Vector4f(1f,0,0,0.25f), new Vector4f(0,0,0,1));
-        }
-
-        // mark overlapping
-        Vector3i temp = new Vector3i();
+        // build the walls
+        BufferBuilder wallBuilder = new BufferBuilder(allocator, WALLS.getVertexFormatMode(), WALLS.getVertexFormat());
         for (Wall wall : walls) {
-            for (Bounds selection : selections) {
-                wall.addSelection(selection, temp);
-                if (!wall.isWall()) break;
-            }
+            wall.addWallsToBuffer(wallBuilder);
         }
+        wallBuffer = wallBuilder.endNullable(); // save wall buffer to create indices later
 
-        // remove non-walls
-        walls.removeIf(Wall::isNotWall);
-
-        BufferBuilder builder = new BufferBuilder(allocator, WALLS.getVertexFormatMode(), WALLS.getVertexFormat());
+        // build the grid
+        BufferBuilder gridBuilder = new BufferBuilder(allocator, GRID.getVertexFormatMode(), GRID.getVertexFormat());
         for (Wall wall : walls) {
-            wall.addWallsToBuffer(builder);
+            wall.addGridToBuffer(gridBuilder);
         }
-        wallBuiltBuffer = builder.end();
+        BuiltBuffer gridBuffer = gridBuilder.endNullable();
 
-        if (null != wallVertices) wallVertices.close();
-        wallVertices = RenderSystem.getDevice().createBuffer(() -> "Walls", GpuBuffer.USAGE_VERTEX, wallBuiltBuffer.getBuffer());
+        // write to GPU
+        if (wallBuffer != null && wallBuffer.getDrawParameters().vertexCount() > 0)
+            wallVertices = RenderSystem.getDevice().createBuffer(() -> "Walls", GpuBuffer.USAGE_VERTEX, wallBuffer.getBuffer());
+        if (gridBuffer != null && gridBuffer.getDrawParameters().vertexCount() > 0)
+            gridVertices = RenderSystem.getDevice().createBuffer(() -> "Grid", GpuBuffer.USAGE_VERTEX, gridBuffer.getBuffer());
+    }
 
-        builder = new BufferBuilder(allocator, GRID.getVertexFormatMode(), GRID.getVertexFormat());
-        for (Wall wall : walls) {
-            wall.addGridToBuffer(builder);
-        }
-        BuiltBuffer grid = builder.end();
+    public void clear() {
+        if (wallBuffer != null) wallBuffer.close();
+        if (wallVertices != null) wallVertices.close();
+        if (wallIndices != null) wallIndices.close();
+        if (gridVertices != null) gridVertices.close();
 
-        if (null != gridVertices) gridVertices.close();
-
-        gridVertices = RenderSystem.getDevice().createBuffer(() -> "Grid", GpuBuffer.USAGE_VERTEX, grid.getBuffer());
+        wallBuffer = null;
+        wallVertices = null;
+        wallIndices = null;
+        gridVertices = null;
     }
 
     @Override
     public void close() throws Exception {
-        if (wallBuiltBuffer != null) wallBuiltBuffer.close();
-        if (wallVertices != null) wallVertices.close();
-        if (gridVertices != null) gridVertices.close();
+        clear();
     }
 }
