@@ -96,6 +96,8 @@ public class Wall {
     }
 
     public void addWallsToBuffer(BufferBuilder buffer) {
+        if (color.w() <= 0) return;
+
         for (int i = 0; i < 6; i++) {
             int p = 1 << i;
             if ((p & neighborMask) != 0) continue;
@@ -110,6 +112,8 @@ public class Wall {
     }
 
     public void addGridToBuffer(BufferBuilder buffer) {
+        if (lineColor.w() <= 0) return;
+
         for (int i = 0; i < 6; i++) {
             int p = 1 << i;
             if ((p & neighborMask) != 0) continue;

@@ -1,46 +1,27 @@
 package com.veinbuddy;
 
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.systems.RenderPass;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.systems.VertexSorter;
-import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.SharedConstants;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.Framebuffer;
-import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.network.ServerInfo;
-import net.minecraft.client.render.*;
-import net.minecraft.client.util.BufferAllocator;
 import net.minecraft.item.Item;
-import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.Vec3i;
-import org.joml.Matrix4f;
 import org.joml.Vector3i;
+import org.joml.Vector3ic;
 import org.joml.Vector4f;
+import org.joml.Vector4fc;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.OptionalDouble;
-import java.util.OptionalInt;
+import java.util.*;
 
 public class VeinBuddyClient implements ClientModInitializer {
 
@@ -61,7 +42,15 @@ public class VeinBuddyClient implements ClientModInitializer {
   private int saveNumber = 0;
   private int changeNumber = 0;
 
-  private SimpleRenderer rangeRenderer;
+  private SimpleRenderer staticRenderer;
+  private SimpleRenderer dynamicRenderer;
+
+  private final Set<Bounds> selections = new HashSet<>();
+
+  private Vector4fc rangeColor = new Vector4f(1,0,0,0.2f);
+  private Vector4fc rangeGridColor = new Vector4f(0,0,0,1);
+  private Vector4fc selectionColor = new Vector4f(0,1,0,0.2f);
+  private Vector4fc selectionGridColor = new Vector4f(0);
 
   @Override
   public void onInitializeClient() {
@@ -71,7 +60,8 @@ public class VeinBuddyClient implements ClientModInitializer {
     ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
     //ClientTickEvents.END_CLIENT_TICK.register(this::saveSelections);
 
-    rangeRenderer = new SimpleRenderer();
+    staticRenderer = new SimpleRenderer();
+    dynamicRenderer = new SimpleRenderer();
 
     ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
       ClientCommandManager.literal("veinbuddy")
@@ -82,13 +72,12 @@ public class VeinBuddyClient implements ClientModInitializer {
                                               .executes(this::onDigRange)))))
               .then(ClientCommandManager.literal("debug").executes(this::debug))
     ));
-
-
   }
 
-  // todo remove debug stuff
   private int debug(CommandContext<FabricClientCommandSource> ctx) {
-    rangeRenderer.buildMesh(List.of(new Bounds(new Vector3i(0,10,0), new Vector3i(5,5,5))));
+    selections.add(new Bounds(new Vector3i(0,10,0), new Vector3i(5)));
+    selections.add(new Bounds(new Vector3i(3,7,0), new Vector3i(3)));
+    redrawStatic();
     return 1;
   }
 
@@ -224,5 +213,34 @@ public class VeinBuddyClient implements ClientModInitializer {
     posBlock = new Vec3i((int)Math.floor(pos.getX()), 
                          (int)Math.floor(pos.getY()), 
                          (int)Math.floor(pos.getZ()));
+  }
+
+  private void redrawStatic() {
+    HashSet<Wall> rangeBorder = new HashSet<>();
+
+    // find boundaries
+    for (Bounds selection : selections) {
+      Wall.createWalls(rangeBorder, selection, rangeColor, rangeGridColor);
+    }
+
+    // mark overlapping
+    Vector3i temp = new Vector3i();
+    for (Wall wall : rangeBorder) {
+      for (Bounds selection : selections) {
+        wall.addSelection(selection, temp);
+        if (!wall.isWall()) break;
+      }
+    }
+
+    // remove non-walls
+    rangeBorder.removeIf(Wall::isNotWall);
+
+    ArrayList<Wall> borders = new ArrayList<>(rangeBorder);
+    for (Bounds selection : selections) {
+      Vector3ic center = selection.center();
+      borders.add(new Wall(center.x(), center.y(), center.z(), selectionColor, selectionGridColor));
+    }
+
+    staticRenderer.draw(borders);
   }
 }
