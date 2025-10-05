@@ -2,7 +2,9 @@ package com.veinbuddy;
 
 import net.minecraft.client.render.BufferBuilder;
 import org.joml.*;
-import java.util.ArrayList;
+
+import java.util.HashSet;
+import java.util.Objects;
 
 public class Wall {
     private static final Vector3fc[] vertices = {
@@ -36,16 +38,18 @@ public class Wall {
 
     private final int x, y, z;
     private final Vector4fc color;
+    private final Vector4fc lineColor;
     private int neighborMask;
 
-    public Wall(int x, int y, int z, Vector4fc color) {
+    public Wall(int x, int y, int z, Vector4fc color, Vector4fc lineColor) {
         this.x = x;
         this.y = y;
         this.z = z;
         this.color = color;
+        this.lineColor = lineColor;
     }
 
-    public static void createWalls(ArrayList<Wall> walls, Bounds bounds, Vector4fc color){
+    public static void createWalls(HashSet<Wall> walls, Bounds bounds, Vector4fc color, Vector4fc lineColor){
         Vector3ic c = bounds.center(), r = bounds.range(); // range = half-extents
 
         int minX = c.x() - r.x(), maxX = c.x() + r.x();
@@ -60,7 +64,7 @@ public class Wall {
                     z != minZ && z != maxZ) {
                 continue;
             }
-            walls.add(new Wall(x, y, z, color));
+            walls.add(new Wall(x, y, z, color, lineColor));
         }
     }
 
@@ -91,16 +95,52 @@ public class Wall {
         return !isWall();
     }
 
-    public void addToBuffer(BufferBuilder buffer) {
+    public void addWallsToBuffer(BufferBuilder buffer) {
         for (int i = 0; i < 6; i++) {
             int p = 1 << i;
             if ((p & neighborMask) != 0) continue;
 
-            for (int j : quads[i]) {
-                Vector3fc vertex = vertices[j];
-                buffer.vertex(x + vertex.x(), y + vertex.y(), z + vertex.z())
-                        .color(color.x(), color.y(), color.z(), color.w());
-            }
+            int[] quad = quads[i];
+
+            addToBuffer(buffer, vertices[quad[0]], color);
+            addToBuffer(buffer, vertices[quad[1]], color);
+            addToBuffer(buffer, vertices[quad[2]], color);
+            addToBuffer(buffer, vertices[quad[3]], color);
         }
+    }
+
+    public void addGridToBuffer(BufferBuilder buffer) {
+        for (int i = 0; i < 6; i++) {
+            int p = 1 << i;
+            if ((p & neighborMask) != 0) continue;
+
+            int[] quad = quads[i];
+
+            addToBuffer(buffer, vertices[quad[0]], lineColor);
+            addToBuffer(buffer, vertices[quad[1]], lineColor);
+            addToBuffer(buffer, vertices[quad[1]], lineColor);
+            addToBuffer(buffer, vertices[quad[2]], lineColor);
+            addToBuffer(buffer, vertices[quad[2]], lineColor);
+            addToBuffer(buffer, vertices[quad[3]], lineColor);
+            addToBuffer(buffer, vertices[quad[3]], lineColor);
+            addToBuffer(buffer, vertices[quad[0]], lineColor);
+        }
+    }
+
+    private void addToBuffer(BufferBuilder buffer, Vector3fc offset, Vector4fc color) {
+        buffer.vertex(x + offset.x(), y + offset.y(), z + offset.z())
+                .color(color.x(), color.y(), color.z(), color.w());
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Wall wall)) return false;
+        return x == wall.x && y == wall.y && z == wall.z;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(x, y, z);
     }
 }
