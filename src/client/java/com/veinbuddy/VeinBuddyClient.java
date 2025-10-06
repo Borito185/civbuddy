@@ -11,36 +11,34 @@ import net.minecraft.SharedConstants;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.item.Item;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.Vec3i;
-import org.joml.Vector3i;
-import org.joml.Vector3ic;
-import org.joml.Vector4f;
-import org.joml.Vector4fc;
+import net.minecraft.util.shape.VoxelShapes;
+import org.joml.*;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.Math;
 import java.util.*;
 
 public class VeinBuddyClient implements ClientModInitializer {
 
   private final static MinecraftClient mc = MinecraftClient.getInstance();
   private final static int defaultDigRange = 7;
-  private final static double speed = 0.2f;
-  private final static double radius = 0.5;
-  private final static double placeRange = 6.0;
+  private final static float speed = 0.2f;
+  private final static float placeRange = 6.0f;
   private final static int maxTicks = (int) (placeRange / speed);
   private final static int delay = 5;
 
-  private Vec3i digRange = new Vec3i(defaultDigRange, defaultDigRange, defaultDigRange);
+  private Vector3i digRange = new Vector3i(defaultDigRange, defaultDigRange, defaultDigRange);
 
   private int selectionTicks = 0;
   private Vec3d pos = null;
   private Vec3i posBlock = null;
-  private boolean change = true;
-  private int saveNumber = 0;
-  private int changeNumber = 0;
 
   private SimpleRenderer staticRenderer;
   private SimpleRenderer dynamicRenderer;
@@ -51,6 +49,7 @@ public class VeinBuddyClient implements ClientModInitializer {
   private Vector4fc rangeGridColor = new Vector4f(0,0,0,1);
   private Vector4fc selectionColor = new Vector4f(0,1,0,0.2f);
   private Vector4fc selectionGridColor = new Vector4f(0);
+  private Vector4fc highlightGridColor = new Vector4f(0,0,0,1);
 
   @Override
   public void onInitializeClient() {
@@ -60,8 +59,8 @@ public class VeinBuddyClient implements ClientModInitializer {
     ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
     //ClientTickEvents.END_CLIENT_TICK.register(this::saveSelections);
 
+    dynamicRenderer = new SimpleRenderer(true, false);
     staticRenderer = new SimpleRenderer();
-    dynamicRenderer = new SimpleRenderer();
 
     ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
       ClientCommandManager.literal("veinbuddy")
@@ -93,84 +92,11 @@ public class VeinBuddyClient implements ClientModInitializer {
     return new File(client.runDirectory, "data/veinbuddy/" + address + ".txt");
   }
 
-//  private void saveSelections(MinecraftClient client) {
-//    if (!(changeNumber > saveNumber)) return;
-//    try {
-//      File saveFile = getSaveFile(client);
-//      if (null == saveFile)
-//        return;
-//      saveFile.getParentFile().mkdirs();
-//      FileWriter fileWriter = new FileWriter(saveFile, false);
-//      fileWriter.write("Version 2\n");
-//      for (Vec3i selection : selections) {
-//         Vec3i ranges = selectionRanges.get(selection);
-//         fileWriter.write(selection.getX() + " " + selection.getY() + " " + selection.getZ() + " " + ranges.getX() + " " + ranges.getY() + " " + ranges.getZ() + "\n");
-//      }
-//      fileWriter.close();
-//      saveNumber = changeNumber;
-//    } catch (IOException e){
-//      System.out.println("Sad!");
-//    }
-//  }
-
-//  private void onStart(MinecraftClient client) {
-//    File configFile = getConfigFile(client);
-//    File saveFile = getSaveFile(client);
-//    if (configFile.exists()) {
-//      try {
-//        Scanner sc = new Scanner(configFile);
-//	if (null != sc.findInLine("\\d+ \\d+ \\d+")) {
-//          int x = sc.nextInt();
-//          int y = sc.nextInt();
-//          int z = sc.nextInt();
-//          digRange = new Vec3i(x, y, z);
-//	}
-//      } catch (IOException e) {
-//        System.out.println("Mad!");
-//      }
-//    }
-//    if (null == saveFile || !saveFile.exists())
-//      return;
-//    try {
-//      Scanner sc = new Scanner(saveFile);
-//      if (!sc.hasNext("Version")) { //Version 1
-//        while (null != sc.findInLine("\\d+ \\d+ \\d+")) {
-//          int x = sc.nextInt();
-//          int y = sc.nextInt();
-//          int z = sc.nextInt();
-//          addSelection(new Vec3i(x, y, z), new Vec3i(defaultDigRange, defaultDigRange, defaultDigRange), true);
-//          sc.nextLine();
-//        }
-//      }
-//      else {
-//	sc.next();
-//        String found = sc.next("\\d+");
-//        if (found.equals("2")) { // Version 2
-//          sc.nextLine();
-//	  while (sc.hasNext()) {
-//            int x = sc.nextInt();
-//            int y = sc.nextInt();
-//            int z = sc.nextInt();
-//            int xRange = sc.nextInt();
-//            int yRange = sc.nextInt();
-//            int zRange = sc.nextInt();
-//            addSelection(new Vec3i(x, y, z), new Vec3i(xRange, yRange, zRange), true);
-//            sc.nextLine();
-//	  }
-//        }
-//      }
-//    } catch (IOException e) {
-//      System.out.println("Bad!");
-//    }
-//    updateWalls();
-//    refreshBuffer();
-//  }
-
   private int onDigRange(CommandContext<FabricClientCommandSource> ctx) {
     int x = IntegerArgumentType.getInteger(ctx, "x");
     int y = IntegerArgumentType.getInteger(ctx, "y");
     int z = IntegerArgumentType.getInteger(ctx, "z");
-    digRange = new Vec3i(x, y, z);
+    digRange = new Vector3i(x, y, z);
     try {
       File configFile = getConfigFile(mc);
       FileWriter fileWriter = new FileWriter(configFile, false);
@@ -187,32 +113,65 @@ public class VeinBuddyClient implements ClientModInitializer {
     if (null == client.mouse) return;
     if (null == client.world) return;
     Item item = client.player.getInventory().getSelectedStack().getItem();
-    if (!item.getName().toString().contains("pickaxe")) {
-      pos = null;
-      posBlock = null;
+
+    boolean isHoldingPickaxe = item.getName().toString().contains("pickaxe");
+    boolean isHolding = client.mouse.wasRightButtonClicked();
+    boolean released = !isHolding && selectionTicks > 0;
+    boolean isCharged = selectionTicks > delay;
+
+    int chargeTime = Math.max(selectionTicks - delay, 0);
+    if (!isHoldingPickaxe || released) {
       selectionTicks = 0;
+      dynamicRenderer.clear();
+    }
+    if (isHolding) selectionTicks++;
+    if (!isHoldingPickaxe || (!isHolding && !released) || (isHolding && !isCharged)) return;
+
+    Vec3d playerPos = client.player.getEyePos();
+    Vec3d playerDir = client.player.getRotationVector();
+
+
+    if (released && !isCharged) {
+      removeTargetedBlock(playerPos, playerDir);
       return;
     }
-    boolean rightClick = client.mouse.wasRightButtonClicked();
-    Vec3d playerPos = client.player.getPos().add(0.0f, 1.6f, 0.0f);
-    Vec3d playerDir = client.player.getRotationVector();
-    if (!rightClick && 0 != selectionTicks && 10 > selectionTicks) {
-      //removeLookedAtSelection(playerPos, playerDir);
+    Vector3f targetedBlock = playerDir.toVector3f();
+    targetedBlock = targetedBlock
+            .mul(speed)
+            .mul(chargeTime)
+            .div(Math.max(targetedBlock.length() / placeRange, 1))
+            .add(playerPos.toVector3f())
+            .floor();
+    if (released && isCharged) {
+      selections.add(new Bounds(new Vector3i(targetedBlock, 2), digRange));
+      redrawStatic();
     }
-    if (!rightClick && 10 <= selectionTicks) {
-      //addSelection(posBlock, digRange, false);
+    if (isHolding && isCharged) {
+      Wall w = new Wall((int)targetedBlock.x, (int)targetedBlock.y, (int)targetedBlock.z, new Vector4f(0), highlightGridColor);
+      dynamicRenderer.draw(List.of(w));
     }
-    if (!rightClick) {
-      pos = null;
-      posBlock = null;
+  }
+
+  private void removeTargetedBlock(Vec3d cameraPos, Vec3d cameraDir) {
+    Bounds closest = null;
+    float closestDist = Float.MAX_VALUE;
+
+    Vec3d closeEnd = cameraPos.subtract(cameraDir);
+    Vec3d farEnd = cameraPos.add(cameraDir.multiply(1000));
+
+    for (Bounds bounds : selections) {
+      if (!bounds.rayIntersectsBox(closeEnd, farEnd)) continue;
+
+      float distance = new Vector3f(bounds.center()).add(0.5f,0.5f,0.5f).distance(cameraPos.toVector3f());
+      if (distance >= closestDist) continue;
+
+      closest = bounds;
+      closestDist = distance;
     }
-    selectionTicks = rightClick ? selectionTicks + 1 : 0;
-    selectionTicks = Math.min(selectionTicks, maxTicks + delay);
-    if (10 > selectionTicks) return;
-    pos = playerPos.add(playerDir.multiply(speed).multiply(selectionTicks - delay));
-    posBlock = new Vec3i((int)Math.floor(pos.getX()), 
-                         (int)Math.floor(pos.getY()), 
-                         (int)Math.floor(pos.getZ()));
+
+    if (closest == null) return;
+    selections.remove(closest);
+    redrawStatic();
   }
 
   private void redrawStatic() {

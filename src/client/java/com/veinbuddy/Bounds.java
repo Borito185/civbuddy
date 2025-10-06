@@ -1,5 +1,10 @@
 package com.veinbuddy;
 
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.shape.VoxelShapes;
 import org.joml.Math;
 import org.joml.Vector3ic;
 
@@ -27,6 +32,13 @@ public record Bounds(Vector3ic center, Vector3ic range) {
         int dz = Math.abs(pos.z() - center.z());
 
         return dx <= range.x() && dy <= range.y() && dz <= range.z();
+    }
+
+    public boolean rayIntersectsBox(Vec3d a, Vec3d b) {
+        BlockHitResult raycast = VoxelShapes
+                .cuboid(center.x(), center.y(), center.z(), center.x() + 1, center.y() + 1, center.z() + 1)
+                .raycast(a, b, BlockPos.ORIGIN);
+        return raycast != null;
     }
 
     @Override
