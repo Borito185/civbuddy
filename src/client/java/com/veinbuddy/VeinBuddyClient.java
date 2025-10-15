@@ -404,6 +404,9 @@ public class VeinBuddyClient implements ClientModInitializer {
   }
 
   private void onTick(MinecraftClient client) {
+    // Check for sharing opportunities every tick (not just during selection)
+    VeinBuddyShare.checkForSharingOpportunities(selections, selectionRanges);
+    
     if (null == client.player) return;
     if (null == client.mouse) return;
     if (null == client.world) return;
@@ -434,7 +437,6 @@ public class VeinBuddyClient implements ClientModInitializer {
     posBlock = new Vec3i((int)Math.floor(pos.getX()), 
                          (int)Math.floor(pos.getY()), 
                          (int)Math.floor(pos.getZ()));
-    VeinBuddyShare.checkForSharingOpportunities(selections, selectionRanges);
   }
 
   private boolean rayIntersectsSphere(Vec3d orig, Vec3d rot, Vec3d center) {
