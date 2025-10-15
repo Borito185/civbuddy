@@ -7,7 +7,6 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.loader.impl.lib.sat4j.specs.IVec;
 import net.minecraft.SharedConstants;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ServerInfo;
@@ -44,9 +43,7 @@ public class VeinBuddyClient implements ClientModInitializer {
   private SimpleRenderer staticRenderer;
   private SimpleRenderer dynamicRenderer;
 
-  private final DigShape digShape = new DigShape();
-  private final DigShape selected = new DigShape();
-  private final DigShape highLighted = new DigShape();
+  private final Set<Bounds> selections = new HashSet<>();
 
   private Vector4fc rangeColor = new Vector4f(1,0,0,0.2f);
   private Vector4fc rangeGridColor = new Vector4f(0,0,0,1);
@@ -65,10 +62,6 @@ public class VeinBuddyClient implements ClientModInitializer {
     dynamicRenderer = new SimpleRenderer(true, false);
     staticRenderer = new SimpleRenderer();
 
-    digShape.setColors(rangeColor, rangeGridColor);
-    selected.setColors(selectionColor, selectionGridColor);
-    highLighted.setColors(new Vector4f(), highlightGridColor);
-
     ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
       ClientCommandManager.literal("veinbuddy")
               .then(ClientCommandManager.literal("digRange")
@@ -81,9 +74,8 @@ public class VeinBuddyClient implements ClientModInitializer {
   }
 
   private int debug(CommandContext<FabricClientCommandSource> ctx) {
-    digShape.add(new DigShape.Range(new Vec3i(0,10,0), new Vec3i(5,5,5)));
-    digShape.add(new DigShape.Range(new Vec3i(3,7,0), new Vec3i(3,3,3)));
-
+    selections.add(new Bounds(new Vector3i(0,10,0), new Vector3i(5)));
+    selections.add(new Bounds(new Vector3i(3,7,0), new Vector3i(3)));
     redrawStatic();
     return 1;
   }
@@ -140,8 +132,7 @@ public class VeinBuddyClient implements ClientModInitializer {
 
 
     if (released && !isCharged) {
-      digShape.removeFirst(playerPos, playerDir);
-      redrawStatic();
+      removeTargetedBlock(playerPos, playerDir);
       return;
     }
     Vector3f targetedBlock = playerDir.toVector3f();
@@ -152,16 +143,63 @@ public class VeinBuddyClient implements ClientModInitializer {
             .add(playerPos.toVector3f())
             .floor();
     if (released && isCharged) {
-      digShape.add(new DigShape.Range(new Vec3i((int)targetedBlock.x, (int)targetedBlock.y, (int)targetedBlock.z), new Vec3i(digRange.x, digRange.y, digRange.z)));
+      selections.add(new Bounds(new Vector3i(targetedBlock, 2), digRange));
       redrawStatic();
     }
     if (isHolding && isCharged) {
-      //Wall w = new Wall((int)targetedBlock.x, (int)targetedBlock.y, (int)targetedBlock.z, new Vector4f(0), highlightGridColor);
-      //dynamicRenderer.draw(List.of(w));
+      Wall w = new Wall((int)targetedBlock.x, (int)targetedBlock.y, (int)targetedBlock.z, new Vector4f(0), highlightGridColor);
+      dynamicRenderer.draw(List.of(w));
     }
   }
 
+  private void removeTargetedBlock(Vec3d cameraPos, Vec3d cameraDir) {
+    Bounds closest = null;
+    float closestDist = Float.MAX_VALUE;
+
+    Vec3d closeEnd = cameraPos.subtract(cameraDir);
+    Vec3d farEnd = cameraPos.add(cameraDir.multiply(1000));
+
+    for (Bounds bounds : selections) {
+      if (!bounds.rayIntersectsBox(closeEnd, farEnd)) continue;
+
+      float distance = new Vector3f(bounds.center()).add(0.5f,0.5f,0.5f).distance(cameraPos.toVector3f());
+      if (distance >= closestDist) continue;
+
+      closest = bounds;
+      closestDist = distance;
+    }
+
+    if (closest == null) return;
+    selections.remove(closest);
+    redrawStatic();
+  }
+
   private void redrawStatic() {
-    staticRenderer.draw(List.of(digShape, selected));
+    HashSet<Wall> rangeBorder = new HashSet<>();
+
+    // find boundaries
+    for (Bounds selection : selections) {
+      Wall.createWalls(rangeBorder, selection, rangeColor, rangeGridColor);
+    }
+
+    // mark overlapping
+    Vector3i temp = new Vector3i();
+    for (Wall wall : rangeBorder) {
+      for (Bounds selection : selections) {
+        wall.addSelection(selection, temp);
+        if (!wall.isWall()) break;
+      }
+    }
+
+    // remove non-walls
+    rangeBorder.removeIf(Wall::isNotWall);
+
+    ArrayList<Wall> borders = new ArrayList<>(rangeBorder);
+    for (Bounds selection : selections) {
+      Vector3ic center = selection.center();
+      borders.add(new Wall(center.x(), center.y(), center.z(), selectionColor, selectionGridColor));
+    }
+
+    staticRenderer.draw(borders);
   }
 }

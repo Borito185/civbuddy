@@ -154,15 +154,15 @@ public class SimpleRenderer implements AutoCloseable {
         }
     }
 
-    public void draw(Collection<DigShape> shapes){
+    public void draw(Collection<Wall> walls){
         clear();
-        if (shapes.isEmpty()) return;
+        if (walls.isEmpty()) return;
 
         // build the walls
         if (drawWalls) {
             BufferBuilder wallBuilder = Tessellator.getInstance().begin(WALLS.getVertexFormatMode(), WALLS.getVertexFormat());
-            for (DigShape shape : shapes) {
-                shape.addWallsToBuffer(wallBuilder);
+            for (Wall wall : walls) {
+                wall.addWallsToBuffer(wallBuilder);
             }
             BuiltBuffer wallBuffer = wallBuilder.endNullable(); // save wall buffer to create indices later
             if (wallBuffer != null && wallBuffer.getDrawParameters().vertexCount() > 0) {
@@ -173,8 +173,8 @@ public class SimpleRenderer implements AutoCloseable {
         }
         if (drawGrid) {
             BufferBuilder gridBuilder = Tessellator.getInstance().begin(GRID.getVertexFormatMode(), GRID.getVertexFormat());
-            for (DigShape shape : shapes) {
-                shape.addGridToBuffer(gridBuilder);
+            for (Wall wall : walls) {
+                wall.addGridToBuffer(gridBuilder);
             }
             BuiltBuffer gridBuffer = gridBuilder.endNullable();
 
