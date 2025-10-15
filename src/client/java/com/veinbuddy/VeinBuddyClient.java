@@ -7,57 +7,45 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.SharedConstants;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.item.Item;
-import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
+import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.Vec3i;
-import net.minecraft.util.shape.VoxelShapes;
 import org.joml.*;
-
 import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.lang.Math;
 import java.util.*;
 
 public class VeinBuddyClient implements ClientModInitializer {
 
   private final static MinecraftClient mc = MinecraftClient.getInstance();
-  private final static int defaultDigRange = 7;
   private final static float speed = 0.2f;
   private final static float placeRange = 6.0f;
   private final static int maxTicks = (int) (placeRange / speed);
   private final static int delay = 5;
 
-  private Vector3i digRange = new Vector3i(defaultDigRange, defaultDigRange, defaultDigRange);
+
 
   private int selectionTicks = 0;
-  private Vec3d pos = null;
-  private Vec3i posBlock = null;
 
   private SimpleRenderer staticRenderer;
   private SimpleRenderer dynamicRenderer;
 
-  private final Set<Bounds> selections = new HashSet<>();
-
-  private Vector4fc rangeColor = new Vector4f(1,0,0,0.2f);
-  private Vector4fc rangeGridColor = new Vector4f(0,0,0,1);
-  private Vector4fc selectionColor = new Vector4f(0,1,0,0.2f);
-  private Vector4fc selectionGridColor = new Vector4f(0);
-  private Vector4fc highlightGridColor = new Vector4f(0,0,0,1);
+  private SaveLoader.Save save = new SaveLoader.Save();
+  private boolean isDirty;
 
   @Override
   public void onInitializeClient() {
     SharedConstants.isDevelopment = true;
 
-    //ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> onStart(client));
+    ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> onJoin(client));
+    ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> onLeave(client));
     ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
-    //ClientTickEvents.END_CLIENT_TICK.register(this::saveSelections);
+    ClientTickEvents.END_CLIENT_TICK.register(this::save);
 
     dynamicRenderer = new SimpleRenderer(true, false);
     staticRenderer = new SimpleRenderer();
@@ -73,38 +61,51 @@ public class VeinBuddyClient implements ClientModInitializer {
     ));
   }
 
+  private void onJoin(MinecraftClient client) {
+    // load save
+    File saveFile = getSaveFile(client);
+    save = SaveLoader.load(saveFile);
+
+    redrawStatic();
+  }
+
+  private void onLeave(MinecraftClient client) {
+    // can i get uuhhhhhh
+  }
+
   private int debug(CommandContext<FabricClientCommandSource> ctx) {
-    selections.add(new Bounds(new Vector3i(0,10,0), new Vector3i(5)));
-    selections.add(new Bounds(new Vector3i(3,7,0), new Vector3i(3)));
+    save.selections.add(new Bounds(new Vector3i(0,10,0), new Vector3i(5)));
+    save.selections.add(new Bounds(new Vector3i(3,7,0), new Vector3i(3)));
     redrawStatic();
     return 1;
   }
 
-  private File getConfigFile(MinecraftClient client) {
-    return new File(client.runDirectory, "config/veinbuddy.txt");
-  }
-
   private File getSaveFile(MinecraftClient client) {
     ServerInfo serverInfo = client.getCurrentServerEntry();
-    if (null == serverInfo)
+    IntegratedServer server = client.getServer();
+
+    String key = null;
+
+    if (server != null) {
+      key = server.getSaveProperties().getLevelName();
+    }
+
+    if (serverInfo != null) {
+      key = serverInfo.address;
+    }
+
+    if (key == null)
       return null;
-    String address = serverInfo.address;
-    return new File(client.runDirectory, "data/veinbuddy/" + address + ".txt");
+
+    return new File(client.runDirectory, "data/veinbuddy/" + key + ".gson");
   }
 
   private int onDigRange(CommandContext<FabricClientCommandSource> ctx) {
     int x = IntegerArgumentType.getInteger(ctx, "x");
     int y = IntegerArgumentType.getInteger(ctx, "y");
     int z = IntegerArgumentType.getInteger(ctx, "z");
-    digRange = new Vector3i(x, y, z);
-    try {
-      File configFile = getConfigFile(mc);
-      FileWriter fileWriter = new FileWriter(configFile, false);
-      fileWriter.write(x + " " + y + " " + z + "\n");
-    } catch (IOException e) {
-      System.out.println("Egad!");
-    }
-
+    save.digRange = new Vector3i(x, y, z);
+    isDirty = true;
     return 0;
   }
 
@@ -119,7 +120,7 @@ public class VeinBuddyClient implements ClientModInitializer {
     boolean released = !isHolding && selectionTicks > 0;
     boolean isCharged = selectionTicks > delay;
 
-    int chargeTime = Math.max(selectionTicks - delay, 0);
+    int chargeTime = Math.clamp(selectionTicks - delay, 0, maxTicks);
     if (!isHoldingPickaxe || released) {
       selectionTicks = 0;
       dynamicRenderer.clear();
@@ -139,17 +140,24 @@ public class VeinBuddyClient implements ClientModInitializer {
     targetedBlock = targetedBlock
             .mul(speed)
             .mul(chargeTime)
-            .div(Math.max(targetedBlock.length() / placeRange, 1))
             .add(playerPos.toVector3f())
             .floor();
     if (released && isCharged) {
-      selections.add(new Bounds(new Vector3i(targetedBlock, 2), digRange));
+      save.selections.add(new Bounds(new Vector3i(targetedBlock, 2), save.digRange));
       redrawStatic();
     }
     if (isHolding && isCharged) {
-      Wall w = new Wall((int)targetedBlock.x, (int)targetedBlock.y, (int)targetedBlock.z, new Vector4f(0), highlightGridColor);
+      Wall w = new Wall((int)targetedBlock.x, (int)targetedBlock.y, (int)targetedBlock.z, save.highlightWallColor, save.highlightGridColor);
       dynamicRenderer.draw(List.of(w));
     }
+  }
+
+  private void save(MinecraftClient client) {
+    if (!isDirty) return;
+    isDirty = false;
+
+    File saveFile = getSaveFile(client);
+    SaveLoader.Save(saveFile, save);
   }
 
   private void removeTargetedBlock(Vec3d cameraPos, Vec3d cameraDir) {
@@ -159,8 +167,8 @@ public class VeinBuddyClient implements ClientModInitializer {
     Vec3d closeEnd = cameraPos.subtract(cameraDir);
     Vec3d farEnd = cameraPos.add(cameraDir.multiply(1000));
 
-    for (Bounds bounds : selections) {
-      if (!bounds.rayIntersectsBox(closeEnd, farEnd)) continue;
+    for (Bounds bounds : save.selections) {
+      if (!bounds.intersects(closeEnd, farEnd)) continue;
 
       float distance = new Vector3f(bounds.center()).add(0.5f,0.5f,0.5f).distance(cameraPos.toVector3f());
       if (distance >= closestDist) continue;
@@ -170,22 +178,24 @@ public class VeinBuddyClient implements ClientModInitializer {
     }
 
     if (closest == null) return;
-    selections.remove(closest);
+    save.selections.remove(closest);
     redrawStatic();
   }
 
   private void redrawStatic() {
+    isDirty = true;
+
     HashSet<Wall> rangeBorder = new HashSet<>();
 
     // find boundaries
-    for (Bounds selection : selections) {
-      Wall.createWalls(rangeBorder, selection, rangeColor, rangeGridColor);
+    for (Bounds selection : save.selections) {
+      Wall.createWalls(rangeBorder, selection, save.rangeWallColor, save.rangeGridColor);
     }
 
     // mark overlapping
     Vector3i temp = new Vector3i();
     for (Wall wall : rangeBorder) {
-      for (Bounds selection : selections) {
+      for (Bounds selection : save.selections) {
         wall.addSelection(selection, temp);
         if (!wall.isWall()) break;
       }
@@ -195,9 +205,9 @@ public class VeinBuddyClient implements ClientModInitializer {
     rangeBorder.removeIf(Wall::isNotWall);
 
     ArrayList<Wall> borders = new ArrayList<>(rangeBorder);
-    for (Bounds selection : selections) {
+    for (Bounds selection : save.selections) {
       Vector3ic center = selection.center();
-      borders.add(new Wall(center.x(), center.y(), center.z(), selectionColor, selectionGridColor));
+      borders.add(new Wall(center.x(), center.y(), center.z(), save.selectionWallColor, save.selectionGridColor));
     }
 
     staticRenderer.draw(borders);

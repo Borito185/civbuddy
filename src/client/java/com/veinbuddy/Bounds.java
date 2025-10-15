@@ -2,15 +2,14 @@ package com.veinbuddy;
 
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.shape.VoxelShapes;
 import org.joml.Math;
+import org.joml.Vector3i;
 import org.joml.Vector3ic;
-
 import java.util.Objects;
 
-public record Bounds(Vector3ic center, Vector3ic range) {
+public record Bounds(Vector3i center, Vector3i range) {
     public boolean overlaps(Bounds o) {
         // calc distance
         int dx = Math.abs(center.x() - o.center.x());
@@ -34,7 +33,7 @@ public record Bounds(Vector3ic center, Vector3ic range) {
         return dx <= range.x() && dy <= range.y() && dz <= range.z();
     }
 
-    public boolean rayIntersectsBox(Vec3d a, Vec3d b) {
+    public boolean intersects(Vec3d a, Vec3d b) {
         BlockHitResult raycast = VoxelShapes
                 .cuboid(center.x(), center.y(), center.z(), center.x() + 1, center.y() + 1, center.z() + 1)
                 .raycast(a, b, BlockPos.ORIGIN);
