@@ -16,10 +16,10 @@
 	"environment": "client",
 	"entrypoints": {
 		"main": [
-			"com.veinbuddy.VeinBuddy"
+			"com.civbuddy.CivBuddy"
 		],
 		"client": [
-			"com.veinbuddy.VeinBuddyClient"
+			"com.civbuddy.CivBuddyClient"
 		]
 	},
 	"mixins": [
