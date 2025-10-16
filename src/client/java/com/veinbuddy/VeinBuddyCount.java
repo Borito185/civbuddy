@@ -39,6 +39,9 @@ public class VeinBuddyCount {
     // Vein tracking
     private final Map<String, VeinCounter> veins = new ConcurrentHashMap<>();
     
+    // Callback to mark save as dirty
+    private Runnable markDirtyCallback = null;
+    
     // Ore detection pattern - detects "You sense a diamond nearby 2 DEEPSLATE_DIAMOND_ORE nearby"
     private static final Pattern ORE_SENSE_PATTERN = Pattern.compile(
         "You sense (?:a |an )?(?:diamond|deepslate.?diamond|iron|gold|copper|redstone|lapis|emerald|coal)s? nearby\\s+(\\d+)\\s+.*",
@@ -74,6 +77,62 @@ public class VeinBuddyCount {
                     .then(ClientCommandManager.literal("list").executes(counter::cmdList))
             );
         });
+    }
+    
+    /**
+     * Set callback to mark save as dirty when data changes
+     */
+    public static void setMarkDirtyCallback(Runnable callback) {
+        getInstance().markDirtyCallback = callback;
+    }
+    
+    /**
+     * Mark save as dirty
+     */
+    private void markDirty() {
+        if (markDirtyCallback != null) {
+            markDirtyCallback.run();
+        }
+    }
+    
+    /**
+     * Save current state to the provided Save object
+     */
+    public static void saveToFile(SaveLoader.Save save) {
+        VeinBuddyCount counter = getInstance();
+        save.countGroup = counter.countGroup;
+        save.currentVeinKey = counter.currentVeinKey;
+        save.veins.clear();
+        
+        // Convert VeinCounter objects to serializable VeinCounterData
+        for (Map.Entry<String, VeinCounter> entry : counter.veins.entrySet()) {
+            VeinCounter vc = entry.getValue();
+            save.veins.put(entry.getKey(), new SaveLoader.VeinCounterData(
+                vc.key, vc.count, vc.createdTime, vc.lastUpdateTime
+            ));
+        }
+    }
+    
+    /**
+     * Load state from the provided Save object
+     */
+    public static void loadFromFile(SaveLoader.Save save) {
+        VeinBuddyCount counter = getInstance();
+        counter.countGroup = save.countGroup != null ? save.countGroup : "";
+        counter.currentVeinKey = save.currentVeinKey != null ? save.currentVeinKey : "";
+        counter.veins.clear();
+        
+        // Convert VeinCounterData back to VeinCounter objects
+        if (save.veins != null) {
+            for (Map.Entry<String, SaveLoader.VeinCounterData> entry : save.veins.entrySet()) {
+                SaveLoader.VeinCounterData data = entry.getValue();
+                VeinCounter vc = new VeinCounter(data.key);
+                vc.count = data.count;
+                vc.createdTime = data.createdTime;
+                vc.lastUpdateTime = data.lastUpdateTime;
+                counter.veins.put(entry.getKey(), vc);
+            }
+        }
     }
 
     /**
@@ -155,6 +214,7 @@ public class VeinBuddyCount {
         VeinCounter vein = getOrCreateVein(currentVeinKey);
         vein.count += amount;
         vein.lastUpdateTime = System.currentTimeMillis();
+        markDirty(); // Mark save as dirty
         
         // Share update to group
         shareCountUpdate(vein.key, vein.count);
@@ -174,6 +234,7 @@ public class VeinBuddyCount {
      */
     private int cmdSetGroup(CommandContext<FabricClientCommandSource> ctx) {
         countGroup = StringArgumentType.getString(ctx, "groupName");
+        markDirty(); // Mark save as dirty
         if (mc.player != null) {
             mc.player.sendMessage(Text.literal("§aVeinBuddy count group set to: " + countGroup), false);
         }
@@ -196,6 +257,7 @@ public class VeinBuddyCount {
         
         currentVeinKey = newKey;
         VeinCounter vein = getOrCreateVein(currentVeinKey);
+        markDirty(); // Mark save as dirty
         
         if (mc.player != null) {
             mc.player.sendMessage(Text.literal(String.format("§aVein key set to: §e%s §7(count: %d)", 
@@ -218,6 +280,7 @@ public class VeinBuddyCount {
         VeinCounter vein = getOrCreateVein(currentVeinKey);
         vein.count = 0;
         vein.lastUpdateTime = System.currentTimeMillis();
+        markDirty(); // Mark save as dirty
         
         // Share reset
         shareCountUpdate(vein.key, vein.count);
