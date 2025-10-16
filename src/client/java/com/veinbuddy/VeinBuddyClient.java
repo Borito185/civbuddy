@@ -1,7 +1,17 @@
 package com.veinbuddy;
 
+import java.io.File;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+
+import org.joml.Vector3f;
+import org.joml.Vector3i;
+import org.joml.Vector3ic;
+
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
@@ -14,10 +24,6 @@ import net.minecraft.client.network.ServerInfo;
 import net.minecraft.item.Item;
 import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.util.math.Vec3d;
-import org.joml.*;
-import java.io.File;
-import java.lang.Math;
-import java.util.*;
 
 public class VeinBuddyClient implements ClientModInitializer {
   private final static float speed = 0.2f;
@@ -44,6 +50,8 @@ public class VeinBuddyClient implements ClientModInitializer {
 
     dynamicRenderer = new SimpleRenderer(true, false);
     staticRenderer = new SimpleRenderer();
+
+    VeinBuddyCount.initialize();
 
     ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
       ClientCommandManager.literal("veinbuddy")
@@ -164,7 +172,7 @@ public class VeinBuddyClient implements ClientModInitializer {
     }
   }
 
-  private void save(MinecraftClient client) {
+  public void save(MinecraftClient client) {
     if (!isDirty) return;
     isDirty = false;
 
