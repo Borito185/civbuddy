@@ -1,4 +1,4 @@
-package com.veinbuddy;
+package com.civbuddy.veins;
 
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;

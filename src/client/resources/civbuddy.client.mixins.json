@@ -1,6 +1,6 @@
 {
 	"required": true,
-	"package": "com.veinbuddy.mixin.client",
+	"package": "com.civbuddy.mixin.client",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
 	],

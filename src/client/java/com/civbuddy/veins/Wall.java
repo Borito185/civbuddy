@@ -1,4 +1,4 @@
-package com.veinbuddy;
+package com.civbuddy.veins;
 
 import net.minecraft.client.render.BufferBuilder;
 import org.joml.*;

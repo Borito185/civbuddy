@@ -1,10 +1,11 @@
-package com.veinbuddy;
+package com.civbuddy.veins;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 
+import com.civbuddy.SaveLoader;
 import org.joml.Vector3f;
 import org.joml.Vector3i;
 import org.joml.Vector3ic;
@@ -12,20 +13,18 @@ import org.joml.Vector3ic;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 
-import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.minecraft.SharedConstants;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.item.Item;
 import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.util.math.Vec3d;
 
-public class VeinBuddyClient implements ClientModInitializer {
+public class VeinBuddyClient {
   private final static float speed = 0.2f;
   private final static float placeRange = 6.0f;
   private final static int maxTicks = (int) (placeRange / speed);
@@ -39,10 +38,7 @@ public class VeinBuddyClient implements ClientModInitializer {
   private SaveLoader.Save save = new SaveLoader.Save();
   private boolean isDirty;
 
-  @Override
   public void onInitializeClient() {
-    SharedConstants.isDevelopment = true;
-
     ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> onJoin(client));
     ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> onLeave(client));
     ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
