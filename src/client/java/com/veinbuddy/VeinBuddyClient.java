@@ -14,21 +14,16 @@ import net.minecraft.client.network.ServerInfo;
 import net.minecraft.item.Item;
 import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.math.Vec3i;
 import org.joml.*;
 import java.io.File;
 import java.lang.Math;
 import java.util.*;
 
 public class VeinBuddyClient implements ClientModInitializer {
-
-  private final static MinecraftClient mc = MinecraftClient.getInstance();
   private final static float speed = 0.2f;
   private final static float placeRange = 6.0f;
   private final static int maxTicks = (int) (placeRange / speed);
   private final static int delay = 5;
-
-
 
   private int selectionTicks = 0;
 
@@ -53,12 +48,36 @@ public class VeinBuddyClient implements ClientModInitializer {
     ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
       ClientCommandManager.literal("veinbuddy")
               .then(ClientCommandManager.literal("digRange")
-                      .then(ClientCommandManager.argument("x", IntegerArgumentType.integer(1, 10))
-                              .then(ClientCommandManager.argument("y", IntegerArgumentType.integer(1, 10))
-                                      .then(ClientCommandManager.argument("z", IntegerArgumentType.integer(1, 10))
+                      .then(ClientCommandManager.argument("x", IntegerArgumentType.integer(1, 11))
+                              .then(ClientCommandManager.argument("y", IntegerArgumentType.integer(1, 11))
+                                      .then(ClientCommandManager.argument("z", IntegerArgumentType.integer(1, 11))
                                               .executes(this::onDigRange)))))
-              .then(ClientCommandManager.literal("debug").executes(this::debug))
+              .then(ClientCommandManager.literal("digRadius")
+                      .then(ClientCommandManager.argument("radius", IntegerArgumentType.integer(1, 11)).executes(this::onDigRadius)))
+              .then(ClientCommandManager.literal("clear").executes(this::clear))
+              .then(ClientCommandManager.literal("toggleRenderer").executes(this::toggleRenderer))
     ));
+  }
+
+  private int onDigRadius(CommandContext<FabricClientCommandSource> ctx) {
+    int radius = IntegerArgumentType.getInteger(ctx, "radius");
+    save.digRange = new Vector3i(radius);
+
+    redrawStatic();
+    return 0;
+  }
+
+  private int toggleRenderer(CommandContext<FabricClientCommandSource> ctx) {
+    save.render = !save.render;
+
+    redrawStatic();
+    return 0;
+  }
+
+  private int clear(CommandContext<FabricClientCommandSource> ctx) {
+    save.selections.clear();
+    redrawStatic();
+    return 0;
   }
 
   private void onJoin(MinecraftClient client) {
@@ -71,13 +90,6 @@ public class VeinBuddyClient implements ClientModInitializer {
 
   private void onLeave(MinecraftClient client) {
     // can i get uuhhhhhh
-  }
-
-  private int debug(CommandContext<FabricClientCommandSource> ctx) {
-    save.selections.add(new Bounds(new Vector3i(0,10,0), new Vector3i(5)));
-    save.selections.add(new Bounds(new Vector3i(3,7,0), new Vector3i(3)));
-    redrawStatic();
-    return 1;
   }
 
   private File getSaveFile(MinecraftClient client) {
@@ -184,6 +196,12 @@ public class VeinBuddyClient implements ClientModInitializer {
 
   private void redrawStatic() {
     isDirty = true;
+
+    if (!save.render)
+    {
+      staticRenderer.draw(List.of());
+      return;
+    }
 
     HashSet<Wall> rangeBorder = new HashSet<>();
 
