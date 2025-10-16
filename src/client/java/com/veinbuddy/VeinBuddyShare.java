@@ -23,9 +23,9 @@ import net.minecraft.util.math.Vec3i;
  * VeinBuddy Sharing System 
  * 
  * Commands:
- *   /veinbuddy group <name>   – Set Namelayer group
- *   /veinbuddy toggle         – Enable/disable sharing
- *   /veinbuddy status         – Show current status
+ *   /veinbuddyshare group <name>   – Set Namelayer group
+ *   /veinbuddyshare toggleshare    – Enable/disable sharing
+ *   /veinbuddyshare status         – Show current status
  */
 public class VeinBuddyShare {
 
@@ -71,11 +71,11 @@ public class VeinBuddyShare {
         });
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             dispatcher.register(
-                ClientCommandManager.literal("veinbuddy")
+                ClientCommandManager.literal("veinbuddyshare")
                     .then(ClientCommandManager.literal("group")
                         .then(ClientCommandManager.argument("groupName", StringArgumentType.string())
                             .executes(sharing::onSetShareGroup)))
-                    .then(ClientCommandManager.literal("toggle").executes(sharing::onToggleSharing))
+                    .then(ClientCommandManager.literal("toggleshare").executes(sharing::onToggleSharing))
                     .then(ClientCommandManager.literal("status").executes(sharing::onShowStatus))
             );
         });

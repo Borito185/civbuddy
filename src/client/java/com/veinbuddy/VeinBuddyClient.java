@@ -151,6 +151,9 @@ public class VeinBuddyClient implements ClientModInitializer {
     // Initialize sharing system
     VeinBuddyShare.initialize();
     VeinBuddyShare.setImportCallback(this::addSelection);
+    
+    // Initialize count tracking system
+    VeinBuddyCount.initialize();
 
     ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
       ClientCommandManager.literal("veinbuddy")
