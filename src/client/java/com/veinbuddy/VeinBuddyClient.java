@@ -51,7 +51,9 @@ public class VeinBuddyClient implements ClientModInitializer {
     dynamicRenderer = new SimpleRenderer(true, false);
     staticRenderer = new SimpleRenderer();
 
+    // Initialize VeinBuddy Count system
     VeinBuddyCount.initialize();
+    VeinBuddyCount.setMarkDirtyCallback(() -> isDirty = true);
 
     ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
       ClientCommandManager.literal("veinbuddy")
@@ -92,6 +94,9 @@ public class VeinBuddyClient implements ClientModInitializer {
     // load save
     File saveFile = getSaveFile(client);
     save = SaveLoader.load(saveFile);
+    
+    // Load VeinBuddyCount data
+    VeinBuddyCount.loadFromFile(save);
 
     redrawStatic();
   }
@@ -175,6 +180,9 @@ public class VeinBuddyClient implements ClientModInitializer {
   public void save(MinecraftClient client) {
     if (!isDirty) return;
     isDirty = false;
+    
+    // Save VeinBuddyCount data to the save object
+    VeinBuddyCount.saveToFile(save);
 
     File saveFile = getSaveFile(client);
     SaveLoader.Save(saveFile, save);

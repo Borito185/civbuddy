@@ -5,7 +5,9 @@ import com.google.gson.GsonBuilder;
 import org.joml.Vector3i;
 import org.joml.Vector4f;
 import java.io.*;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 
 public class SaveLoader {
     public static class Save {
@@ -20,6 +22,27 @@ public class SaveLoader {
 
         public Vector3i digRange = new Vector3i(5, 5, 5);
         public boolean render = true;
+        
+        public String countGroup = "";
+        public String currentVeinKey = "";
+        public Map<String, VeinCounterData> veins = new HashMap<>();
+    }
+    
+    // Serializable version of VeinCounter
+    public static class VeinCounterData {
+        public String key;
+        public int count;
+        public long createdTime;
+        public long lastUpdateTime;
+        
+        public VeinCounterData() {} // For GSON
+        
+        public VeinCounterData(String key, int count, long createdTime, long lastUpdateTime) {
+            this.key = key;
+            this.count = count;
+            this.createdTime = createdTime;
+            this.lastUpdateTime = lastUpdateTime;
+        }
     }
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
