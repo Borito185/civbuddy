@@ -39,6 +39,10 @@ public class VeinBuddyShare {
     // Tracking data
     private final Map<Vec3i, Long> selectionTimestamps = new ConcurrentHashMap<>();
     private final Set<Vec3i> sharedSelections = new ConcurrentSkipListSet<>();
+    
+    // Anti-spam cooldown
+    private long lastMessageTime = 0;
+    private static final long MESSAGE_COOLDOWN_MS = 1000; // 1 second cooldown
 
     // Callback to import selections
     private ImportCallback importCallback = null;
@@ -118,15 +122,29 @@ public class VeinBuddyShare {
     }
 
     private void shareSelection(Vec3i selection, Vec3i range) {
+        // Check cooldown
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastMessageTime < MESSAGE_COOLDOWN_MS) {
+            return; // Skip this message to prevent spam
+        }
+
         String message = String.format("[VeinBuddy] MARK: %d %d %d %d %d %d",
             selection.getX(), selection.getY(), selection.getZ(),
             range.getX(), range.getY(), range.getZ());
         mc.getNetworkHandler().sendChatCommand("g " + shareGroup + " " + message);
+        lastMessageTime = currentTime;
     }
 
     private void shareDiamondDiscovery(int count) {
+        // Check cooldown
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastMessageTime < MESSAGE_COOLDOWN_MS) {
+            return; // Skip this message to prevent spam
+        }
+
         String message = String.format("[VeinBuddy] Found %d diamonds!", count);
         mc.getNetworkHandler().sendChatCommand("g " + shareGroup + " " + message);
+        lastMessageTime = currentTime;
     }
 
     private void onChatMessage(Text message, boolean overlay) {
