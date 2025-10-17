@@ -1,4 +1,9 @@
-# Fabric Example Mod
+# CivBuddy
+
+Welcome to the CivBuddy mod. Originally forked from [veinbuddy](https://github.com/sbobicus/veinbuddy).
+This mod is developed for making life on the CivMC minecraft server a bit easier. 
+For now, it mostly focuses on features for vein mining. 
+But in the future it will likely expand with features for /dest and more.
 
 ## Setup
 
