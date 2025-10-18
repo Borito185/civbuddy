@@ -5,7 +5,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.civbuddy.SaveLoader;
+import com.civbuddy.Save;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 
@@ -99,7 +99,7 @@ public class VeinBuddyCount {
     /**
      * Save current state to the provided Save object
      */
-    public static void saveToFile(SaveLoader.Save save) {
+    public static void saveToFile(Save.Data save) {
         VeinBuddyCount counter = getInstance();
         save.countGroup = counter.countGroup;
         save.currentVeinKey = counter.currentVeinKey;
@@ -108,7 +108,7 @@ public class VeinBuddyCount {
         // Convert VeinCounter objects to serializable VeinCounterData
         for (Map.Entry<String, VeinCounter> entry : counter.veins.entrySet()) {
             VeinCounter vc = entry.getValue();
-            save.veins.put(entry.getKey(), new SaveLoader.VeinCounterData(
+            save.veins.put(entry.getKey(), new Save.VeinCounterData(
                 vc.key, vc.count, vc.createdTime, vc.lastUpdateTime
             ));
         }
@@ -117,7 +117,7 @@ public class VeinBuddyCount {
     /**
      * Load state from the provided Save object
      */
-    public static void loadFromFile(SaveLoader.Save save) {
+    public static void loadFromFile(Save.Data save) {
         VeinBuddyCount counter = getInstance();
         counter.countGroup = save.countGroup != null ? save.countGroup : "";
         counter.currentVeinKey = save.currentVeinKey != null ? save.currentVeinKey : "";
@@ -125,8 +125,8 @@ public class VeinBuddyCount {
         
         // Convert VeinCounterData back to VeinCounter objects
         if (save.veins != null) {
-            for (Map.Entry<String, SaveLoader.VeinCounterData> entry : save.veins.entrySet()) {
-                SaveLoader.VeinCounterData data = entry.getValue();
+            for (Map.Entry<String, Save.VeinCounterData> entry : save.veins.entrySet()) {
+                Save.VeinCounterData data = entry.getValue();
                 VeinCounter vc = new VeinCounter(data.key);
                 vc.count = data.count;
                 vc.createdTime = data.createdTime;

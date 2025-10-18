@@ -23,11 +23,13 @@ import net.minecraft.util.math.Vec3d;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+import org.joml.Vector3i;
 import org.joml.Vector4f;
 import org.lwjgl.system.MemoryUtil;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.util.*;
+import java.util.function.IntFunction;
 
 public class SimpleRenderer implements AutoCloseable {
     private final RenderPipeline WALLS = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.POSITION_COLOR_SNIPPET)
@@ -42,7 +44,7 @@ public class SimpleRenderer implements AutoCloseable {
     private final RenderPipeline GRID = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.POSITION_COLOR_SNIPPET)
             .withLocation(Identifier.of("veinbuddy", "grid_pipeline"))
             .withBlend(BlendFunction.TRANSLUCENT)
-            .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.DEBUG_LINES)
+            .withVertexFormat(VertexFormats.POSITION, VertexFormat.DrawMode.DEBUG_LINES)
             .withDepthBias(-0.5f, -0.002f)
             .build());
 
@@ -92,33 +94,6 @@ public class SimpleRenderer implements AutoCloseable {
         return wallIndices.getBlocking();
     }
 
-    private static Vector3f[] collectCentroids(ByteBuffer buffer, int vertexCount, VertexFormat format) {
-        int i = format.getOffset(VertexFormatElement.POSITION);
-        if (i == -1) {
-            throw new IllegalArgumentException("Cannot identify quad centers with no position element");
-        } else {
-            FloatBuffer floatBuffer = buffer.asFloatBuffer();
-            int j = format.getVertexSize() / 4;
-            int k = j * 4;
-            int l = vertexCount / 4;
-            Vector3f[] vector3fs = new Vector3f[l];
-
-            for(int m = 0; m < l; ++m) {
-                int n = m * k + i;
-                int o = n + j * 2;
-                float f = floatBuffer.get(n + 0);
-                float g = floatBuffer.get(n + 1);
-                float h = floatBuffer.get(n + 2);
-                float p = floatBuffer.get(o + 0);
-                float q = floatBuffer.get(o + 1);
-                float r = floatBuffer.get(o + 2);
-                vector3fs[m] = new Vector3f((f + p) / 2.0F, (g + q) / 2.0F, (h + r) / 2.0F);
-            }
-
-            return vector3fs;
-        }
-    }
-
     private void draw(WorldRenderContext ctx, RenderPipeline pipeline, GpuBuffer vertices, @Nullable Pair<GpuBuffer, VertexFormat.IndexType> indices) {
         Framebuffer fb = BlockRenderLayer.TRANSLUCENT.getFramebuffer();
 
@@ -154,28 +129,39 @@ public class SimpleRenderer implements AutoCloseable {
         }
     }
 
-    public void draw(Collection<Wall> walls){
+    public void draw(Collection<VoxelShape> shapes) {
         clear();
-        if (walls.isEmpty()) return;
+
+        Collection<Face> faces = shapes.stream().flatMap(s -> s.getFaces().stream()).toList();
+        HashSet<Edge> edges = new HashSet<>();
+        ShapeUtils.generateEdges(edges, faces);
 
         // build the walls
-        if (drawWalls) {
+        if (drawWalls && !faces.isEmpty()) {
             BufferBuilder wallBuilder = Tessellator.getInstance().begin(WALLS.getVertexFormatMode(), WALLS.getVertexFormat());
-            for (Wall wall : walls) {
-                wall.addWallsToBuffer(wallBuilder);
+            for (Face face : faces) {
+                Vector4f color = face.color();
+                wallBuilder.vertex(face.a()).color(color.x, color.y, color.z, color.w);
+                wallBuilder.vertex(face.b()).color(color.x, color.y, color.z, color.w);
+                wallBuilder.vertex(face.c()).color(color.x, color.y, color.z, color.w);
+                wallBuilder.vertex(face.d()).color(color.x, color.y, color.z, color.w);
             }
+
             BuiltBuffer wallBuffer = wallBuilder.endNullable(); // save wall buffer to create indices later
             if (wallBuffer != null && wallBuffer.getDrawParameters().vertexCount() > 0) {
                 BuiltBuffer.DrawParameters dp = wallBuffer.getDrawParameters();
                 wallVertices = RenderSystem.getDevice().createBuffer(() -> "Walls", GpuBuffer.USAGE_VERTEX, wallBuffer.getBuffer());
-                wallSortState = new BuiltBuffer.SortState(collectCentroids(wallBuffer.getBuffer(), dp.vertexCount(), WALLS.getVertexFormat()), dp.indexType());
+
+                wallSortState = new BuiltBuffer.SortState(faces.stream().map(Face::center).toArray(Vector3f[]::new), dp.indexType());
             }
         }
-        if (drawGrid) {
+        if (drawGrid && !edges.isEmpty()) {
             BufferBuilder gridBuilder = Tessellator.getInstance().begin(GRID.getVertexFormatMode(), GRID.getVertexFormat());
-            for (Wall wall : walls) {
-                wall.addGridToBuffer(gridBuilder);
+            for (Edge edge : edges) {
+                gridBuilder.vertex(edge.a());
+                gridBuilder.vertex(edge.b());
             }
+
             BuiltBuffer gridBuffer = gridBuilder.endNullable();
 
             if (gridBuffer != null && gridBuffer.getDrawParameters().vertexCount() > 0)
