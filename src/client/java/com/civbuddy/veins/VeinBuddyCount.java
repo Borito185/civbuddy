@@ -3,11 +3,9 @@ package com.civbuddy.veins;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import com.civbuddy.Save;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
-
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
@@ -22,10 +20,10 @@ import net.minecraft.text.Text;
  * Miners set a key for their vein, and discoveries auto-update the count.
  * 
  * Commands:
- *   /veinbuddy group <name>   - Set group to send count updates to
- *   /veinbuddy key <key>      - Set key for current vein (e.g., "f2da")
- *   /veinbuddy reset          - Reset current vein count to 0
- *   /veinbuddy list           - List all tracked veins
+ *   /civbuddy group <name>   - Set group to send count updates to
+ *   /civbuddy key <key>      - Set key for current vein (e.g., "f2da")
+ *   /civbuddy reset          - Reset current vein count to 0
+ *   /civbuddy list           - List all tracked veins
  */
 public class VeinBuddyCount {
 
@@ -57,7 +55,7 @@ public class VeinBuddyCount {
         // Register commands
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             dispatcher.register(
-                ClientCommandManager.literal("veinbuddy")
+                ClientCommandManager.literal("civbuddy")
                     .then(ClientCommandManager.literal("group")
                         .then(ClientCommandManager.argument("groupName", StringArgumentType.string())
                             .executes(counter::cmdSetGroup)))
@@ -138,7 +136,7 @@ public class VeinBuddyCount {
     private void addToCurrentVein(int amount) {
         if (!hasKey()) {
             if (mc.player != null) {
-                mc.player.sendMessage(Text.literal("§cNo vein key set! Use /veinbuddy key <key>"), false);
+                mc.player.sendMessage(Text.literal("§cNo vein key set! Use /civbuddy key <key>"), false);
             }
             return;
         }
@@ -168,7 +166,7 @@ public class VeinBuddyCount {
         Save.save();
 
         if (mc.player != null) {
-            mc.player.sendMessage(Text.literal("§aVeinBuddy count group set to: " + Save.data.countGroup), false);
+            mc.player.sendMessage(Text.literal("§aCivBuddy count group set to: " + Save.data.countGroup), false);
         }
         return 0;
     }

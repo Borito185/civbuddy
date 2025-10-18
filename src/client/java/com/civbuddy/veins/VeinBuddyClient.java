@@ -53,7 +53,7 @@ public class VeinBuddyClient {
         VeinBuddyCount.initialize();
 
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
-        ClientCommandManager.literal("veinbuddy")
+        ClientCommandManager.literal("civbuddy")
         .then(ClientCommandManager.literal("digRange")
         .then(ClientCommandManager.argument("x", IntegerArgumentType.integer(1, 11))
         .then(ClientCommandManager.argument("y", IntegerArgumentType.integer(1, 11))
