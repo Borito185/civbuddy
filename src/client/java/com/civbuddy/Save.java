@@ -4,11 +4,14 @@ import com.civbuddy.veins.AABBShape;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.fabricmc.fabric.api.event.Event;
+import net.fabricmc.fabric.api.event.EventFactory;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.server.integrated.IntegratedServer;
 import org.joml.Vector3i;
 import org.joml.Vector4f;
+
 import java.io.*;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -33,22 +36,24 @@ public class Save {
     public static class VeinCounterData {
         public String key;
         public int count;
-        public long createdTime;
-        public long lastUpdateTime;
 
-        public VeinCounterData() {} // For GSON
-
-        public VeinCounterData(String key, int count, long createdTime, long lastUpdateTime) {
-            this.key = key;
-            this.count = count;
-            this.createdTime = createdTime;
-            this.lastUpdateTime = lastUpdateTime;
+        public VeinCounterData(String s) {
+            key = s;
         }
+    }
+    @FunctionalInterface
+    public interface SaveLoaded {
+        void handle(Data data);
     }
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static File file;
     public static Data data = new Data();
 
+    public static final Event<SaveLoaded> SAVE_LOADED = EventFactory.createArrayBacked(SaveLoaded.class, listeners -> data -> {
+        for (SaveLoaded listener : listeners) {
+            listener.handle(data);
+        }
+    });
 
     public static void initialize() {
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> load(client));
@@ -58,13 +63,15 @@ public class Save {
         file = getSaveFile(client);
         data = new Data();
 
-        if (!file.exists()) return;
-
-        try (Reader r = new FileReader(file)) {
-            Save.data = GSON.fromJson(r, Data.class);
-        } catch (IOException e) {
-            e.printStackTrace();
+        if (file.exists()) {
+            try (Reader r = new FileReader(file)) {
+                Save.data = GSON.fromJson(r, Data.class);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
+
+        SAVE_LOADED.invoker().handle(data);
     }
 
     private static File getSaveFile(MinecraftClient client) {
@@ -87,7 +94,7 @@ public class Save {
         return new File(client.runDirectory, "data/veinbuddy/" + key + ".gson");
     }
 
-    public static void Save() {
+    public static void save() {
         if (!file.exists()) {
             try {
                 file.getParentFile().mkdirs();

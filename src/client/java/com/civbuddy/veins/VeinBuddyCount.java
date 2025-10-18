@@ -1,7 +1,6 @@
 package com.civbuddy.veins;
 
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -33,19 +32,10 @@ public class VeinBuddyCount {
     private static VeinBuddyCount instance = null;
     private final MinecraftClient mc = MinecraftClient.getInstance();
 
-    // Configuration
-    private String countGroup = "";
-    private String currentVeinKey = "";
-    
-    // Vein tracking
-    private final Map<String, VeinCounter> veins = new ConcurrentHashMap<>();
-    
-    // Callback to mark save as dirty
-    private Runnable markDirtyCallback = null;
     
     // Ore detection pattern - detects "You sense a diamond nearby 2 DEEPSLATE_DIAMOND_ORE nearby"
     private static final Pattern ORE_SENSE_PATTERN = Pattern.compile(
-        "You sense (?:a |an )?(?:diamond|deepslate.?diamond|iron|gold|copper|redstone|lapis|emerald|coal)s? nearby\\s+(\\d+)\\s+.*",
+        "You sense a diamond nearby\\s+(\\d+)\\s+.*",
         Pattern.CASE_INSENSITIVE
     );
 
@@ -79,97 +69,26 @@ public class VeinBuddyCount {
             );
         });
     }
-    
-    /**
-     * Set callback to mark save as dirty when data changes
-     */
-    public static void setMarkDirtyCallback(Runnable callback) {
-        getInstance().markDirtyCallback = callback;
-    }
-    
-    /**
-     * Mark save as dirty
-     */
-    private void markDirty() {
-        if (markDirtyCallback != null) {
-            markDirtyCallback.run();
-        }
-    }
-    
-    /**
-     * Save current state to the provided Save object
-     */
-    public static void saveToFile(Save.Data save) {
-        VeinBuddyCount counter = getInstance();
-        save.countGroup = counter.countGroup;
-        save.currentVeinKey = counter.currentVeinKey;
-        save.veins.clear();
-        
-        // Convert VeinCounter objects to serializable VeinCounterData
-        for (Map.Entry<String, VeinCounter> entry : counter.veins.entrySet()) {
-            VeinCounter vc = entry.getValue();
-            save.veins.put(entry.getKey(), new Save.VeinCounterData(
-                vc.key, vc.count, vc.createdTime, vc.lastUpdateTime
-            ));
-        }
-    }
-    
-    /**
-     * Load state from the provided Save object
-     */
-    public static void loadFromFile(Save.Data save) {
-        VeinBuddyCount counter = getInstance();
-        counter.countGroup = save.countGroup != null ? save.countGroup : "";
-        counter.currentVeinKey = save.currentVeinKey != null ? save.currentVeinKey : "";
-        counter.veins.clear();
-        
-        // Convert VeinCounterData back to VeinCounter objects
-        if (save.veins != null) {
-            for (Map.Entry<String, Save.VeinCounterData> entry : save.veins.entrySet()) {
-                Save.VeinCounterData data = entry.getValue();
-                VeinCounter vc = new VeinCounter(data.key);
-                vc.count = data.count;
-                vc.createdTime = data.createdTime;
-                vc.lastUpdateTime = data.lastUpdateTime;
-                counter.veins.put(entry.getKey(), vc);
-            }
-        }
-    }
 
-    /**
-     * Vein counter data class
-     */
-    private static class VeinCounter {
-        String key;
-        int count;
-        long createdTime;
-        long lastUpdateTime;
-        
-        VeinCounter(String key) {
-            this.key = key;
-            this.count = 0;
-            this.createdTime = System.currentTimeMillis();
-            this.lastUpdateTime = this.createdTime;
-        }
-    }
 
     /**
      * Get or create vein counter
      */
-    private VeinCounter getOrCreateVein(String key) {
-        return veins.computeIfAbsent(key.toLowerCase(), VeinCounter::new);
+    private Save.VeinCounterData getOrCreateVein(String key) {
+        Map<String, Save.VeinCounterData> veins = Save.data.veins;
+        return veins.computeIfAbsent(key.toLowerCase(), Save.VeinCounterData::new);
     }
 
     /**
      * Share count update to group
      */
     private void shareCountUpdate(String key, int count) {
-        if (countGroup.isEmpty() || mc.getNetworkHandler() == null) {
+        if (!hasCountGroup() || mc.getNetworkHandler() == null) {
             return;
         }
         
         String message = String.format("key: %s count: %d", key, count);
-        mc.getNetworkHandler().sendChatCommand("g " + countGroup + " " + message);
+        mc.getNetworkHandler().sendChatCommand("g " + Save.data.countGroup + " " + message);
     }
 
     /**
@@ -186,43 +105,54 @@ public class VeinBuddyCount {
             // This is likely a player chat message, ignore it
             return;
         }
-        
+
+        String key = Save.data.currentVeinKey;
+
         // Auto-detect ore discoveries if we have an active vein key
-        if (!currentVeinKey.isEmpty()) {
-            Matcher matcher = ORE_SENSE_PATTERN.matcher(msg);
-            if (matcher.matches()) {
-                // Parse the count from the message
-                // "You sense a diamond nearby 1 DEEPSLATE_DIAMOND_ORE nearby" = 1
-                // "You sense a diamond nearby 3 DEEPSLATE_DIAMOND_ORE nearby" = 3
-                String countStr = matcher.group(1);
-                int amount = Integer.parseInt(countStr);
-                addToCurrentVein(amount, true); // true = auto-detected
-            }
+        if (!hasKey()) return;
+
+        Matcher matcher = ORE_SENSE_PATTERN.matcher(msg);
+        if (matcher.matches()) {
+            // Parse the count from the message
+            // "You sense a diamond nearby 1 DEEPSLATE_DIAMOND_ORE nearby" = 1
+            // "You sense a diamond nearby 3 DEEPSLATE_DIAMOND_ORE nearby" = 3
+            String countStr = matcher.group(1);
+            int amount = Integer.parseInt(countStr);
+            addToCurrentVein(amount);
         }
+    }
+
+    private boolean hasKey() {
+        String key = Save.data.currentVeinKey;
+        return key != null && !key.isBlank();
+    }
+
+    private boolean hasCountGroup() {
+        String group = Save.data.countGroup;
+        return group != null && !group.isBlank();
     }
 
     /**
      * Add amount to current vein
      */
-    private void addToCurrentVein(int amount, boolean autoDetected) {
-        if (currentVeinKey.isEmpty()) {
-            if (!autoDetected && mc.player != null) {
+    private void addToCurrentVein(int amount) {
+        if (!hasKey()) {
+            if (mc.player != null) {
                 mc.player.sendMessage(Text.literal("§cNo vein key set! Use /veinbuddy key <key>"), false);
             }
             return;
         }
-        
-        VeinCounter vein = getOrCreateVein(currentVeinKey);
+
+        Save.VeinCounterData vein = getOrCreateVein(Save.data.currentVeinKey);
         vein.count += amount;
-        vein.lastUpdateTime = System.currentTimeMillis();
-        markDirty(); // Mark save as dirty
+        Save.save();
         
         // Share update to group
         shareCountUpdate(vein.key, vein.count);
         
         // Notify player
         if (mc.player != null) {
-            String prefix = autoDetected ? "§a✓ Auto-detected" : "§b+ Added";
+            String prefix = "§a✓ Auto-detected";
             mc.player.sendMessage(Text.literal(String.format("%s §7+%d → §ekey: %s count: %d", 
                 prefix, amount, vein.key, vein.count)), false);
         }
@@ -234,10 +164,11 @@ public class VeinBuddyCount {
      * Command: Set group
      */
     private int cmdSetGroup(CommandContext<FabricClientCommandSource> ctx) {
-        countGroup = StringArgumentType.getString(ctx, "groupName");
-        markDirty(); // Mark save as dirty
+        Save.data.countGroup = StringArgumentType.getString(ctx, "groupName");
+        Save.save();
+
         if (mc.player != null) {
-            mc.player.sendMessage(Text.literal("§aVeinBuddy count group set to: " + countGroup), false);
+            mc.player.sendMessage(Text.literal("§aVeinBuddy count group set to: " + Save.data.countGroup), false);
         }
         return 0;
     }
@@ -255,11 +186,11 @@ public class VeinBuddyCount {
             }
             return 1;
         }
-        
-        currentVeinKey = newKey;
-        VeinCounter vein = getOrCreateVein(currentVeinKey);
-        markDirty(); // Mark save as dirty
-        
+
+        Save.data.currentVeinKey = newKey;
+        Save.save();
+
+        Save.VeinCounterData vein = getOrCreateVein(Save.data.currentVeinKey);
         if (mc.player != null) {
             mc.player.sendMessage(Text.literal(String.format("§aVein key set to: §e%s §7(count: %d)", 
                 vein.key, vein.count)), false);
@@ -271,17 +202,16 @@ public class VeinBuddyCount {
      * Command: Reset current vein
      */
     private int cmdReset(CommandContext<FabricClientCommandSource> ctx) {
-        if (currentVeinKey.isEmpty()) {
+        if (!hasKey()) {
             if (mc.player != null) {
                 mc.player.sendMessage(Text.literal("§cNo vein key set!"), false);
             }
             return 1;
         }
-        
-        VeinCounter vein = getOrCreateVein(currentVeinKey);
+
+        Save.VeinCounterData vein = getOrCreateVein(Save.data.currentVeinKey);
         vein.count = 0;
-        vein.lastUpdateTime = System.currentTimeMillis();
-        markDirty(); // Mark save as dirty
+        Save.save();
         
         // Share reset
         shareCountUpdate(vein.key, vein.count);
@@ -296,21 +226,24 @@ public class VeinBuddyCount {
      * Command: List all veins
      */
     private int cmdList(CommandContext<FabricClientCommandSource> ctx) {
-        if (mc.player != null) {
-            if (veins.isEmpty()) {
-                mc.player.sendMessage(Text.literal("§7No veins tracked yet"), false);
-            } else {
-                mc.player.sendMessage(Text.literal("§b━━━ Tracked Veins ━━━"), false);
-                veins.values().stream()
-                    .sorted((a, b) -> Long.compare(b.lastUpdateTime, a.lastUpdateTime))
-                    .forEach(vein -> {
-                        String active = vein.key.equals(currentVeinKey) ? " §a✓" : "";
-                        mc.player.sendMessage(Text.literal(String.format("§7Key: §e%s §7Count: §a%d%s", 
-                            vein.key, vein.count, active)), false);
-                    });
-                mc.player.sendMessage(Text.literal("§b━━━━━━━━━━━━━━━━━━"), false);
-            }
+        if (mc.player == null) {
+            return 0;
         }
+        Map<String, Save.VeinCounterData> veins = Save.data.veins;
+
+        if (veins.isEmpty()) {
+            mc.player.sendMessage(Text.literal("§7No veins tracked yet"), false);
+            return 0;
+        }
+        mc.player.sendMessage(Text.literal("§b━━━ Tracked Veins ━━━"), false);
+        veins.values().stream()
+            .sorted((a, b) -> Long.compare(b.count, a.count))
+            .forEach(vein -> {
+                String active = vein.key.equals(Save.data.currentVeinKey) ? " §a✓" : "";
+                mc.player.sendMessage(Text.literal(String.format("§7Key: §e%s §7Count: §a%d%s",
+                    vein.key, vein.count, active)), false);
+            });
+        mc.player.sendMessage(Text.literal("§b━━━━━━━━━━━━━━━━━━"), false);
         return 0;
     }
 }
