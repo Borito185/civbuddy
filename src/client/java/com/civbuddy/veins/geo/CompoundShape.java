@@ -75,17 +75,6 @@ public class CompoundShape implements VoxelShape {
         faces.clear();
     }
 
-    private void regenerate() {
-        faces.clear();
-        for (VoxelShape shape : shapes) {
-            faces.addAll(shape.getFaces());
-        }
-
-        for (VoxelShape shape : shapes) {
-            cullFaces(faces, shape);
-        }
-    }
-
     public Collection<Face> getFaces() {
         return faces;
     }
@@ -110,6 +99,17 @@ public class CompoundShape implements VoxelShape {
         throw new NotImplementedException();
     }
 
+    private void regenerate() {
+        faces.clear();
+        for (VoxelShape shape : shapes) {
+            faces.addAll(shape.getFaces());
+        }
+
+        for (VoxelShape shape : shapes) {
+            cullFaces(faces, shape);
+        }
+    }
+
     private static void cullFaces(HashSet<Face> set, VoxelShape shape) {
         final Vector3f rc = shape.getCenter();
 
@@ -128,36 +128,6 @@ public class CompoundShape implements VoxelShape {
             Vector3f toCenter = new Vector3f(rc.x - p.x, rc.y - p.y, rc.z - p.z);
             if (n.dot(toCenter) < 0f)
                 it.remove();
-        }
-
-        if (shape instanceof AABBShape aabb) { cullFaces(set, aabb); return; }
-
-        throw new NotImplementedException();
-    }
-
-    private static void cullFaces(HashSet<Face> set, AABBShape shape) {
-        final Vector3f rc = shape.getCenter();
-        final Vector3f rad = new Vector3f(shape.radius());
-
-        for (Iterator<Face> it = set.iterator(); it.hasNext();) {
-            Face f = it.next();
-            Vector3f p = f.center();
-
-            float dx = Math.abs(p.x - rc.x) - rad.x;
-            float dy = Math.abs(p.y - rc.y) - rad.y;
-            float dz = Math.abs(p.z - rc.z) - rad.z;
-            float maxd = Math.max(dx, Math.max(dy, dz));
-
-            if (maxd < -EPS) { // strictly inside
-                it.remove();
-                continue;
-            }
-            if (Math.abs(maxd) <= EPS) { // on border: check facing
-                Vector3f n = f.normal();
-                Vector3f toCenter = new Vector3f(rc.x - p.x, rc.y - p.y, rc.z - p.z);
-                if (n.dot(toCenter) > 0f)
-                    it.remove();
-            }
         }
     }
 }
