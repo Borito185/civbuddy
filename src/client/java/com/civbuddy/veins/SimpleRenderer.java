@@ -31,7 +31,7 @@ import java.util.*;
 
 public class SimpleRenderer implements AutoCloseable {
     private final RenderPipeline WALLS = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.POSITION_COLOR_SNIPPET)
-            .withLocation(Identifier.of("veinbuddy", "walls_pipeline"))
+            .withLocation(Identifier.of("civbuddy", "walls_pipeline"))
             .withBlend(BlendFunction.TRANSLUCENT)
             .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS)
             .withDepthBias(-1.0f, -0.001f) // ensures it draws over blocks
@@ -40,7 +40,7 @@ public class SimpleRenderer implements AutoCloseable {
             .build());
 
     private final RenderPipeline GRID = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.POSITION_COLOR_SNIPPET)
-            .withLocation(Identifier.of("veinbuddy", "grid_pipeline"))
+            .withLocation(Identifier.of("civbuddy", "grid_pipeline"))
             .withBlend(BlendFunction.TRANSLUCENT)
             .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.DEBUG_LINES)
             .withDepthBias(-0.5f, -0.002f)
@@ -80,7 +80,7 @@ public class SimpleRenderer implements AutoCloseable {
         int size = buffer.remaining();
 
         if (wallIndices == null || wallIndices.size() < size) {
-            wallIndices = new MappableRingBuffer(() -> "veinbuddy wall indices", GpuBuffer.USAGE_INDEX | GpuBuffer.USAGE_MAP_WRITE, size);
+            wallIndices = new MappableRingBuffer(() -> "civbuddy wall indices", GpuBuffer.USAGE_INDEX | GpuBuffer.USAGE_MAP_WRITE, size);
         }
 
         // send to gpu
@@ -136,7 +136,7 @@ public class SimpleRenderer implements AutoCloseable {
 
         try (RenderPass renderPass = RenderSystem.getDevice()
                 .createCommandEncoder()
-                .createRenderPass(() -> "veinbuddy walls", fb.getColorAttachmentView(), OptionalInt.empty(), fb.getDepthAttachmentView(), OptionalDouble.empty())) {
+                .createRenderPass(() -> "civbuddy walls", fb.getColorAttachmentView(), OptionalInt.empty(), fb.getDepthAttachmentView(), OptionalDouble.empty())) {
             renderPass.setPipeline(pipeline);
 
             RenderSystem.bindDefaultUniforms(renderPass);
