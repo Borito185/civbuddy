@@ -10,4 +10,5 @@ public interface VoxelShape {
     public boolean contains(Vector3f pos, float tolerance);
     public boolean contains(Vector3i pos);
     public Vector3f getCenter();
+    public boolean overlaps(VoxelShape shape, float tolerance);
 }

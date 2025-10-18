@@ -151,14 +151,10 @@ public class VeinBuddyClient {
     }
 
     public void addSelection(Collection<AABBShape> shapes) {
-        boolean change = false;
+        boolean change = data.selections.addAll(shapes);
 
-        for (AABBShape shape : shapes) {
-            if (data.selections.add(shape)) change = true;
-
-            ranges.add(shape);
-            selections.add(new AABBShape(shape.center(), new Vector3i(0), data.selectionWallColor, false));
-        }
+        ranges.add(shapes.stream().map(s -> (VoxelShape)s).toList());
+        selections.add(shapes.stream().map(s -> (VoxelShape)new AABBShape(s.center(), new Vector3i(0), data.selectionWallColor, false)).toList());
 
         drawStatic();
         if (change) Save.save();
