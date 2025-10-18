@@ -1,10 +1,12 @@
 {
 	"schemaVersion": 1,
-	"id": "veinbuddy",
+	"id": "civbuddy",
 	"version": "${version}",
-	"name": "VeinBuddy",
-	"description": "Marks areas you should dig!",
+	"name": "CivBuddy",
+	"description": "QOL features for CivMC.",
 	"authors": [
+		"borito185",
+		"spicon17",
 		"sbobicus"
 	],
 	"contact": {
