@@ -1,4 +1,4 @@
-package com.civbuddy.veins;
+package com.civbuddy.veins.geo;
 
 import org.joml.Vector3f;
 import org.joml.Vector3i;

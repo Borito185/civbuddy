@@ -4,6 +4,9 @@ import java.util.Collection;
 import java.util.List;
 
 import com.civbuddy.Save;
+import com.civbuddy.veins.geo.AABBShape;
+import com.civbuddy.veins.geo.CompoundShape;
+import com.civbuddy.veins.geo.VoxelShape;
 import org.joml.Vector3f;
 import org.joml.Vector3i;
 
