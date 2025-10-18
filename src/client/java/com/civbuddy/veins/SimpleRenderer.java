@@ -33,7 +33,9 @@ import java.util.*;
 
 public class SimpleRenderer implements AutoCloseable {
     private final RenderPipeline WALLS = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.POSITION_COLOR_SNIPPET)
-            .withLocation(Identifier.of("veinbuddy", "walls_pipeline"))
+            .withLocation(Identifier.of("civbuddy", "walls_pipeline"))
+            .withVertexShader(Identifier.of("civbuddy", "vertex"))
+            //.withFragmentShader(Identifier.of("civbuddy", "fragment"))
             .withBlend(BlendFunction.TRANSLUCENT)
             .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS)
             .withDepthBias(-1.0f, -0.001f) // ensures it draws over blocks
@@ -42,7 +44,7 @@ public class SimpleRenderer implements AutoCloseable {
             .build());
 
     private final RenderPipeline GRID = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.POSITION_COLOR_SNIPPET)
-            .withLocation(Identifier.of("veinbuddy", "grid_pipeline"))
+            .withLocation(Identifier.of("civbuddy", "grid_pipeline"))
             .withBlend(BlendFunction.TRANSLUCENT)
             .withVertexFormat(VertexFormats.POSITION, VertexFormat.DrawMode.DEBUG_LINES)
             .withDepthBias(-0.5f, -0.002f)
