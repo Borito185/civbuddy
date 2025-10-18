@@ -1,8 +1,12 @@
 package com.civbuddy;
 
-import com.civbuddy.veins.Bounds;
+import com.civbuddy.veins.AABBShape;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.ServerInfo;
+import net.minecraft.server.integrated.IntegratedServer;
 import org.joml.Vector3i;
 import org.joml.Vector4f;
 import java.io.*;
@@ -10,16 +14,13 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 
-public class SaveLoader {
-    public static class Save {
-        public HashSet<Bounds> selections = new HashSet<>();
+public class Save {
+    public static class Data {
+        public HashSet<AABBShape> selections = new HashSet<>();
 
         public Vector4f rangeWallColor = new Vector4f(1,0,0,0.2f);
-        public Vector4f rangeGridColor = new Vector4f(0,0,0,1);
         public Vector4f selectionWallColor = new Vector4f(0,1,0,0.2f);
-        public Vector4f selectionGridColor = new Vector4f(0);
         public Vector4f highlightWallColor = new Vector4f(0);
-        public Vector4f highlightGridColor = new Vector4f(0,0,0,1);
 
         public Vector3i digRange = new Vector3i(5, 5, 5);
         public boolean render = true;
@@ -28,16 +29,15 @@ public class SaveLoader {
         public String currentVeinKey = "";
         public Map<String, VeinCounterData> veins = new HashMap<>();
     }
-    
     // Serializable version of VeinCounter
     public static class VeinCounterData {
         public String key;
         public int count;
         public long createdTime;
         public long lastUpdateTime;
-        
+
         public VeinCounterData() {} // For GSON
-        
+
         public VeinCounterData(String key, int count, long createdTime, long lastUpdateTime) {
             this.key = key;
             this.count = count;
@@ -45,10 +45,49 @@ public class SaveLoader {
             this.lastUpdateTime = lastUpdateTime;
         }
     }
-
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static File file;
+    public static Data data = new Data();
 
-    public static void Save(File file, Save save) {
+
+    public static void initialize() {
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> load(client));
+    }
+
+    private static void load(MinecraftClient client) {
+        file = getSaveFile(client);
+        data = new Data();
+
+        if (!file.exists()) return;
+
+        try (Reader r = new FileReader(file)) {
+            Save.data = GSON.fromJson(r, Data.class);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static File getSaveFile(MinecraftClient client) {
+        ServerInfo serverInfo = client.getCurrentServerEntry();
+        IntegratedServer server = client.getServer();
+
+        String key = null;
+
+        if (server != null) {
+            key = server.getSaveProperties().getLevelName();
+        }
+
+        if (serverInfo != null) {
+            key = serverInfo.address;
+        }
+
+        if (key == null)
+            return null;
+
+        return new File(client.runDirectory, "data/veinbuddy/" + key + ".gson");
+    }
+
+    public static void Save() {
         if (!file.exists()) {
             try {
                 file.getParentFile().mkdirs();
@@ -60,20 +99,9 @@ public class SaveLoader {
         }
 
         try (Writer w = new FileWriter(file)) {
-            GSON.toJson(save, w);
+            GSON.toJson(data, w);
         } catch (IOException e) {
             e.printStackTrace();
-        }
-
-    }
-
-    public static Save load(File file) {
-        if (!file.exists()) return new SaveLoader.Save();
-        try (Reader r = new FileReader(file)) {
-            return GSON.fromJson(r, Save.class);
-        } catch (IOException e) {
-            e.printStackTrace();
-            return new SaveLoader.Save();
         }
     }
 }
