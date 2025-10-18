@@ -84,7 +84,7 @@ public class SimpleRenderer implements AutoCloseable {
         int size = buffer.remaining();
 
         if (wallIndices == null || wallIndices.size() < size) {
-            wallIndices = new MappableRingBuffer(() -> "veinbuddy wall indices", GpuBuffer.USAGE_INDEX | GpuBuffer.USAGE_MAP_WRITE, size);
+            wallIndices = new MappableRingBuffer(() -> "civbuddy wall indices", GpuBuffer.USAGE_INDEX | GpuBuffer.USAGE_MAP_WRITE, size);
         }
 
         // send to gpu
@@ -113,7 +113,7 @@ public class SimpleRenderer implements AutoCloseable {
 
         try (RenderPass renderPass = RenderSystem.getDevice()
                 .createCommandEncoder()
-                .createRenderPass(() -> "veinbuddy walls", fb.getColorAttachmentView(), OptionalInt.empty(), fb.getDepthAttachmentView(), OptionalDouble.empty())) {
+                .createRenderPass(() -> "civbuddy walls", fb.getColorAttachmentView(), OptionalInt.empty(), fb.getDepthAttachmentView(), OptionalDouble.empty())) {
             renderPass.setPipeline(pipeline);
 
             RenderSystem.bindDefaultUniforms(renderPass);
