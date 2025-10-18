@@ -4,6 +4,7 @@ import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.shape.VoxelShapes;
+import org.apache.commons.lang3.NotImplementedException;
 import org.joml.*;
 import org.joml.Math;
 
@@ -12,16 +13,18 @@ import java.util.HashSet;
 import java.util.Objects;
 
 public record AABBShape(Vector3i center, Vector3i radius, Vector4f color, boolean hasGrid) implements VoxelShape {
-    public boolean overlaps(AABBShape o) {
+    public boolean overlaps(AABBShape o, float tolerance) {
+        tolerance += 1;
+
         // calc distance
-        int dx = Math.abs(center.x() - o.center.x());
-        int dy = Math.abs(center.y() - o.center.y());
-        int dz = Math.abs(center.z() - o.center.z());
+        float dx = Math.abs(center.x() - o.center.x());
+        float dy = Math.abs(center.y() - o.center.y());
+        float dz = Math.abs(center.z() - o.center.z());
 
         // add ranges
-        int rx = radius.x() + o.radius.x();
-        int ry = radius.y() + o.radius.y();
-        int rz = radius.z() + o.radius.z();
+        float rx = radius.x() + o.radius.x() + tolerance;
+        float ry = radius.y() + o.radius.y() + tolerance;
+        float rz = radius.z() + o.radius.z() + tolerance;
 
         // compare
         return dx <= rx && dy <= ry && dz <= rz;
@@ -39,6 +42,12 @@ public record AABBShape(Vector3i center, Vector3i radius, Vector4f color, boolea
     @Override
     public Vector3f getCenter() {
         return new Vector3f(center.x+.5f, center.y+.5f, center.z+.5f);
+    }
+
+    @Override
+    public boolean overlaps(VoxelShape shape, float tolerance) {
+        if (shape instanceof AABBShape aabb) return overlaps(aabb, tolerance);
+        throw new NotImplementedException();
     }
 
     @Override

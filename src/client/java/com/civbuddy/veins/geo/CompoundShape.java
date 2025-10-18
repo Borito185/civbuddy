@@ -7,30 +7,63 @@ import org.joml.Vector3i;
 import java.util.*;
 
 public class CompoundShape implements VoxelShape {
+    private static final float EPS = 1e-4f;
     private final HashSet<VoxelShape> shapes = new HashSet<>();
     private final HashSet<Face> faces = new HashSet<>();
 
     public void add(VoxelShape shape) {
+        List<VoxelShape> overlapping = shapes.stream().filter(s -> s.overlaps(shape, EPS)).toList();
         shapes.add(shape);
-        regenerate();
+        cullFaces(faces, shape);
+
+        HashSet<Face> newFaces = new HashSet<>(shape.getFaces());
+        for (VoxelShape voxelShape : overlapping) {
+            cullFaces(newFaces, voxelShape);
+        }
+
+        faces.addAll(newFaces);
     }
 
     public void add(Collection<VoxelShape> shapes) {
-        this.shapes.addAll(shapes);
-        regenerate();
-    }
+        int size = this.shapes.size();
+        int addCount = shapes.size();
 
-    public void set(Collection<VoxelShape> shapes) {
-        clear();
+        if (addCount * 4 < size || addCount <= 1) {
+            for (VoxelShape shape : shapes) {
+                add(shape);
+            }
+            return;
+        }
+
         this.shapes.addAll(shapes);
         regenerate();
     }
 
     public boolean remove(VoxelShape shape) {
-        boolean remove = shapes.remove(shape);
-        regenerate();
-        return remove;
+        if (!shapes.remove(shape)) return false;
+
+        // remove his faces
+        faces.removeIf(f -> shape.contains(f.center(), EPS));
+
+        // find faces in his area belonging to neighbours
+        List<VoxelShape> overlapping = shapes.stream().filter(s -> s.overlaps(shape, EPS)).toList();
+        HashSet<Face> temp = new HashSet<>();
+        for (VoxelShape voxelShape : overlapping) {
+            temp.addAll(voxelShape.getFaces());
+        }
+        temp.removeIf(f -> !shape.contains(f.center(), EPS));
+
+        // let neighbours cull in that area too
+        for (VoxelShape voxelShape : overlapping) {
+            cullFaces(temp, voxelShape);
+        }
+
+        // add them to the faces
+        faces.addAll(temp);
+
+        return true;
     }
+
     public boolean removeAt(Vector3i pos) {
         boolean remove = shapes.removeIf(s -> new Vector3i(s.getCenter(), 2).equals(pos));
         regenerate();
@@ -42,7 +75,7 @@ public class CompoundShape implements VoxelShape {
         faces.clear();
     }
 
-    public void regenerate() {
+    private void regenerate() {
         faces.clear();
         for (VoxelShape shape : shapes) {
             faces.addAll(shape.getFaces());
@@ -72,8 +105,12 @@ public class CompoundShape implements VoxelShape {
         return null;
     }
 
+    @Override
+    public boolean overlaps(VoxelShape shape, float tolerance) {
+        throw new NotImplementedException();
+    }
+
     private static void cullFaces(HashSet<Face> set, VoxelShape shape) {
-        final float EPS = 1e-4f;
         final Vector3f rc = shape.getCenter();
 
         for (Iterator<Face> it = set.iterator(); it.hasNext();) {
@@ -99,7 +136,6 @@ public class CompoundShape implements VoxelShape {
     }
 
     private static void cullFaces(HashSet<Face> set, AABBShape shape) {
-        final float EPS = 1e-4f;
         final Vector3f rc = shape.getCenter();
         final Vector3f rad = new Vector3f(shape.radius());
 
