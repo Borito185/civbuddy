@@ -1,5 +1,6 @@
 package com.civbuddy.veins;
 
+import java.util.Collection;
 import java.util.List;
 
 import com.civbuddy.Save;
@@ -39,6 +40,12 @@ public class VeinBuddyClient {
         dynamicRenderer = new SimpleRenderer(true, false);
         staticRenderer = new SimpleRenderer();
 
+        Save.SAVE_LOADED.register(save -> {
+            ranges.clear();
+            selections.clear();
+            addSelection(save.selections);
+        });
+
         // Initialize VeinBuddy Count system
         VeinBuddyCount.initialize();
 
@@ -61,26 +68,26 @@ public class VeinBuddyClient {
         int y = IntegerArgumentType.getInteger(ctx, "y");
         int z = IntegerArgumentType.getInteger(ctx, "z");
         data.digRange = new Vector3i(x, y, z);
-        Save.Save();
+        Save.save();
         return 0;
     }
 
     private int onDigRadius(CommandContext<FabricClientCommandSource> ctx) {
         int radius = IntegerArgumentType.getInteger(ctx, "radius");
         data.digRange = new Vector3i(radius);
-        Save.Save();
+        Save.save();
 
         return 0;
     }
 
-    private int toggleRenderer(CommandContext<FabricClientCommandSource> ctx) {
+    private int toggleRenderer(CommandContext<FabricClientCommandSource> fabricClientCommandSourceCommandContext) {
         data.render = !data.render;
 
         drawStatic();
         return 0;
     }
 
-    private int clear(CommandContext<FabricClientCommandSource> ctx) {
+    private int clear(CommandContext<FabricClientCommandSource> fabricClientCommandSourceCommandContext) {
         data.selections.clear();
         ranges.clear();
         selections.clear();
@@ -133,14 +140,25 @@ public class VeinBuddyClient {
     }
 
     public void addSelection(Vector3i pos) {
-        AABBShape aabb = new AABBShape(pos, data.digRange, data.rangeWallColor, true);
-        boolean add = data.selections.add(aabb);
+        addSelection(pos, data.digRange);
+    }
 
-        ranges.add(aabb);
-        selections.add(new AABBShape(pos, new Vector3i(0), data.selectionWallColor, false));
+    public void addSelection(Vector3i pos, Vector3i range) {
+        addSelection(List.of(new AABBShape(pos, range, data.rangeWallColor, true)));
+    }
+
+    public void addSelection(Collection<AABBShape> shapes) {
+        boolean change = false;
+
+        for (AABBShape shape : shapes) {
+            if (data.selections.add(shape)) change = true;
+
+            ranges.add(shape);
+            selections.add(new AABBShape(shape.center(), new Vector3i(0), data.selectionWallColor, false));
+        }
 
         drawStatic();
-        if (add) Save.Save();
+        if (change) Save.save();
     }
 
     public void removeTargetedBlock(Vec3d cameraPos, Vec3d cameraDir) {
