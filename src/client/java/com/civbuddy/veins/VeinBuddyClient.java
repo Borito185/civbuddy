@@ -52,7 +52,7 @@ public class VeinBuddyClient {
     VeinBuddyCount.setMarkDirtyCallback(() -> isDirty = true);
 
     ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
-      ClientCommandManager.literal("veinbuddy")
+      ClientCommandManager.literal("civbuddy")
               .then(ClientCommandManager.literal("digRange")
                       .then(ClientCommandManager.argument("x", IntegerArgumentType.integer(1, 11))
                               .then(ClientCommandManager.argument("y", IntegerArgumentType.integer(1, 11))
@@ -118,7 +118,7 @@ public class VeinBuddyClient {
     if (key == null)
       return null;
 
-    return new File(client.runDirectory, "data/veinbuddy/" + key + ".gson");
+    return new File(client.runDirectory, "data/civbuddy/" + key + ".gson");
   }
 
   private int onDigRange(CommandContext<FabricClientCommandSource> ctx) {
