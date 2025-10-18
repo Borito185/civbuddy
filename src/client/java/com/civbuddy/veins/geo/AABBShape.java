@@ -1,4 +1,4 @@
-package com.civbuddy.veins;
+package com.civbuddy.veins.geo;
 
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;

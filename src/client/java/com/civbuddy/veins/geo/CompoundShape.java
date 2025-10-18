@@ -1,4 +1,4 @@
-package com.civbuddy.veins;
+package com.civbuddy.veins.geo;
 
 import org.apache.commons.lang3.NotImplementedException;
 import org.joml.Vector3f;

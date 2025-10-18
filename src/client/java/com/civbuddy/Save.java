@@ -1,6 +1,6 @@
 package com.civbuddy;
 
-import com.civbuddy.veins.AABBShape;
+import com.civbuddy.veins.geo.AABBShape;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;

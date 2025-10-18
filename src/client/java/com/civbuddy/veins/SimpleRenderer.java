@@ -1,5 +1,9 @@
 package com.civbuddy.veins;
 
+import com.civbuddy.veins.geo.Edge;
+import com.civbuddy.veins.geo.Face;
+import com.civbuddy.veins.geo.ShapeUtils;
+import com.civbuddy.veins.geo.VoxelShape;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.pipeline.BlendFunction;
@@ -9,7 +13,6 @@ import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.systems.VertexSorter;
 import com.mojang.blaze3d.vertex.VertexFormat;
-import com.mojang.blaze3d.vertex.VertexFormatElement;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.gl.Framebuffer;
@@ -23,13 +26,10 @@ import net.minecraft.util.math.Vec3d;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
-import org.joml.Vector3i;
 import org.joml.Vector4f;
 import org.lwjgl.system.MemoryUtil;
 import java.nio.ByteBuffer;
-import java.nio.FloatBuffer;
 import java.util.*;
-import java.util.function.IntFunction;
 
 public class SimpleRenderer implements AutoCloseable {
     private final RenderPipeline WALLS = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.POSITION_COLOR_SNIPPET)
