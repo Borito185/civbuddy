@@ -3,9 +3,11 @@ package com.civbuddy.veins;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 import com.civbuddy.Save;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
@@ -21,9 +23,9 @@ import net.minecraft.text.Text;
  * 
  * Commands:
  *   /civbuddy group <name>   - Set group to send count updates to
- *   /civbuddy key <key>      - Set key for current vein (e.g., "f2da")
+ *   /civbuddy name <key>     - Set key for current vein (e.g., "f2da")
  *   /civbuddy reset          - Reset current vein count to 0
- *   /civbuddy list           - List all tracked veins
+ *   /civbuddy listnames      - List all tracked veins
  */
 public class VeinBuddyCount {
 
@@ -59,11 +61,11 @@ public class VeinBuddyCount {
                     .then(ClientCommandManager.literal("group")
                         .then(ClientCommandManager.argument("groupName", StringArgumentType.string())
                             .executes(counter::cmdSetGroup)))
-                    .then(ClientCommandManager.literal("key")
+                    .then(ClientCommandManager.literal("name")
                         .then(ClientCommandManager.argument("key", StringArgumentType.string())
                             .executes(counter::cmdSetKey)))
                     .then(ClientCommandManager.literal("reset").executes(counter::cmdReset))
-                    .then(ClientCommandManager.literal("list").executes(counter::cmdList))
+                    .then(ClientCommandManager.literal("listnames").executes(counter::cmdList))
             );
         });
     }
@@ -136,7 +138,7 @@ public class VeinBuddyCount {
     private void addToCurrentVein(int amount) {
         if (!hasKey()) {
             if (mc.player != null) {
-                mc.player.sendMessage(Text.literal("§cNo vein key set! Use /civbuddy key <key>"), false);
+                mc.player.sendMessage(Text.literal("§cNo vein key set! Use /civbuddy name <key>"), false);
             }
             return;
         }
