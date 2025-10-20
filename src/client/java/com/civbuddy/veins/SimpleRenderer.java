@@ -39,7 +39,7 @@ public class SimpleRenderer implements AutoCloseable {
             .withBlend(BlendFunction.TRANSLUCENT)
             .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS)
             .withDepthBias(-1.0f, -0.001f) // ensures it draws over blocks
-            .withDepthWrite(true) // hides clouds cus the look weird
+            .withDepthWrite(false) // hides clouds cus the look weird
             .withCull(false) // shows the backface
             .build());
 
@@ -64,7 +64,7 @@ public class SimpleRenderer implements AutoCloseable {
     }
 
     public SimpleRenderer(boolean drawGrid, boolean drawWalls) {
-        WorldRenderEvents.LAST.register(this::onRender);
+        WorldRenderEvents.BEFORE_DEBUG_RENDER.register(this::onRender);
         this.drawGrid = drawGrid;
         this.drawWalls = drawWalls;
     }
