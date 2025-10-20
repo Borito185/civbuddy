@@ -63,6 +63,10 @@ public class VeinBuddyCount {
                             .executes(counter::cmdSetGroup)))
                     .then(ClientCommandManager.literal("name")
                         .then(ClientCommandManager.argument("key", StringArgumentType.string())
+                                .suggests((ctx, builder) -> {
+                                    Save.data.veins.keySet().stream().sorted().forEach(builder::suggest);
+                                    return builder.buildFuture();
+                                })
                             .executes(counter::cmdSetKey)))
                     .then(ClientCommandManager.literal("reset").executes(counter::cmdReset))
                     .then(ClientCommandManager.literal("listnames").executes(counter::cmdList))
