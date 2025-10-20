@@ -22,6 +22,7 @@ import net.minecraft.item.Item;
 import net.minecraft.util.math.Vec3d;
 
 import static com.civbuddy.Save.data;
+import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.*;
 
 public class VeinBuddyClient {
     private final static float speed = 0.2f;
@@ -53,17 +54,20 @@ public class VeinBuddyClient {
         VeinBuddyCount.initialize();
 
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
-        ClientCommandManager.literal("civbuddy")
-        .then(ClientCommandManager.literal("digRange")
-        .then(ClientCommandManager.argument("x", IntegerArgumentType.integer(1, 11))
-        .then(ClientCommandManager.argument("y", IntegerArgumentType.integer(1, 11))
-                .then(ClientCommandManager.argument("z", IntegerArgumentType.integer(1, 11))
+        literal("civbuddy")
+        .then(literal("digRange")
+        .then(argument("x", IntegerArgumentType.integer(1, 11))
+        .then(argument("y", IntegerArgumentType.integer(1, 11))
+                .then(argument("z", IntegerArgumentType.integer(1, 11))
                         .executes(this::onDigRange)))))
-        .then(ClientCommandManager.literal("digRadius")
-        .then(ClientCommandManager.argument("radius", IntegerArgumentType.integer(1, 11)).executes(this::onDigRadius)))
-        .then(ClientCommandManager.literal("clear").executes(this::clear))
-        .then(ClientCommandManager.literal("toggleRenderer").executes(this::toggleRenderer))
-        ));
+
+        .then(literal("digRadius")
+        .then(argument("radius", IntegerArgumentType.integer(1, 11)).executes(this::onDigRadius)))
+        .then(literal("clear").executes(this::clear))
+        .then(literal("toggleRenderer").executes(this::toggleRenderer))
+        .then(literal("changeAll")
+                .then(literal("digRadius").then(argument("radius", IntegerArgumentType.integer(1, 11)).executes(this::onChangeAllDigRange)))
+        )));
     }
 
     private int onDigRange(CommandContext<FabricClientCommandSource> ctx) {
@@ -72,6 +76,18 @@ public class VeinBuddyClient {
         int z = IntegerArgumentType.getInteger(ctx, "z");
         data.digRange = new Vector3i(x, y, z);
         Save.save();
+        return 0;
+    }
+
+    private int onChangeAllDigRange(CommandContext<FabricClientCommandSource> ctx) {
+        int rad = IntegerArgumentType.getInteger(ctx, "radius");
+        Vector3i radius = new Vector3i(rad);
+        List<AABBShape> list = data.selections
+                .stream()
+                .map(s -> new AABBShape(s.center(), radius, s.color(), s.hasGrid()))
+                .toList();
+        clear();
+        addSelection(list);
         return 0;
     }
 
@@ -90,11 +106,14 @@ public class VeinBuddyClient {
         return 0;
     }
 
-    private int clear(CommandContext<FabricClientCommandSource> fabricClientCommandSourceCommandContext) {
+    private void clear() {
         data.selections.clear();
         ranges.clear();
         selections.clear();
+    }
 
+    private int clear(CommandContext<FabricClientCommandSource> fabricClientCommandSourceCommandContext) {
+        clear();
         drawStatic();
         return 0;
     }
