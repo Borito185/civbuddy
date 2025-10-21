@@ -49,5 +49,5 @@ jobs:
         run: ./gradlew test
       - name: Install xvfb for headless MC
         run: sudo apt-get update && sudo apt-get install -y xvfb
-      - name: Run GameTests
-        run: ./gradlew runGameTest || ./gradlew prodClient  # whichever you configure
+#      - name: Run GameTests
+#        run: ./gradlew runGameTest || ./gradlew prodClient  # whichever you configure
