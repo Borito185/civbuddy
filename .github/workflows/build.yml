@@ -37,8 +37,8 @@ jobs:
       - name: Upload sources jar
         uses: actions/upload-artifact@v4
         with:
-          name: jar
-          path: build/libs/*-fabric.jar
+          name: sources jar
+          path: build/libs/*-fabric-sources.jar
   test:
     needs: build
     runs-on: ubuntu-22.04
