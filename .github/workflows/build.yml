@@ -29,12 +29,16 @@ jobs:
         run: chmod +x ./gradlew
       - name: Build (no tests)
         run: ./gradlew -S -i assemble
-      - name: Upload jars
+      - name: Upload jar
         uses: actions/upload-artifact@v4
         with:
-          name: jars
-          path: build/libs/*.jar
-
+          name: jar
+          path: build/libs/*-fabric.jar
+      - name: Upload sources jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar
+          path: build/libs/*-fabric.jar
   test:
     needs: build
     runs-on: ubuntu-22.04
