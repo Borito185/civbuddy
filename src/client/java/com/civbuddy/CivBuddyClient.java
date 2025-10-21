@@ -1,5 +1,6 @@
 package com.civbuddy;
 
+import com.civbuddy.commands.commandclient.Client;
 import com.civbuddy.veins.VeinBuddyClient;
 import com.civbuddy.veins.VeinBuddyCount;
 import net.fabricmc.api.ClientModInitializer;
@@ -16,5 +17,8 @@ public class CivBuddyClient implements ClientModInitializer {
         Save.initialize();
         veinBuddyClient = new VeinBuddyClient();
         veinBuddyClient.onInitializeClient();
+        
+        // Initialize bookmark GUI
+        Client.initialize();
     }
 }

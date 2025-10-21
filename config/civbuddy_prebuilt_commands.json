@@ -1,0 +1,27 @@
+{
+  "destinations": [
+    {
+      "name": "Home",
+      "command": "/home"
+    },
+    {
+      "name": "Spawn",
+      "command": "/spawn"
+    },
+    {
+      "name": "Nether Hub",
+      "command": "/nether"
+    }
+  ],
+  "pvp": [
+    {
+      "name": "Pearl to base",
+      "command": "/ep"
+    },
+    {
+      "name": "Check radar",
+      "command": "/radar"
+    }
+  ],
+  "favorites": []
+}
