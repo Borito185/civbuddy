@@ -33,7 +33,7 @@ public class CalculatorClient {
                         )
         )));
     }
-    private int calc(CommandContext<FabricClientCommandSource> ctx) {
+    public int calc(CommandContext<FabricClientCommandSource> ctx) {
         String exp = StringArgumentType.getString(ctx, "expression");
         double result = eval(exp);
 
@@ -63,9 +63,10 @@ public class CalculatorClient {
         return 0;
     }
 
-    private double eval(String s) {
+    public double eval(String s) {
         return new ExpressionBuilder(s)
                 .variables(shortcuts.keySet())
+                .implicitMultiplication(true)
                 .build()
                 .setVariables(shortcuts)
                 .evaluate();
