@@ -1,5 +1,6 @@
 package com.civbuddy;
 
+import com.civbuddy.serializers.Vector3iSerializer;
 import com.civbuddy.veins.geo.AABBShape;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -16,6 +17,8 @@ import java.io.*;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+
+import static com.civbuddy.serializers.GSONSerializer.GSON;
 
 public class Save {
     public static class Data {
@@ -46,7 +49,6 @@ public class Save {
     public interface SaveLoaded {
         void handle(Data data);
     }
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static File file;
     public static Data data = new Data();
 
@@ -106,7 +108,7 @@ public class Save {
             }
         }
 
-        try (Writer w = new FileWriter(file)) {
+        try (Writer w = new BufferedWriter(new FileWriter(file))) {
             GSON.toJson(data, w);
         } catch (IOException e) {
             e.printStackTrace();
