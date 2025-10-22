@@ -1,23 +1,27 @@
 package com.civbuddy;
 
-import com.civbuddy.commands.commandclient.Client;
+import com.civbuddy.calc.CalculatorClient;
+import com.civbuddy.commands.CommandsHelper;
 import com.civbuddy.veins.VeinBuddyClient;
-import com.civbuddy.veins.VeinBuddyCount;
 import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.minecraft.client.MinecraftClient;
-
-import java.io.File;
 
 public class CivBuddyClient implements ClientModInitializer {
+    public static final String MODID = "civbuddy";
+    public static final String COMMAND_ROOT = "civbuddy";
+
     private VeinBuddyClient veinBuddyClient;
+    private CalculatorClient calculatorClient;
 
     @Override
     public void onInitializeClient() {
         Save.initialize();
         veinBuddyClient = new VeinBuddyClient();
         veinBuddyClient.onInitializeClient();
-        
+        calculatorClient = new CalculatorClient();
+        calculatorClient.onInitializeClient();
+
+        CommandsHelper.initialize();
+
         // Initialize bookmark GUI
         Client.initialize();
     }
