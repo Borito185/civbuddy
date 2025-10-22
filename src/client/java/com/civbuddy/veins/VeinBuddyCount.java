@@ -208,7 +208,7 @@ public class VeinBuddyCount implements CommandsHelper.CommandProvider {
         if (veins.isEmpty()) {
             return Text.literal("§7No veins tracked yet");
         }
-        MutableText text = Text.literal("§b━━━ Tracked Veins ━━━\n");
+        MutableText text = Text.literal("\n§b━━━ Tracked Veins ━━━\n");
         veins.values().stream()
                 .sorted((a, b) -> Long.compare(b.count, a.count))
                 .forEach(vein -> {
