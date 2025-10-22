@@ -86,24 +86,43 @@ public record AABBShape(Vector3i center, Vector3i radius, Vector4f color, boolea
     }
 
     private void generateFaces(HashSet<Face> set) {
-        Vector3i c = center;
-        Vector3i r = radius;
+        Vector3i c = center, r = radius;
         Vector4f col = color;
 
         int minX = c.x - r.x, maxX = c.x + r.x;
         int minY = c.y - r.y, maxY = c.y + r.y;
         int minZ = c.z - r.z, maxZ = c.z + r.z;
 
-        for (int x = minX; x <= maxX; x++)
-        for (int y = minY; y <= maxY; y++)
-        for (int z = minZ; z <= maxZ; z++) {
+        // Planes at the box boundary (note the +1 for the "positive" side planes)
+        int xL = minX,      xR = maxX + 1;
+        int yB = minY,      yT = maxY + 1;
+        int zF = minZ,      zB = maxZ + 1;
 
-            if (x - 1 < minX) set.add(Face.of(x, y, z, x, y+1, z, x, y+1, z+1, x, y, z+1, col, hasGrid));
-            if (x + 1 > maxX) set.add(Face.of(x+1, y, z+1, x+1, y+1, z+1, x+1, y+1, z, x+1, y, z, col, hasGrid));
-            if (y - 1 < minY) set.add(Face.of(x, y, z+1, x+1, y, z+1, x+1, y, z, x, y, z, col, hasGrid));
-            if (y + 1 > maxY) set.add(Face.of(x, y+1, z, x+1, y+1, z, x+1, y+1, z+1, x, y+1, z+1, col, hasGrid));
-            if (z - 1 < minZ) set.add(Face.of(x+1, y, z,  x+1, y+1, z,  x, y+1, z,  x, y, z, col, hasGrid));
-            if (z + 1 > maxZ) set.add(Face.of(x, y, z+1,  x, y+1, z+1,  x+1, y+1, z+1,  x+1, y, z+1, col, hasGrid));
-        }
+        // -X / +X walls: sweep y,z
+        for (int y = minY; y <= maxY; y++)
+            for (int z = minZ; z <= maxZ; z++) {
+                // -X (left)
+                set.add(Face.of(xL, y, z,   xL, y+1, z,   xL, y+1, z+1,   xL, y, z+1,   col, hasGrid));
+                // +X (right)
+                set.add(Face.of(xR, y, z+1, xR, y+1, z+1, xR, y+1, z,     xR, y, z,     col, hasGrid));
+            }
+
+        // -Y / +Y walls: sweep x,z
+        for (int x = minX; x <= maxX; x++)
+            for (int z = minZ; z <= maxZ; z++) {
+                // -Y (bottom)
+                set.add(Face.of(x,   yB, z+1,  x+1, yB, z+1,  x+1, yB, z,    x,   yB, z,    col, hasGrid));
+                // +Y (top)
+                set.add(Face.of(x,   yT, z,    x+1, yT, z,    x+1, yT, z+1,  x,   yT, z+1,  col, hasGrid));
+            }
+
+        // -Z / +Z walls: sweep x,y
+        for (int x = minX; x <= maxX; x++)
+            for (int y = minY; y <= maxY; y++) {
+                // -Z (front)
+                set.add(Face.of(x+1, y, zF,   x+1, y+1, zF,   x, y+1, zF,    x, y, zF,     col, hasGrid));
+                // +Z (back)
+                set.add(Face.of(x,   y, zB,   x,   y+1, zB,   x+1, y+1, zB,  x+1, y, zB,   col, hasGrid));
+            }
     }
 }
