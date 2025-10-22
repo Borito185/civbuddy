@@ -5,7 +5,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.civbuddy.Save;
+import com.civbuddy.commands.CommandsHelper;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
@@ -13,7 +15,10 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallba
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
+
+import static com.civbuddy.commands.CommandsHelper.andRespondWith;
 
 /**
  * VeinBuddy Count - Lightweight vein tracking for miners
@@ -27,7 +32,7 @@ import net.minecraft.text.Text;
  *   /civbuddy reset          - Reset current vein count to 0
  *   /civbuddy listnames      - List all tracked veins
  */
-public class VeinBuddyCount {
+public class VeinBuddyCount implements CommandsHelper.CommandProvider {
 
     private static VeinBuddyCount instance = null;
     private final MinecraftClient mc = MinecraftClient.getInstance();
@@ -55,23 +60,7 @@ public class VeinBuddyCount {
         ClientReceiveMessageEvents.GAME.register(counter::onChatMessage);
         
         // Register commands
-        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
-            dispatcher.register(
-                ClientCommandManager.literal("civbuddy")
-                    .then(ClientCommandManager.literal("group")
-                        .then(ClientCommandManager.argument("groupName", StringArgumentType.string())
-                            .executes(counter::cmdSetGroup)))
-                    .then(ClientCommandManager.literal("name")
-                        .then(ClientCommandManager.argument("key", StringArgumentType.string())
-                                .suggests((ctx, builder) -> {
-                                    Save.data.veins.keySet().stream().sorted().forEach(builder::suggest);
-                                    return builder.buildFuture();
-                                })
-                            .executes(counter::cmdSetKey)))
-                    .then(ClientCommandManager.literal("reset").executes(counter::cmdReset))
-                    .then(ClientCommandManager.literal("listnames").executes(counter::cmdList))
-            );
-        });
+        CommandsHelper.register(counter);
     }
 
 
@@ -167,50 +156,37 @@ public class VeinBuddyCount {
     /**
      * Command: Set group
      */
-    private int cmdSetGroup(CommandContext<FabricClientCommandSource> ctx) {
+    private Text cmdSetGroup(CommandContext<FabricClientCommandSource> ctx) {
         Save.data.countGroup = StringArgumentType.getString(ctx, "groupName");
         Save.save();
 
-        if (mc.player != null) {
-            mc.player.sendMessage(Text.literal("§aCivBuddy count group set to: " + Save.data.countGroup), false);
-        }
-        return 0;
+        return Text.literal("§aCount group set to: " + Save.data.countGroup);
     }
 
     /**
      * Command: Set vein key
      */
-    private int cmdSetKey(CommandContext<FabricClientCommandSource> ctx) {
+    private Text cmdSetKey(CommandContext<FabricClientCommandSource> ctx) {
         String newKey = StringArgumentType.getString(ctx, "key").toLowerCase();
         
         // Validate key format (alphanumeric, 2-8 chars)
         if (!newKey.matches("^[a-z0-9]{2,8}$")) {
-            if (mc.player != null) {
-                mc.player.sendMessage(Text.literal("§cInvalid key format! Use 2-8 alphanumeric characters (e.g., f2da)"), false);
-            }
-            return 1;
+            return Text.literal("§cInvalid key format! §aUse 2-8 alphanumeric characters (e.g., f2da)");
         }
 
         Save.data.currentVeinKey = newKey;
         Save.save();
 
         Save.VeinCounterData vein = getOrCreateVein(Save.data.currentVeinKey);
-        if (mc.player != null) {
-            mc.player.sendMessage(Text.literal(String.format("§aVein key set to: §e%s §7(count: %d)", 
-                vein.key, vein.count)), false);
-        }
-        return 0;
+        return Text.literal(String.format("§aVein key set to: §e%s §7(count: %d)", vein.key, vein.count));
     }
 
     /**
      * Command: Reset current vein
      */
-    private int cmdReset(CommandContext<FabricClientCommandSource> ctx) {
+    private Text cmdReset(CommandContext<FabricClientCommandSource> ctx) {
         if (!hasKey()) {
-            if (mc.player != null) {
-                mc.player.sendMessage(Text.literal("§cNo vein key set!"), false);
-            }
-            return 1;
+            return Text.literal("§cNo vein key set!");
         }
 
         Save.VeinCounterData vein = getOrCreateVein(Save.data.currentVeinKey);
@@ -219,35 +195,50 @@ public class VeinBuddyCount {
         
         // Share reset
         shareCountUpdate(vein.key, vein.count);
-        
-        if (mc.player != null) {
-            mc.player.sendMessage(Text.literal(String.format("§aReset §ekey: %s count: 0", vein.key)), false);
-        }
-        return 0;
+
+        return Text.literal(String.format("§aReset §ekey: %s count: 0", vein.key));
     }
 
     /**
      * Command: List all veins
      */
-    private int cmdList(CommandContext<FabricClientCommandSource> ctx) {
-        if (mc.player == null) {
-            return 0;
-        }
+    private Text cmdList(CommandContext<FabricClientCommandSource> ctx) {
         Map<String, Save.VeinCounterData> veins = Save.data.veins;
 
         if (veins.isEmpty()) {
-            mc.player.sendMessage(Text.literal("§7No veins tracked yet"), false);
-            return 0;
+            return Text.literal("§7No veins tracked yet");
         }
-        mc.player.sendMessage(Text.literal("§b━━━ Tracked Veins ━━━"), false);
+        MutableText text = Text.literal("§b━━━ Tracked Veins ━━━\n");
         veins.values().stream()
-            .sorted((a, b) -> Long.compare(b.count, a.count))
-            .forEach(vein -> {
-                String active = vein.key.equals(Save.data.currentVeinKey) ? " §a✓" : "";
-                mc.player.sendMessage(Text.literal(String.format("§7Key: §e%s §7Count: §a%d%s",
-                    vein.key, vein.count, active)), false);
-            });
-        mc.player.sendMessage(Text.literal("§b━━━━━━━━━━━━━━━━━━"), false);
-        return 0;
+                .sorted((a, b) -> Long.compare(b.count, a.count))
+                .forEach(vein -> {
+                    String active = vein.key.equals(Save.data.currentVeinKey) ? " §a✓" : "";
+                    text.append(Text.literal(String.format("§7Key: §e%s §7Count: §a%d%s\n",
+                            vein.key, vein.count, active)));
+                });
+        text.append(Text.literal("§b━━━━━━━━━━━━━━━━━━"));
+        return text;
+    }
+
+    @Override
+    public LiteralArgumentBuilder<FabricClientCommandSource> commands() {
+        return ClientCommandManager.literal("veins")
+                .then(ClientCommandManager.literal("group")
+                        .then(ClientCommandManager.argument("groupName", StringArgumentType.string())
+                                .executes(andRespondWith(this::cmdSetGroup))))
+                .then(ClientCommandManager.literal("name")
+                        .then(ClientCommandManager.argument("key", StringArgumentType.string())
+                                .suggests((ctx, builder) -> {
+                                    Save.data.veins.keySet().stream().sorted().forEach(builder::suggest);
+                                    return builder.buildFuture();
+                                })
+                                .executes(andRespondWith(this::cmdSetKey))))
+                .then(ClientCommandManager.literal("reset").executes(andRespondWith(this::cmdReset)))
+                .then(ClientCommandManager.literal("listnames").executes(andRespondWith(this::cmdList)));
+    }
+
+    @Override
+    public boolean commandsAlias() {
+        return true;
     }
 }
