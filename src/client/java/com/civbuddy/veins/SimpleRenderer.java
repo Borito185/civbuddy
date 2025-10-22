@@ -26,6 +26,7 @@ import net.minecraft.util.math.Vec3d;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+import org.joml.Vector3i;
 import org.joml.Vector4f;
 import org.lwjgl.system.MemoryUtil;
 import java.nio.ByteBuffer;
@@ -35,7 +36,7 @@ public class SimpleRenderer implements AutoCloseable {
     private final RenderPipeline WALLS = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.POSITION_COLOR_SNIPPET)
             .withLocation(Identifier.of("civbuddy", "walls_pipeline"))
             .withVertexShader(Identifier.of("civbuddy", "vertex"))
-            //.withFragmentShader(Identifier.of("civbuddy", "fragment"))
+            .withFragmentShader(Identifier.of("civbuddy", "fragment"))
             .withBlend(BlendFunction.TRANSLUCENT)
             .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS)
             .withDepthBias(-1.0f, -0.001f) // ensures it draws over blocks
@@ -77,10 +78,15 @@ public class SimpleRenderer implements AutoCloseable {
         if (wallVertices != null && drawWalls)
             draw(ctx, WALLS, wallVertices, new Pair<>(getWallIndices(ctx), wallSortState.indexType()));
     }
+    private Vector3f lastCameraPos;
+
     private GpuBuffer getWallIndices(WorldRenderContext ctx) {
         // sort quads for correct translucency
-        Vec3d camera = ctx.camera().getPos();
-        ByteBuffer buffer = wallSortState.sortAndStore(allocator, VertexSorter.byDistance(camera.toVector3f())).getBuffer();
+        Vector3f cameraPos = ctx.camera().getPos().toVector3f();
+        if (cameraPos.floor() == lastCameraPos) return wallIndices.getBlocking();
+
+        lastCameraPos = cameraPos.floor();
+        ByteBuffer buffer = wallSortState.sortAndStore(allocator, VertexSorter.byDistance(cameraPos)).getBuffer();
         int size = buffer.remaining();
 
         if (wallIndices == null || wallIndices.size() < size) {
@@ -156,6 +162,8 @@ public class SimpleRenderer implements AutoCloseable {
 
                 wallSortState = new BuiltBuffer.SortState(faces.stream().map(Face::center).toArray(Vector3f[]::new), dp.indexType());
             }
+
+            if (wallBuffer != null) wallBuffer.close();
         }
         if (drawGrid && !edges.isEmpty()) {
             BufferBuilder gridBuilder = Tessellator.getInstance().begin(GRID.getVertexFormatMode(), GRID.getVertexFormat());
@@ -168,6 +176,8 @@ public class SimpleRenderer implements AutoCloseable {
 
             if (gridBuffer != null && gridBuffer.getDrawParameters().vertexCount() > 0)
                 gridVertices = RenderSystem.getDevice().createBuffer(() -> "Grid", GpuBuffer.USAGE_VERTEX, gridBuffer.getBuffer());
+
+            if (gridBuffer != null) gridBuffer.close();
         }
     }
 
