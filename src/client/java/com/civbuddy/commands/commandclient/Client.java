@@ -1,8 +1,18 @@
 package com.civbuddy.commands.commandclient;
 
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.lwjgl.glfw.GLFW;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.minecraft.client.MinecraftClient;
@@ -10,19 +20,11 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.AlwaysSelectedEntryListWidget;
 import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.gui.widget.ClickableWidget;
+import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.text.Text;
-import org.lwjgl.glfw.GLFW;
-
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.List;
 
 public class Client {
     
@@ -55,7 +57,6 @@ public class Client {
         private ButtonWidget addButton;
         private ButtonWidget deleteButton;
         private ButtonWidget editButton;
-        private ButtonWidget pinButton;
         private TextFieldWidget searchField;
         
         private BookmarkCategory selectedCategory;
@@ -89,12 +90,12 @@ public class Client {
             );
             leftList.setX(10);
             
-            // Initialize right list (commands) - custom widget with 14px entries
+            // Initialize right list (commands) - custom widget aligned with left list
             rightList = new CommandListWidget(
                 170,
                 55,
                 this.width - 170,
-                this.height - 85,
+                this.height - 80, // Match left list height (height - 80 - 0 = height - 80)
                 this
             );
             
@@ -117,11 +118,6 @@ public class Client {
                 .dimensions(125, 5, 60, 20)
                 .build();
             
-            // Pin button
-            pinButton = ButtonWidget.builder(Text.literal("Pin"), button -> togglePin())
-                .dimensions(this.width - 80, 5, 40, 20)
-                .build();
-            
             // Close button
             ButtonWidget closeButton = ButtonWidget.builder(Text.literal("Close"), button -> this.close())
                 .dimensions(this.width / 2 - 50, this.height - 25, 100, 20)
@@ -130,7 +126,6 @@ public class Client {
             this.addDrawableChild(addButton);
             this.addDrawableChild(editButton);
             this.addDrawableChild(deleteButton);
-            this.addDrawableChild(pinButton);
             this.addDrawableChild(closeButton);
             this.addDrawableChild(leftList);
             this.addDrawableChild(rightList);
@@ -143,39 +138,34 @@ public class Client {
             }
         }
 
-        private void refreshRightList() {
+        void refreshRightList() {
             rightList.clearEntries();
             String searchText = searchField != null ? searchField.getText().toLowerCase() : "";
             
-            if (selectedCategory != null) {
-                // Show commands from selected category
-                List<BookmarkEntry> entries = selectedCategory.getEntries();
-                List<BookmarkEntry> pinnedEntries = new ArrayList<>();
-                List<BookmarkEntry> regularEntries = new ArrayList<>();
+            // If there's search text, always do global search
+            if (!searchText.isEmpty()) {
+                java.util.Set<String> seenCommands = new java.util.HashSet<>();
                 
-                for (BookmarkEntry entry : entries) {
-                    if (searchText.isEmpty() || entry.getCommand().toLowerCase().contains(searchText)) {
-                        if (entry.isPinned()) {
-                            pinnedEntries.add(entry);
-                        } else {
-                            regularEntries.add(entry);
+                for (BookmarkCategory category : BookmarkManager.getInstance().getCategories()) {
+                    for (BookmarkEntry entry : category.getEntries()) {
+                        String cmd = entry.getCommand();
+                        // Only add if matches search and not already seen (no duplicates)
+                        if (cmd.toLowerCase().contains(searchText) && !seenCommands.contains(cmd)) {
+                            rightList.addEntry(new CommandListWidget.CommandEntry(entry, category));
+                            seenCommands.add(cmd);
                         }
                     }
                 }
+            } else if (selectedCategory != null) {
+                // Show commands from selected category only when no search
+                java.util.Set<String> seenCommands = new java.util.HashSet<>();
                 
-                for (BookmarkEntry entry : pinnedEntries) {
-                    rightList.addEntry(new CommandListWidget.CommandEntry(entry, selectedCategory));
-                }
-                for (BookmarkEntry entry : regularEntries) {
-                    rightList.addEntry(new CommandListWidget.CommandEntry(entry, selectedCategory));
-                }
-            } else if (!searchText.isEmpty()) {
-                // Global search - show all commands from all categories
-                for (BookmarkCategory category : BookmarkManager.getInstance().getCategories()) {
-                    for (BookmarkEntry entry : category.getEntries()) {
-                        if (entry.getCommand().toLowerCase().contains(searchText)) {
-                            rightList.addEntry(new CommandListWidget.CommandEntry(entry, category));
-                        }
+                for (BookmarkEntry entry : selectedCategory.getEntries()) {
+                    String cmd = entry.getCommand();
+                    // Only add if not already seen (no duplicates)
+                    if (!seenCommands.contains(cmd)) {
+                        rightList.addEntry(new CommandListWidget.CommandEntry(entry, selectedCategory));
+                        seenCommands.add(cmd);
                     }
                 }
             }
@@ -199,11 +189,18 @@ public class Client {
             
             editButton.active = hasCommandSelected || hasCategorySelected;
             deleteButton.active = hasCommandSelected || hasCategorySelected;
-            pinButton.active = hasCommandSelected && hasCategorySelected;
         }
 
         private void openAddDialog() {
             if (selectedCategory != null) {
+                // Prevent adding to History category
+                if (selectedCategory.getName().equals("History")) {
+                    if (client.player != null) {
+                        client.player.sendMessage(Text.literal("§cCannot add commands to History!"), false);
+                    }
+                    return;
+                }
+                
                 // Always clear command selection when adding
                 selectedCommand = null;
                 updateButtonStates();
@@ -263,14 +260,6 @@ public class Client {
                 BookmarkManager.getInstance().saveBookmarks();
                 selectedCategory = null;
                 refreshLeftList();
-                refreshRightList();
-            }
-        }
-
-        private void togglePin() {
-            if (selectedCommand != null && selectedCategory != null) {
-                selectedCommand.setPinned(!selectedCommand.isPinned());
-                BookmarkManager.getInstance().saveBookmarks();
                 refreshRightList();
             }
         }
@@ -436,8 +425,25 @@ public class Client {
                 context.fill(x, y, x + entryWidth, y + 1, 0xFF888888);
                 context.fill(x, y + entryHeight - 1, x + entryWidth, y + entryHeight, 0xFF888888);
                 
-                // BRIGHT WHITE text - centered for 25px height
-                String displayName = category.getName() + " (" + category.getEntries().size() + ")";
+                // Draw count on the right side (accounting for scrollbar)
+                String countText = "(" + category.getEntries().size() + ")";
+                int countWidth = client.textRenderer.getWidth(countText);
+                int countX = x + entryWidth - countWidth - 12; // 12px padding from right (scrollbar space)
+                context.drawTextWithShadow(client.textRenderer, countText, countX, y + 8, 0xFFAAAAAA);
+                
+                // Truncate name if needed to not overlap with count
+                String name = category.getName();
+                int maxNameWidth = entryWidth - countWidth - 20; // Space for count + padding + scrollbar
+                String displayName = name;
+                
+                while (client.textRenderer.getWidth(displayName) > maxNameWidth && displayName.length() > 0) {
+                    displayName = displayName.substring(0, displayName.length() - 1);
+                }
+                if (displayName.length() < name.length()) {
+                    displayName = displayName.substring(0, Math.max(0, displayName.length() - 3)) + "...";
+                }
+                
+                // Draw name on the left - BRIGHT WHITE text - centered for 25px height
                 context.drawTextWithShadow(client.textRenderer, displayName, x + 5, y + 8, 0xFFFFFFFF);
             }
 
@@ -463,9 +469,12 @@ public class Client {
         private final BookmarkScreen parent;
         private final List<CommandEntry> entries = new ArrayList<>();
         private CommandEntry draggingEntry;
-        private static final int DROP_ZONE_WIDTH = 30;
-        private static final int ENTRY_HEIGHT = 14;
+        private long dragStartTime = 0;
+        private static final int ENTRY_HEIGHT = 20; // Increased from 14 to 20 for more spacing
+        private static final int VISUAL_HEIGHT = 16; // Actual box height
         private int scrollOffset = 0;
+        private double dragMouseX = 0;
+        private double dragMouseY = 0;
 
         public CommandListWidget(int x, int y, int width, int height, BookmarkScreen parent) {
             super(x, y, width, height, Text.literal("Commands"));
@@ -483,6 +492,10 @@ public class Client {
 
         @Override
         public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
+            // Track mouse position for drag preview
+            dragMouseX = mouseX;
+            dragMouseY = mouseY;
+            
             // Dark background
             context.fill(this.getX(), this.getY(), this.getX() + this.width, this.getY() + this.height, 0xFF202020);
             
@@ -495,8 +508,41 @@ public class Client {
             int y = this.getY();
             for (int i = scrollOffset; i < entries.size() && y < this.getY() + this.height; i++) {
                 CommandEntry entry = entries.get(i);
-                entry.render(context, this.getX(), y, this.width, mouseX, mouseY);
+                boolean isDragging = draggingEntry == entry;
+                boolean isSelected = parent.selectedCommand == entry.entry;
+                entry.render(context, this.getX(), y, this.width - 6, mouseX, mouseY, isDragging, isSelected); // -6 for scrollbar space
                 y += ENTRY_HEIGHT;
+            }
+            
+            // Render scrollbar if needed
+            if (entries.size() > visibleEntries) {
+                int scrollbarX = this.getX() + this.width - 6;
+                int scrollbarHeight = this.height;
+                int thumbHeight = Math.max(20, (visibleEntries * scrollbarHeight) / entries.size());
+                int thumbY = this.getY() + (scrollOffset * (scrollbarHeight - thumbHeight)) / maxScroll;
+                
+                // Scrollbar track
+                context.fill(scrollbarX, this.getY(), scrollbarX + 6, this.getY() + scrollbarHeight, 0xFF202020);
+                
+                // Scrollbar thumb
+                context.fill(scrollbarX, thumbY, scrollbarX + 6, thumbY + thumbHeight, 0xFF808080);
+            }
+            
+            // Render drag preview at cursor - small horizontal rectangle after 0.15 second delay
+            if (draggingEntry != null) {
+                long elapsedTime = System.currentTimeMillis() - dragStartTime;
+                if (elapsedTime >= 150) { // 150ms = 0.15 seconds
+                    int rectWidth = 40;
+                    int rectHeight = 8;
+                    int dragX = (int)dragMouseX - rectWidth / 2;
+                    int dragY = (int)dragMouseY - rectHeight / 2;
+                    
+                    // Draw outline only (dark/gray)
+                    context.fill(dragX, dragY, dragX + rectWidth, dragY + 1, 0xFF505050);
+                    context.fill(dragX, dragY + rectHeight - 1, dragX + rectWidth, dragY + rectHeight, 0xFF505050);
+                    context.fill(dragX, dragY, dragX + 1, dragY + rectHeight, 0xFF505050);
+                    context.fill(dragX + rectWidth - 1, dragY, dragX + rectWidth, dragY + rectHeight, 0xFF505050);
+                }
             }
         }
 
@@ -509,12 +555,16 @@ public class Client {
                 if (index >= 0 && index < entries.size()) {
                     CommandEntry entry = entries.get(index);
                     
-                    // Check if in drop zone
-                    int dropZoneStartX = this.getX() + this.width - DROP_ZONE_WIDTH;
-                    if (mouseX >= dropZoneStartX) {
-                        // In drop zone - start dragging
-                        draggingEntry = entry;
+                    // Calculate where the :: marker is (right side of box)
+                    int entryWidth = this.width - 6; // -6 for scrollbar space
+                    int markerStartX = this.getX() + entryWidth - 20; // :: area is last 20 pixels
+                    
+                    // Check if in drop zone (:: area) - right side of the box
+                    if (mouseX >= markerStartX) {
+                        // In drop zone - select the command (for editing) and prepare for dragging
                         parent.selectCommand(entry.entry);
+                        draggingEntry = entry;
+                        dragStartTime = System.currentTimeMillis();
                         return true;
                     } else {
                         // Execute command
@@ -535,9 +585,15 @@ public class Client {
                 for (BookmarkListWidget.CategoryEntry categoryEntry : parent.leftList.children()) {
                     if (categoryEntry.isMouseOver(mouseX, mouseY)) {
                         BookmarkCategory targetCategory = categoryEntry.category;
+                        
+                        // Prevent dropping on History category
+                        if (targetCategory.getName().equals("History")) {
+                            handled = true;
+                            break;
+                        }
+                        
                         if (draggingEntry.sourceCategory != targetCategory) {
                             BookmarkEntry newEntry = new BookmarkEntry(draggingEntry.entry.getName(), draggingEntry.entry.getCommand());
-                            newEntry.setPinned(draggingEntry.entry.isPinned());
                             targetCategory.addEntry(newEntry);
                             BookmarkManager.getInstance().saveBookmarks();
                             parent.refreshRightList();
@@ -600,40 +656,48 @@ public class Client {
                 this.sourceCategory = sourceCategory;
             }
 
-            public void render(DrawContext context, int x, int y, int width, int mouseX, int mouseY) {
+            public void render(DrawContext context, int x, int y, int width, int mouseX, int mouseY, boolean isDragging, boolean isSelected) {
                 MinecraftClient client = MinecraftClient.getInstance();
                 
                 // Check if mouse over
-                boolean isMouseOver = mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + ENTRY_HEIGHT;
+                boolean isMouseOver = mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + VISUAL_HEIGHT;
                 
-                int visualWidth = width - DROP_ZONE_WIDTH;
-                
-                // Background
+                // Background - full width (:: is now inside)
                 if (isMouseOver) {
-                    context.fill(x, y, x + visualWidth, y + ENTRY_HEIGHT, 0xFF0080FF);
-                } else if (entry.isPinned()) {
-                    context.fill(x, y, x + visualWidth, y + ENTRY_HEIGHT, 0xFF505050);
+                    context.fill(x, y, x + width, y + VISUAL_HEIGHT, 0xFF0080FF);
                 } else {
-                    context.fill(x, y, x + visualWidth, y + ENTRY_HEIGHT, 0xFF404040);
+                    context.fill(x, y, x + width, y + VISUAL_HEIGHT, 0xFF404040);
                 }
                 
-                // Drop zone marker
-                context.drawTextWithShadow(client.textRenderer, "::", x + visualWidth + 5, y + 3, 0xFFAAAAAA);
+                // White outline when hovered OR selected
+                if (isMouseOver || isSelected) {
+                    // Top border
+                    context.fill(x, y, x + width, y + 1, 0xFFFFFFFF);
+                    // Bottom border
+                    context.fill(x, y + VISUAL_HEIGHT - 1, x + width, y + VISUAL_HEIGHT, 0xFFFFFFFF);
+                    // Left border
+                    context.fill(x, y, x + 1, y + VISUAL_HEIGHT, 0xFFFFFFFF);
+                    // Right border
+                    context.fill(x + width - 1, y, x + width, y + VISUAL_HEIGHT, 0xFFFFFFFF);
+                }
                 
-                // Text
-                String pinIndicator = entry.isPinned() ? "📌 " : "";
+                // Drop zone marker inside the box on the right
+                int markerX = x + width - 15; // 15 pixels from right edge
+                context.drawTextWithShadow(client.textRenderer, "⁝⁝⁝", markerX, y + 4, 0xFFAAAAAA);
+                
+                // Text (always show)
                 String cmd = entry.getCommand();
-                String truncated = pinIndicator + cmd;
-                int maxWidth = visualWidth - 10;
+                String truncated = cmd;
+                int maxWidth = width - 25; // Leave room for ⁝⁝⁝ marker on the right
                 
                 while (client.textRenderer.getWidth(truncated) > maxWidth && truncated.length() > 0) {
                     truncated = truncated.substring(0, truncated.length() - 1);
                 }
-                if (truncated.length() < (pinIndicator + cmd).length()) {
+                if (truncated.length() < cmd.length()) {
                     truncated = truncated.substring(0, Math.max(0, truncated.length() - 3)) + "...";
                 }
                 
-                context.drawTextWithShadow(client.textRenderer, truncated, x + 5, y + 3, 0xFFFFFFFF);
+                context.drawTextWithShadow(client.textRenderer, truncated, x + 5, y + 4, 0xFFFFFFFF);
             }
         }
     }
@@ -742,6 +806,7 @@ public class Client {
                         category.addEntry(entry);
                     }
                     BookmarkManager.getInstance().saveBookmarks();
+                    parent.selectCategory(null); // Deselect category (also deselects command)
                     this.close();
                 }
             }).dimensions(this.width / 2 - 60, this.height / 2 + 20, 55, 20).build());
@@ -783,31 +848,33 @@ public class Client {
         public int getColor() { return color; }
         public void setColor(int color) { this.color = color; }
         public List<BookmarkEntry> getEntries() { return entries; }
-        public void addEntry(BookmarkEntry entry) { entries.add(entry); }
+        
+        public void addEntry(BookmarkEntry entry) { 
+            // Check for duplicates - don't add if command already exists
+            for (BookmarkEntry existing : entries) {
+                if (existing.getCommand().equals(entry.getCommand())) {
+                    return; // Duplicate found, don't add
+                }
+            }
+            entries.add(entry); 
+        }
+        
         public void removeEntry(BookmarkEntry entry) { entries.remove(entry); }
     }
 
     public static class BookmarkEntry {
         private String name;
         private String command;
-        private boolean pinned;
-        private boolean favorite;
 
         public BookmarkEntry(String name, String command) {
             this.name = name;
             this.command = command;
-            this.pinned = false;
-            this.favorite = false;
         }
 
         public String getName() { return name; }
         public void setName(String name) { this.name = name; }
         public String getCommand() { return command; }
         public void setCommand(String command) { this.command = command; }
-        public boolean isPinned() { return pinned; }
-        public void setPinned(boolean pinned) { this.pinned = pinned; }
-        public boolean isFavorite() { return favorite; }
-        public void setFavorite(boolean favorite) { this.favorite = favorite; }
     }
     
     // ========== BOOKMARK MANAGER ==========
