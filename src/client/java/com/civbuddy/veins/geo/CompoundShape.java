@@ -99,14 +99,21 @@ public class CompoundShape implements VoxelShape {
         throw new NotImplementedException();
     }
 
+    private List<VoxelShape> getNeighbours(VoxelShape shape) {
+        return shapes.stream().filter(s -> s.overlaps(shape, EPS)).toList();
+    }
+
     private void regenerate() {
         faces.clear();
         for (VoxelShape shape : shapes) {
-            faces.addAll(shape.getFaces());
-        }
+            HashSet<Face> nFaces = new HashSet<>(shape.getFaces());
+            List<VoxelShape> neighbours = getNeighbours(shape);
 
-        for (VoxelShape shape : shapes) {
-            cullFaces(faces, shape);
+            for (VoxelShape n : neighbours) {
+                cullFaces(nFaces, n);
+            }
+
+            faces.addAll(nFaces);
         }
     }
 
