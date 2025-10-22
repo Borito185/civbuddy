@@ -2,6 +2,7 @@ package com.civbuddy;
 
 import com.civbuddy.calc.CalculatorClient;
 import com.civbuddy.commands.CommandsHelper;
+import com.civbuddy.commands.commandclient.Client;
 import com.civbuddy.veins.VeinBuddyClient;
 import net.fabricmc.api.ClientModInitializer;
 
