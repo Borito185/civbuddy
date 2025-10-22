@@ -59,7 +59,7 @@ public class CalculatorClient implements CommandsHelper.CommandProvider {
                 .withHoverEvent(new HoverEvent.ShowText(Text.literal("Click to copy").formatted(Formatting.GRAY)))
         );
 
-        MutableText hint = Text.literal("  [copy]")
+        MutableText hint = Text.literal(" [copy]")
                 .styled(s -> s.withColor(Formatting.YELLOW)
                                 .withClickEvent(new ClickEvent.CopyToClipboard(resultString))
                                 .withHoverEvent(new HoverEvent.ShowText(Text.literal("Click to copy").formatted(Formatting.GRAY))));
