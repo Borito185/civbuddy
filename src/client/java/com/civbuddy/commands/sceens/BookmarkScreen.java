@@ -62,6 +62,7 @@ public class BookmarkScreen extends Screen {
                 new Vector2i(this.width - 170, this.height - 80),
                 this
         );
+        rightList.setActiveGroup(COMMAND_CLIENT.getHistoryGroup());
 
         // Load and refresh
         COMMAND_CLIENT.load();
@@ -110,7 +111,6 @@ public class BookmarkScreen extends Screen {
         CommandGroup activeGroup = rightList.getActiveGroup();
         boolean isGroup = focusedObject instanceof CommandGroup;
 
-
         if (isGroup) {
             MinecraftClient.getInstance().setScreen(new CommandGroupInputScreen(this));
             return;
@@ -148,10 +148,9 @@ public class BookmarkScreen extends Screen {
         CommandGroup activeGroup = rightList.getActiveGroup();
         boolean isHistory = activeGroup.isHistoryGroup();
         if (isHistory) { // disallow changing history
-
+            warnHistoryGroup();
             return;
         }
-
 
         switch (focusedObject) {
             case Command cmd -> activeGroup.removeEntry(cmd);

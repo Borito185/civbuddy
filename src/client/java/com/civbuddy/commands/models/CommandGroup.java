@@ -33,6 +33,6 @@ public class CommandGroup {
     public void removeEntry(Command entry) { entries.remove(entry); }
 
     public boolean isHistoryGroup() {
-        return name == "History";
+        return "History".equals(name);
     }
 }

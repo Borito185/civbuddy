@@ -22,6 +22,8 @@ public class CommandClient {
     private KeyBinding openCommandListKey;
     public CommandSave data;
 
+    private CommandClient() {}
+
     public static void initialize() {
         COMMAND_CLIENT.init();
     }
@@ -35,7 +37,7 @@ public class CommandClient {
         ));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            while (openCommandListKey.wasPressed()) {
+            if (openCommandListKey.isPressed()) {
                 MinecraftClient.getInstance().setScreen(new BookmarkScreen(null));
             }
         });
@@ -51,7 +53,7 @@ public class CommandClient {
         if (data == null) {
             file = new File(MinecraftClient.getInstance().runDirectory, PREBUILT_FILE);
             data = JsonFileHelper.load(file, CommandSave.class);
-            save();
+            if (data != null) save();
         }
         if (data == null) {
             data = new CommandSave();

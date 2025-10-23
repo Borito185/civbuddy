@@ -22,7 +22,7 @@ public class CommandGroupInputScreen extends Screen {
     }
 
     public CommandGroupInputScreen(BookmarkScreen parent, CommandGroup editingCategory) {
-        super(Text.literal(editingCategory == null ? "Add Category" : "Edit Category"));
+        super(Text.literal(editingCategory == null ? "Add Group" : "Edit Group"));
         this.parent = parent;
         this.editingCategory = editingCategory;
         isEditing = editingCategory != null;

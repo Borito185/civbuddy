@@ -6,6 +6,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.widget.AlwaysSelectedEntryListWidget;
 import net.minecraft.text.Text;
+import org.jetbrains.annotations.Debug;
 
 import java.util.List;
 
@@ -40,7 +41,10 @@ public class CommandGroupListWidget extends AlwaysSelectedEntryListWidget<Comman
                     break;
                 }
             }
+            draggingEntry = this.getSelectedOrNull();
+            parent.focusOn(draggingEntry == null ? null : draggingEntry.group);
         }
+
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
