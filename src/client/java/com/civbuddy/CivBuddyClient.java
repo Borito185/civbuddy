@@ -19,6 +19,7 @@ public class CivBuddyClient implements ClientModInitializer {
         veinBuddyClient.onInitializeClient();
         calculatorClient = new CalculatorClient();
         calculatorClient.onInitializeClient();
+        com.civbuddy.commands.HelpCommand.initialize();
 
         CommandsHelper.initialize();
     }
