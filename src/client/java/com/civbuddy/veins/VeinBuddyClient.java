@@ -4,13 +4,12 @@ import java.util.Collection;
 import java.util.List;
 
 import com.civbuddy.Save;
-import com.civbuddy.commands.CommandsHelper;
+import com.civbuddy.utils.CommandsHelper;
 import com.civbuddy.veins.geo.AABBShape;
 import com.civbuddy.veins.geo.CompoundShape;
 import com.civbuddy.veins.geo.VoxelShape;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
 import org.joml.Vector3f;
 import org.joml.Vector3i;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -21,7 +20,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.item.Item;
 import net.minecraft.util.math.Vec3d;
 
-import static com.civbuddy.commands.CommandsHelper.andRespondWith;
+import static com.civbuddy.utils.CommandsHelper.andRespondWith;
 import static com.civbuddy.Save.data;
 import static com.mojang.brigadier.arguments.IntegerArgumentType.integer;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.*;

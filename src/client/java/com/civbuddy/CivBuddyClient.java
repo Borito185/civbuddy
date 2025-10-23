@@ -1,8 +1,8 @@
 package com.civbuddy;
 
 import com.civbuddy.calc.CalculatorClient;
-import com.civbuddy.commands.CommandsHelper;
-import com.civbuddy.commands.commandclient.Client;
+import com.civbuddy.commands.CommandClient;
+import com.civbuddy.utils.CommandsHelper;
 import com.civbuddy.veins.VeinBuddyClient;
 import net.fabricmc.api.ClientModInitializer;
 
@@ -24,6 +24,6 @@ public class CivBuddyClient implements ClientModInitializer {
         CommandsHelper.initialize();
 
         // Initialize bookmark GUI
-        Client.initialize();
+        CommandClient.initialize();
     }
 }

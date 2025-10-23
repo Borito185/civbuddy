@@ -1,4 +1,4 @@
-package com.civbuddy.commands;
+package com.civbuddy.utils;
 
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
