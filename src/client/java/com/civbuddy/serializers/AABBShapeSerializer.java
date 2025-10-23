@@ -1,5 +1,6 @@
 package com.civbuddy.serializers;
 
+import com.civbuddy.utils.JsonFileHelper;
 import com.civbuddy.veins.geo.AABBShape;
 import com.google.gson.Gson;
 import com.google.gson.TypeAdapter;
@@ -14,9 +15,9 @@ public class AABBShapeSerializer extends TypeAdapter<AABBShape> {
     @Override
     public void write(JsonWriter out, AABBShape v) throws IOException {
         out.beginArray();
-        GSONSerializer.GSON.toJson(v.center(), Vector3i.class, out);
-        GSONSerializer.GSON.toJson(v.radius(), Vector3i.class, out);
-        GSONSerializer.GSON.toJson(v.color(), Vector4f.class, out);
+        JsonFileHelper.GSON.toJson(v.center(), Vector3i.class, out);
+        JsonFileHelper.GSON.toJson(v.radius(), Vector3i.class, out);
+        JsonFileHelper.GSON.toJson(v.color(), Vector4f.class, out);
         out.value(v.hasGrid());
         out.endArray();
     }
@@ -24,9 +25,9 @@ public class AABBShapeSerializer extends TypeAdapter<AABBShape> {
     @Override
     public AABBShape read(JsonReader in) throws IOException {
         in.beginArray();
-        Vector3i c = GSONSerializer.GSON.fromJson(in, Vector3i.class);
-        Vector3i r = GSONSerializer.GSON.fromJson(in, Vector3i.class);
-        Vector4f color = GSONSerializer.GSON.fromJson(in, Vector4f.class);
+        Vector3i c = JsonFileHelper.GSON.fromJson(in, Vector3i.class);
+        Vector3i r = JsonFileHelper.GSON.fromJson(in, Vector3i.class);
+        Vector4f color = JsonFileHelper.GSON.fromJson(in, Vector4f.class);
         boolean grid = in.nextBoolean();
         in.endArray();
 

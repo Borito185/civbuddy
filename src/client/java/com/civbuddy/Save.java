@@ -1,9 +1,7 @@
 package com.civbuddy;
 
-import com.civbuddy.serializers.Vector3iSerializer;
+import com.civbuddy.utils.JsonFileHelper;
 import com.civbuddy.veins.geo.AABBShape;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
@@ -12,13 +10,10 @@ import net.minecraft.client.network.ServerInfo;
 import net.minecraft.server.integrated.IntegratedServer;
 import org.joml.Vector3i;
 import org.joml.Vector4f;
-
-import java.io.*;
+import java.io.File;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-
-import static com.civbuddy.serializers.GSONSerializer.GSON;
 
 public class Save {
     public static class Data {
@@ -64,15 +59,9 @@ public class Save {
 
     private static void load(MinecraftClient client) {
         file = getSaveFile(client);
-        data = new Data();
 
-        if (file.exists()) {
-            try (Reader r = new FileReader(file)) {
-                Save.data = GSON.fromJson(r, Data.class);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+        data = JsonFileHelper.load(file, Data.class);
+        if (data == null) data = new Data();
 
         SAVE_LOADED.invoker().handle(data);
     }
@@ -98,20 +87,6 @@ public class Save {
     }
 
     public static void save() {
-        if (!file.exists()) {
-            try {
-                file.getParentFile().mkdirs();
-                file.createNewFile();
-            } catch (IOException e) {
-                e.printStackTrace();
-                return;
-            }
-        }
-
-        try (Writer w = new BufferedWriter(new FileWriter(file))) {
-            GSON.toJson(data, w);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        JsonFileHelper.save(file, data);
     }
 }

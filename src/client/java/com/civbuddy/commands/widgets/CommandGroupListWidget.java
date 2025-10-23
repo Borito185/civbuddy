@@ -1,5 +1,7 @@
-package com.civbuddy.commands;
+package com.civbuddy.commands.widgets;
 
+import com.civbuddy.commands.models.CommandGroup;
+import com.civbuddy.commands.sceens.BookmarkScreen;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.widget.AlwaysSelectedEntryListWidget;
@@ -7,11 +9,13 @@ import net.minecraft.text.Text;
 
 import java.util.List;
 
-public class BookmarkListWidget extends AlwaysSelectedEntryListWidget<BookmarkListWidget.CategoryEntry> {
-    private final BookmarkScreen parent;
-    private CategoryEntry draggingEntry = null;
+import static com.civbuddy.commands.CommandClient.COMMAND_CLIENT;
 
-    public BookmarkListWidget(MinecraftClient client, int width, int height, int top, int bottom, int itemHeight, BookmarkScreen parent) {
+public class CommandGroupListWidget extends AlwaysSelectedEntryListWidget<CommandGroupListWidget.CommandGroupEntry> {
+    private final BookmarkScreen parent;
+    private CommandGroupEntry draggingEntry = null;
+
+    public CommandGroupListWidget(MinecraftClient client, int width, int height, int top, int bottom, int itemHeight, BookmarkScreen parent) {
         super(client, width, height, top, itemHeight);
         this.parent = parent;
     }
@@ -30,7 +34,7 @@ public class BookmarkListWidget extends AlwaysSelectedEntryListWidget<BookmarkLi
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button == 0) {
             // Start dragging
-            for (CategoryEntry entry : this.children()) {
+            for (CommandGroupEntry entry : this.children()) {
                 if (entry.isMouseOver(mouseX, mouseY)) {
                     draggingEntry = entry;
                     break;
@@ -42,45 +46,51 @@ public class BookmarkListWidget extends AlwaysSelectedEntryListWidget<BookmarkLi
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        if (button == 0 && draggingEntry != null) {
-            // Find where to drop
-            int dropIndex = -1;
-            for (int i = 0; i < this.children().size(); i++) {
-                CategoryEntry entry = this.children().get(i);
-                if (entry.isMouseOver(mouseX, mouseY)) {
-                    dropIndex = i;
-                    break;
-                }
-            }
-
-            if (dropIndex != -1 && draggingEntry != this.children().get(dropIndex)) {
-                // Reorder categories
-                List<BookmarkCategory> categories = BookmarkManager.getInstance().getCategories();
-                int fromIndex = categories.indexOf(draggingEntry.category);
-                int toIndex = categories.indexOf(this.children().get(dropIndex).category);
-
-                if (fromIndex != -1 && toIndex != -1) {
-                    BookmarkCategory moving = categories.remove(fromIndex);
-                    categories.add(toIndex, moving);
-                    BookmarkManager.getInstance().saveBookmarks();
-                    parent.refreshLeftList();
-                }
-            }
-
-            draggingEntry = null;
+        if (button != 0 || draggingEntry == null) {
+            return super.mouseReleased(mouseX, mouseY, button);
         }
+
+        // Find where to drop
+        int dropIndex = -1;
+        for (int i = 0; i < this.children().size(); i++) {
+            CommandGroupEntry entry = this.children().get(i);
+            if (entry.isMouseOver(mouseX, mouseY)) {
+                dropIndex = i;
+                break;
+            }
+        }
+
+        if (dropIndex != -1 && draggingEntry != this.children().get(dropIndex)) {
+            // Reorder categories
+            List<CommandGroup> groups = COMMAND_CLIENT.data.groups;
+            int fromIndex = groups.indexOf(draggingEntry.group);
+            int toIndex = groups.indexOf(this.children().get(dropIndex).group);
+
+            if (fromIndex != -1 && toIndex != -1) {
+                CommandGroup moving = groups.remove(fromIndex);
+                groups.add(toIndex, moving);
+                COMMAND_CLIENT.save();
+                parent.refresh();
+            }
+        }
+
+        draggingEntry = null;
         return super.mouseReleased(mouseX, mouseY, button);
     }
 
-    public static class CategoryEntry extends AlwaysSelectedEntryListWidget.Entry<CategoryEntry> {
-        private final BookmarkListWidget widget;
-        public final BookmarkCategory category;
-        private final BookmarkScreen parent;
+    public void refresh() {
+        List<CommandGroupEntry> children = this.children();
+        children.clear();
+        for (CommandGroup group : COMMAND_CLIENT.data.groups) {
+            children.add(new CommandGroupEntry(group));
+        }
+    }
 
-        public CategoryEntry(BookmarkListWidget widget, BookmarkCategory category, BookmarkScreen parent) {
-            this.widget = widget;
-            this.category = category;
-            this.parent = parent;
+    public class CommandGroupEntry extends AlwaysSelectedEntryListWidget.Entry<CommandGroupEntry> {
+        public final CommandGroup group;
+
+        public CommandGroupEntry(CommandGroup group) {
+            this.group = group;
         }
 
         @Override
@@ -89,7 +99,7 @@ public class BookmarkListWidget extends AlwaysSelectedEntryListWidget<BookmarkLi
             MinecraftClient client = MinecraftClient.getInstance();
 
             // Use the actual entry height (25px)
-            boolean isDragging = widget.draggingEntry == this;
+            boolean isDragging = draggingEntry == this;
             if (hovered || isDragging) {
                 context.fill(x, y, x + entryWidth, y + entryHeight, 0xFF0080FF); // BRIGHT BLUE
             } else {
@@ -101,13 +111,13 @@ public class BookmarkListWidget extends AlwaysSelectedEntryListWidget<BookmarkLi
             context.fill(x, y + entryHeight - 1, x + entryWidth, y + entryHeight, 0xFF888888);
 
             // Draw count on the right side (accounting for scrollbar)
-            String countText = "(" + category.getEntries().size() + ")";
+            String countText = "(" + group.getEntries().size() + ")";
             int countWidth = client.textRenderer.getWidth(countText);
             int countX = x + entryWidth - countWidth - 12; // 12px padding from right (scrollbar space)
             context.drawTextWithShadow(client.textRenderer, countText, countX, y + 8, 0xFFAAAAAA);
 
             // Truncate name if needed to not overlap with count
-            String name = category.getName();
+            String name = group.getName();
             int maxNameWidth = entryWidth - countWidth - 20; // Space for count + padding + scrollbar
             String displayName = name;
 
@@ -125,8 +135,8 @@ public class BookmarkListWidget extends AlwaysSelectedEntryListWidget<BookmarkLi
         @Override
         public boolean mouseClicked(double mouseX, double mouseY, int button) {
             if (button == 0) {
-                parent.selectCategory(category);
-                widget.setSelected(this);
+                parent.focusOn(group);
+                setSelected(this);
                 return true;
             }
             return false;
@@ -134,7 +144,7 @@ public class BookmarkListWidget extends AlwaysSelectedEntryListWidget<BookmarkLi
 
         @Override
         public Text getNarration() {
-            return Text.literal(category.getName());
+            return Text.literal(group.getName());
         }
     }
 }

@@ -1,26 +1,32 @@
-package com.civbuddy.commands;
+package com.civbuddy.commands.sceens;
 
+import com.civbuddy.commands.CommandClient;
+import com.civbuddy.commands.models.CommandGroup;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.text.Text;
 
-public class AddCategoryScreen extends Screen {
+import static com.civbuddy.commands.CommandClient.COMMAND_CLIENT;
+
+public class CommandGroupInputScreen extends Screen {
     private final BookmarkScreen parent;
-    private final BookmarkCategory editingCategory; // null if adding new
+    private final CommandGroup editingCategory; // null if adding new
     private TextFieldWidget nameField;
     private int selectedColor = 0xFFFFFF;
+    private final boolean isEditing;
 
-    public AddCategoryScreen(BookmarkScreen parent) {
+    public CommandGroupInputScreen(BookmarkScreen parent) {
         this(parent, null);
     }
 
-    public AddCategoryScreen(BookmarkScreen parent, BookmarkCategory editingCategory) {
+    public CommandGroupInputScreen(BookmarkScreen parent, CommandGroup editingCategory) {
         super(Text.literal(editingCategory == null ? "Add Category" : "Edit Category"));
         this.parent = parent;
         this.editingCategory = editingCategory;
-        if (editingCategory != null) {
+        isEditing = editingCategory != null;
+        if (isEditing) {
             this.selectedColor = editingCategory.getColor();
         }
     }
@@ -30,27 +36,29 @@ public class AddCategoryScreen extends Screen {
         nameField = new TextFieldWidget(this.textRenderer, this.width / 2 - 100, this.height / 2 - 40, 200, 20, Text.literal(""));
         nameField.setMaxLength(32);
         nameField.setPlaceholder(Text.literal("Category name..."));
-        if (editingCategory != null) {
+        if (isEditing)
             nameField.setText(editingCategory.getName());
-        }
         this.addDrawableChild(nameField);
         this.setInitialFocus(nameField);
 
         // Save and cancel buttons
         this.addDrawableChild(ButtonWidget.builder(Text.literal("Save"), button -> {
-            if (!nameField.getText().isEmpty()) {
-                if (editingCategory != null) {
-                    // Edit existing
-                    editingCategory.setName(nameField.getText());
-                    editingCategory.setColor(selectedColor);
-                } else {
-                    // Add new
-                    BookmarkCategory category = new BookmarkCategory(nameField.getText(), selectedColor);
-                    BookmarkManager.getInstance().addCategory(category);
-                }
-                BookmarkManager.getInstance().saveBookmarks();
-                this.close();
+            if (nameField.getText().isBlank()) {
+                return;
             }
+
+            if (isEditing) {
+                // Edit existing
+                editingCategory.setName(nameField.getText());
+                editingCategory.setColor(selectedColor);
+            } else {
+                // Add new
+                CommandGroup category = new CommandGroup(nameField.getText(), selectedColor);
+                COMMAND_CLIENT.data.groups.add(category);
+            }
+
+            COMMAND_CLIENT.save();
+            this.close();
         }).dimensions(this.width / 2 - 60, this.height / 2 + 10, 55, 20).build());
 
         this.addDrawableChild(ButtonWidget.builder(Text.literal("Cancel"), button -> this.close())

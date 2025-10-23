@@ -1,14 +1,14 @@
-package com.civbuddy.commands;
+package com.civbuddy.commands.models;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class BookmarkCategory {
+public class CommandGroup {
     private String name;
     private int color;
-    private List<BookmarkEntry> entries;
+    private List<Command> entries;
 
-    public BookmarkCategory(String name, int color) {
+    public CommandGroup(String name, int color) {
         this.name = name;
         this.color = color;
         this.entries = new ArrayList<>();
@@ -18,11 +18,11 @@ public class BookmarkCategory {
     public void setName(String name) { this.name = name; }
     public int getColor() { return color; }
     public void setColor(int color) { this.color = color; }
-    public List<BookmarkEntry> getEntries() { return entries; }
+    public List<Command> getEntries() { return entries; }
 
-    public void addEntry(BookmarkEntry entry) {
+    public void addEntry(Command entry) {
         // Check for duplicates - don't add if command already exists
-        for (BookmarkEntry existing : entries) {
+        for (Command existing : entries) {
             if (existing.getCommand().equals(entry.getCommand())) {
                 return; // Duplicate found, don't add
             }
@@ -30,5 +30,9 @@ public class BookmarkCategory {
         entries.add(entry);
     }
 
-    public void removeEntry(BookmarkEntry entry) { entries.remove(entry); }
+    public void removeEntry(Command entry) { entries.remove(entry); }
+
+    public boolean isHistoryGroup() {
+        return name == "History";
+    }
 }
