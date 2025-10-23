@@ -5,20 +5,19 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.civbuddy.Save;
-import com.civbuddy.commands.CommandsHelper;
+import com.civbuddy.utils.CommandsHelper;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 
-import static com.civbuddy.commands.CommandsHelper.andRespondWith;
+import static com.civbuddy.utils.CommandsHelper.andRespondWith;
 
 /**
  * VeinBuddy Count - Lightweight vein tracking for miners

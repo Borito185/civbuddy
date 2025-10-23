@@ -1,6 +1,6 @@
 package com.civbuddy.calc;
 
-import com.civbuddy.commands.CommandsHelper;
+import com.civbuddy.utils.CommandsHelper;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.minecraft.text.ClickEvent;
@@ -16,7 +16,7 @@ import net.minecraft.client.MinecraftClient;
 import java.math.BigDecimal;
 import java.util.Map;
 
-import static com.civbuddy.commands.CommandsHelper.andRespondWith;
+import static com.civbuddy.utils.CommandsHelper.andRespondWith;
 import static com.mojang.brigadier.arguments.StringArgumentType.greedyString;
 import static  net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.literal;
 import static  net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.argument;
