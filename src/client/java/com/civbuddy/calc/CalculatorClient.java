@@ -46,6 +46,7 @@ public class CalculatorClient implements CommandsHelper.CommandProvider {
 
     public Text calc(CommandContext<FabricClientCommandSource> ctx) {
         String exp = StringArgumentType.getString(ctx, "expression");
+        exp = exp.toLowerCase();
         double result = eval(exp);
 
         String resultString = BigDecimal.valueOf(result)
