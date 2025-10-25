@@ -181,7 +181,7 @@ public class BookmarkScreen extends Screen {
             MinecraftClient.getInstance().setScreen(new AddCommandScreen(this, selectedCategory, selectedCommand));
         } else if (selectedCategory != null) {
             // Edit the category itself
-            if (selectedCategory.getName().equals("History") || selectedCategory.getName().equals("Destinations")) {
+            if (selectedCategory.getName().equals("History")) {
                 if (client.player != null) {
                     client.player.sendMessage(Text.literal("§cCannot edit " + selectedCategory.getName() + " category!"), false);
                 }
@@ -194,7 +194,7 @@ public class BookmarkScreen extends Screen {
     private void deleteSelected() {
         if (selectedCommand != null && selectedCategory != null) {
             // Don't allow deleting commands from protected categories
-            if (selectedCategory.getName().equals("History") || selectedCategory.getName().equals("Destinations")) {
+            if (selectedCategory.getName().equals("History")) {
                 if (client.player != null) {
                     client.player.sendMessage(Text.literal("§cCannot delete commands from " + selectedCategory.getName() + "!"), false);
                 }
@@ -206,7 +206,7 @@ public class BookmarkScreen extends Screen {
         } else if (selectedCategory != null) {
             // Prevent deletion of History and Destinations
             String categoryName = selectedCategory.getName();
-            if (categoryName.equals("History") || categoryName.equals("Destinations")) {
+            if (categoryName.equals("History")) {
                 if (client.player != null) {
                     client.player.sendMessage(Text.literal("§cCannot delete " + categoryName + " category!"), false);
                 }
