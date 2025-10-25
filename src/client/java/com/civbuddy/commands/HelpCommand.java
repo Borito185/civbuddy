@@ -2,6 +2,7 @@ package com.civbuddy.commands;
 
 import com.civbuddy.utils.CommandsHelper;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.client.MinecraftClient;
@@ -41,13 +42,13 @@ public class HelpCommand implements CommandsHelper.CommandProvider {
         help.append(Text.literal("• /veins digRadius <r> - Set mining area\n"));
         help.append(Text.literal("• /veins toggleRenderer - Toggle rendering of vein markings\n"));
         help.append(Text.literal("• /veins changeAll digRadius <r> - Changes the radius of all markings\n"));
-        help.append(Text.literal("• /veins clear - Clear all markers\n"));
+        help.append(Text.literal("• /veins clearAll - Clear all markers\n"));
         
         help.append(Text.literal("\nVein Diamond Counter:\n"));
         help.append(Text.literal("• /veins diaTracking set <veinName> - Set vein diamond tracking\n"));
         help.append(Text.literal("• /veins diaTracking shareLive <namelayer> - Set broadcast group\n"));
-        help.append(Text.literal("• /veins diaTracking reset - Reset current count\n"));
-        help.append(Text.literal("• /veins diaTracking listNames - Show all veins\n"));
+        help.append(Text.literal("• /veins diaTracking resetCount - Reset current count\n"));
+        help.append(Text.literal("• /veins diaTracking listVeins - Show all veins\n"));
         
         help.append(Text.literal("\nCalculator:\n"));
         help.append(Text.literal("• /calc <expression> - Math evaluator\n"));
