@@ -1,0 +1,30 @@
+[
+  {
+    "name": "History",
+    "color": 11184810,
+    "entries": [
+      {
+        "name": "a",
+        "command": "a"
+      },
+      {
+        "name": "fass",
+        "command": "fass"
+      },
+      {
+        "name": "da",
+        "command": "da"
+      }
+    ]
+  },
+  {
+    "name": "Destinations",
+    "color": 5635925,
+    "entries": [
+      {
+        "name": "a",
+        "command": "a"
+      }
+    ]
+  }
+]

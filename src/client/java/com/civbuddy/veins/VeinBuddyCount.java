@@ -156,17 +156,19 @@ public class VeinBuddyCount implements CommandsHelper.CommandProvider {
      * Command: Set group
      */
     private Text cmdSetGroup(CommandContext<FabricClientCommandSource> ctx) {
-        Save.data.countGroup = StringArgumentType.getString(ctx, "groupName");
+        Save.data.countGroup = StringArgumentType.getString(ctx, "namelayer");
         Save.save();
 
-        return Text.literal("§aCount group set to: " + Save.data.countGroup);
+        String text = Save.data.countGroup.isBlank() ? "§Stopped diamond sharing" : "§aNow sharing diamonds with: /g " + Save.data.countGroup;
+
+        return Text.literal("§aNow sharing Count group set to: " + Save.data.countGroup);
     }
 
     /**
      * Command: Set vein key
      */
     private Text cmdSetKey(CommandContext<FabricClientCommandSource> ctx) {
-        String newKey = StringArgumentType.getString(ctx, "key").toLowerCase();
+        String newKey = StringArgumentType.getString(ctx, "veinName").toLowerCase();
         
         // Validate key format (alphanumeric, 2-8 chars)
         if (!newKey.matches("^[a-z0-9]{2,8}$")) {
@@ -222,18 +224,19 @@ public class VeinBuddyCount implements CommandsHelper.CommandProvider {
     @Override
     public LiteralArgumentBuilder<FabricClientCommandSource> commands() {
         return ClientCommandManager.literal("veins")
-                .then(ClientCommandManager.literal("group")
-                        .then(ClientCommandManager.argument("groupName", StringArgumentType.string())
-                                .executes(andRespondWith(this::cmdSetGroup))))
-                .then(ClientCommandManager.literal("name")
-                        .then(ClientCommandManager.argument("key", StringArgumentType.string())
-                                .suggests((ctx, builder) -> {
-                                    Save.data.veins.keySet().stream().sorted().forEach(builder::suggest);
-                                    return builder.buildFuture();
-                                })
-                                .executes(andRespondWith(this::cmdSetKey))))
-                .then(ClientCommandManager.literal("reset").executes(andRespondWith(this::cmdReset)))
-                .then(ClientCommandManager.literal("listnames").executes(andRespondWith(this::cmdList)));
+                .then(ClientCommandManager.literal("diaTracking")
+                    .then(ClientCommandManager.literal("shareLive")
+                            .then(ClientCommandManager.argument("namelayer", StringArgumentType.string())
+                                    .executes(andRespondWith(this::cmdSetGroup))))
+                    .then(ClientCommandManager.literal("set")
+                            .then(ClientCommandManager.argument("veinName", StringArgumentType.string())
+                                    .suggests((ctx, builder) -> {
+                                        Save.data.veins.keySet().stream().sorted().forEach(builder::suggest);
+                                        return builder.buildFuture();
+                                    })
+                                    .executes(andRespondWith(this::cmdSetKey))))
+                    .then(ClientCommandManager.literal("resetCount").executes(andRespondWith(this::cmdReset)))
+                    .then(ClientCommandManager.literal("listVeins").executes(andRespondWith(this::cmdList))));
     }
 
     @Override

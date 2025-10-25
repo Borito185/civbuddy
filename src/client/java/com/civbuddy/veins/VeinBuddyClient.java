@@ -209,7 +209,7 @@ public class VeinBuddyClient implements CommandsHelper.CommandProvider {
                     .executes(andRespondWith(this::onDigRange))))))
             .then(literal("digRadius").then(argument("radius", integer(1, 11))
                     .executes(andRespondWith(this::onDigRadius))))
-            .then(literal("clear")
+            .then(literal("clearAll")
                     .executes(andRespondWith(this::clear)))
             .then(literal("toggleRenderer")
                     .executes(andRespondWith(this::toggleRenderer)))

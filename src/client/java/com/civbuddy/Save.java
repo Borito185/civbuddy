@@ -94,7 +94,7 @@ public class Save {
         if (key == null)
             return null;
 
-        return new File(client.runDirectory, "data/veinbuddy/" + key + ".gson");
+        return new File(client.runDirectory, "data/civbuddy/" + key + ".gson");
     }
 
     public static void save() {
