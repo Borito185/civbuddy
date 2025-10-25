@@ -1,14 +1,16 @@
 package com.civbuddy.commands;
 
+import com.civbuddy.CivBuddyClient;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import com.google.gson.stream.JsonReader;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
 
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
+import java.io.*;
 import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,8 +18,8 @@ public class BookmarkManager {
     private static BookmarkManager instance;
     private final List<BookmarkCategory> categories = new ArrayList<>();
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
-    private static final String BOOKMARK_FILE = "config/civbuddy_bookmarks.json";
-    private static final String PREBUILT_FILE = "config/civbuddy_prebuilt_commands.json";
+    private static final String BOOKMARK_FILE = "config/civbuddy/commands.json";
+    private static final String PREBUILT_FILE = "/assets/civbuddy/config/prebuilt_commands.json";
 
     private BookmarkManager() {}
 
@@ -39,14 +41,14 @@ public class BookmarkManager {
                     categories.clear();
                     categories.addAll(loaded);
                     ensureHistoryExists();
-                    return;
                 }
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
-
-        createDefaultCategories();
+        else {
+            loadPrebuiltCommands();
+        }
     }
 
     private void ensureHistoryExists() {
@@ -54,13 +56,6 @@ public class BookmarkManager {
         boolean hasHistory = categories.stream().anyMatch(cat -> cat.getName().equals("History"));
         if (!hasHistory) {
             categories.add(new BookmarkCategory("History", 0xAAAAAA));
-            saveBookmarks();
-        }
-
-        // Always ensure Destinations category exists
-        boolean hasDestinations = categories.stream().anyMatch(cat -> cat.getName().equals("Destinations"));
-        if (!hasDestinations) {
-            categories.add(new BookmarkCategory("Destinations", 0x55FF55));
             saveBookmarks();
         }
     }
@@ -76,53 +71,22 @@ public class BookmarkManager {
         }
     }
 
-    private void createDefaultCategories() {
-        categories.clear();
-
-        // Load prebuilt commands from config
-        PrebuiltCommands prebuilt = loadPrebuiltCommands();
-
-        // PVP category
-        BookmarkCategory pvp = new BookmarkCategory("PVP", 0xFF5555);
-        if (prebuilt != null && prebuilt.pvp != null) {
-            for (CommandEntry entry : prebuilt.pvp) {
-                pvp.addEntry(new BookmarkEntry(entry.command, entry.command));
+    private void loadPrebuiltCommands() {
+        InputStreamReader inputStreamReader;
+        try (InputStream resourceAsStream = CivBuddyClient.class.getResourceAsStream(PREBUILT_FILE)) {
+            assert resourceAsStream != null;
+            inputStreamReader = new InputStreamReader(resourceAsStream, StandardCharsets.UTF_8);
+            Type listType = new TypeToken<List<BookmarkCategory>>(){}.getType();
+            List<BookmarkCategory> loaded = gson.fromJson(inputStreamReader, listType);
+            if (loaded != null) {
+                categories.clear();
+                categories.addAll(loaded);
+                ensureHistoryExists();
+                return;
             }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
-        categories.add(pvp);
-
-        // Destinations category
-        BookmarkCategory destinations = new BookmarkCategory("Destinations", 0x55FF55);
-        if (prebuilt != null && prebuilt.destinations != null) {
-            for (CommandEntry entry : prebuilt.destinations) {
-                destinations.addEntry(new BookmarkEntry(entry.command, entry.command));
-            }
-        }
-        categories.add(destinations);
-
-        // History category (always empty at start)
-        categories.add(new BookmarkCategory("History", 0xAAAAAA));
-
-        saveBookmarks();
-    }
-
-    private PrebuiltCommands loadPrebuiltCommands() {
-        File file = new File(MinecraftClient.getInstance().runDirectory, PREBUILT_FILE);
-
-        if (file.exists()) {
-            try (FileReader reader = new FileReader(file)) {
-                return gson.fromJson(reader, PrebuiltCommands.class);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-        return null;
-    }
-
-    // Inner class for deserializing prebuilt commands JSON
-    private static class PrebuiltCommands {
-        List<CommandEntry> destinations;
-        List<CommandEntry> pvp;
     }
 
     private static class CommandEntry {
