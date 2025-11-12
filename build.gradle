@@ -44,6 +44,7 @@ dependencies {
 
 	// expression 4 java: used for the calculator
 	implementation 'net.objecthunter:exp4j:0.4.8'
+	include 'net.objecthunter:exp4j:0.4.8'
 }
 
 processResources {
