@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main            # only run on direct pushes to main
+  pull_request:
+    branches:
+      - main            # PRs targeting main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: gradle/wrapper-validation-action@v2
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'microsoft'
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+
+      - name: Make wrapper executable
+        run: chmod +x ./gradlew
+
+      # assemble + unit tests in one Gradle invocation (faster)
+      - name: Assemble + unit tests
+        run: ./gradlew assemble test
+
+#      - name: Install xvfb for headless MC
+#        if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+#        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+#      - name: Run GameTests
+#        if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+#        run: xvfb-run ./gradlew runGameTest || xvfb-run ./gradlew prodClient
