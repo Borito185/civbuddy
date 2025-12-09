@@ -2,8 +2,11 @@ name: CI
 
 on:
   push:
-    branches: ["**"]
+    branches:
+      - main            # only run on direct pushes to main
   pull_request:
+    branches:
+      - main            # PRs targeting main
   workflow_dispatch:
 
 permissions:
