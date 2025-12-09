@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-and-publish:
+    # Only run for releases that:
+    # - have a tag starting with "v"
+    # - target the main branch
+    #if: startsWith(github.event.release.tag_name, 'v') && github.event.release.target_commitish == 'main'
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Extract version from tag
+        id: vars
+        run: echo "MOD_VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+        # If your tags are like v1.2.3, this becomes 1.2.3
+
+      - name: Build mod JAR with tag version
+        run: ./gradlew -S -i -Pmod_version="${MOD_VERSION}" assemble
+
+      - name: Publish to Modrinth, CurseForge & GitHub
+        uses: Kira-NT/mc-publish@v3.3
+        with:
+          # Path(s) to your built jars. Adjust if needed.
+          files: |
+            build/libs/*.jar
+
+          # Modrinth
+          modrinth-id: TvWyaX7o
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+
+          # CurseForge
+          curseforge-id: 1373036
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+
+          # GitHub (attach files to the release)
+          github-token: ${{ secrets.GITHUB_TOKEN }}
