@@ -9,7 +9,7 @@ jobs:
     # Only run for releases that:
     # - have a tag starting with "v"
     # - target the main branch
-    #if: startsWith(github.event.release.tag_name, 'v') && github.event.release.target_commitish == 'main'
+    if: startsWith(github.event.release.tag_name, 'v') && github.event.release.target_commitish == 'main'
 
     runs-on: ubuntu-latest
 
