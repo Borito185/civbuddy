@@ -37,6 +37,8 @@ jobs:
           # Path(s) to your built jars. Adjust if needed.
           files: |
             build/libs/*.jar
+            !build/libs/*-sources.jar
+            !build/libs/*-dev.jar
 
           # Modrinth
           modrinth-id: TvWyaX7o
