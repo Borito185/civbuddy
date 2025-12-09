@@ -17,7 +17,7 @@ jobs:
     if: >
       startsWith(github.event.release.tag_name, 'v') &&
       github.event.release.target_commitish == 'main' &&
-      github.repository == 'your-name/your-repo'   # <- change this
+      github.repository == 'Borito185/civbuddy'
 
     runs-on: ubuntu-latest
 
