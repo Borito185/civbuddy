@@ -1,0 +1,82 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write    # Needed to attach assets to the GitHub release
+  packages: read
+
+jobs:
+  build-and-publish:
+    # Only run for:
+    # - tags starting with "v"
+    # - releases targeting main
+    # - this canonical repo (avoid running on forks)
+    if: >
+      startsWith(github.event.release.tag_name, 'v') &&
+      github.event.release.target_commitish == 'main' &&
+      github.repository == 'your-name/your-repo'   # <- change this
+
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Extract version & type from tag
+        id: version
+        run: |
+          set -euo pipefail
+
+          TAG="${GITHUB_REF_NAME}"     # e.g. v1.2.3-alpha.3
+          MOD_VERSION="${TAG#v}"       # strip leading v
+          echo "MOD_VERSION=${MOD_VERSION}" >> "$GITHUB_ENV"
+
+          # classify version type
+          if [[ "$TAG" == *"-alpha"* ]]; then
+            VERSION_TYPE="alpha"
+          elif [[ "$TAG" == *"-beta"* ]]; then
+            VERSION_TYPE="beta"
+          else
+            VERSION_TYPE="release"
+          fi
+
+          echo "VERSION_TYPE=${VERSION_TYPE}" >> "$GITHUB_ENV"
+
+      - name: Build mod JAR with tag version
+        run: ./gradlew -S -i -Pmod_version="${MOD_VERSION}" assemble
+
+      - name: Publish to Modrinth, CurseForge & GitHub
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          # Only upload real mod jars, not sources/dev
+          files: |
+            build/libs/*.jar
+            !build/libs/*-sources.jar
+            !build/libs/*-dev.jar
+
+          # Modrinth
+          modrinth-id: TvWyaX7o
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+
+          # CurseForge
+          curseforge-id: 1373036
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+
+          # Version metadata (used for Modrinth/CurseForge/GitHub)
+          version-type: ${{ env.VERSION_TYPE }}
+
+          # GitHub (attach files to the release)
+          github-token: ${{ secrets.GITHUB_TOKEN }}
