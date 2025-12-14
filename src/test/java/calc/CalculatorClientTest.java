@@ -11,10 +11,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class CalculatorClientTest {
     CalculatorClient sut;
-    @BeforeEach
-    void setup() {
-        sut = new CalculatorClient();
-    }
 
     @ParameterizedTest
     @CsvSource({
@@ -27,7 +23,7 @@ public class CalculatorClientTest {
             "12/(2+1),4"
     })
     void basicExpressions(String expr, double expected) {
-        assertEquals(expected, sut.eval(expr), 1e-9);
+        assertEquals(expected, CalculatorClient.eval(expr), 1e-9);
     }
 
     @ParameterizedTest(name = "{index} ⇒ {0} = {1}")
@@ -52,7 +48,7 @@ public class CalculatorClientTest {
             "sb, 576"
     })
     void shortcutsFixed(String expr, double expected) {
-        Assertions.assertEquals(expected, sut.eval(expr), 1e-9);
+        Assertions.assertEquals(expected, CalculatorClient.eval(expr), 1e-9);
     }
 
     // s/ci/cs equivalences and identities
@@ -62,7 +58,7 @@ public class CalculatorClientTest {
             "ci, s"
     })
     void shortcutEquivalences(String a, String b) {
-        Assertions.assertEquals(sut.eval(a), sut.eval(b), 1e-9);
+        Assertions.assertEquals(CalculatorClient.eval(a), CalculatorClient.eval(b), 1e-9);
     }
 
     // Scale properties for s and k over a range
@@ -75,7 +71,7 @@ public class CalculatorClientTest {
         for (int n : new int[]{-5, -1, 0, 1, 5}) {
             String expr = n + sym;            // e.g., "-5s", "5k"
             double expected = n * factor;
-            Assertions.assertEquals(expected, sut.eval(expr), 1e-9,
+            Assertions.assertEquals(expected, CalculatorClient.eval(expr), 1e-9,
                     () -> "expr=" + expr);
         }
     }

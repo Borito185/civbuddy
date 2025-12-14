@@ -3,27 +3,26 @@ package com.civbuddy.calc;
 import com.civbuddy.utils.CommandsHelper;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.context.CommandContext;
+import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.text.ClickEvent;
 import net.minecraft.text.HoverEvent;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.objecthunter.exp4j.ExpressionBuilder;
-import com.mojang.brigadier.context.CommandContext;
-import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
-import net.minecraft.client.MinecraftClient;
 
 import java.math.BigDecimal;
 import java.util.Map;
 
 import static com.civbuddy.utils.CommandsHelper.andRespondWith;
 import static com.mojang.brigadier.arguments.StringArgumentType.greedyString;
-import static  net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.literal;
-import static  net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.argument;
+import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.argument;
+import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.literal;
 
 public class CalculatorClient implements CommandsHelper.CommandProvider {
-    private final MinecraftClient mc = MinecraftClient.getInstance();
-    private final Map<String, Double> shortcuts = Map.of(
+    private CalculatorClient() {}
+    private static final Map<String, Double> shortcuts = Map.of(
         "s", 64.0d,
         "b", 9.0d,
         "ci", 64.0d,
@@ -31,13 +30,17 @@ public class CalculatorClient implements CommandsHelper.CommandProvider {
         "k", 1000d
     );
 
-    public void onInitializeClient() {
-        CommandsHelper.register(this);
+    public static void onInitializeClient() {
+        CalculatorClient instance = new CalculatorClient();
+        CommandsHelper.register(instance);
     }
 
     @Override
     public LiteralArgumentBuilder<FabricClientCommandSource> commands() {
-        return literal("calc").then(argument("expression", greedyString()).executes(andRespondWith(this::calc)));
+        return literal("calc").then(
+                argument("expression", greedyString())
+                        .executes(andRespondWith(CalculatorClient::calc))
+        );
     }
 
     @Override
@@ -45,7 +48,7 @@ public class CalculatorClient implements CommandsHelper.CommandProvider {
         return true;
     }
 
-    public Text calc(CommandContext<FabricClientCommandSource> ctx) {
+    public static Text calc(CommandContext<FabricClientCommandSource> ctx) {
         String exp = StringArgumentType.getString(ctx, "expression");
         exp = exp.toLowerCase();
         double result = eval(exp);
@@ -69,7 +72,7 @@ public class CalculatorClient implements CommandsHelper.CommandProvider {
         return value.append(hint);
     }
 
-    public double eval(String s) {
+    public static double eval(String s) {
         return new ExpressionBuilder(s)
                 .variables(shortcuts.keySet())
                 .implicitMultiplication(true)
