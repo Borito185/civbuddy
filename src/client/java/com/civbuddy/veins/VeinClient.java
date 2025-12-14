@@ -17,6 +17,8 @@ import com.civbuddy.veins.data.markings.VeinMarkingMigrations;
 import com.civbuddy.veins.data.markings.VeinMarkingRow;
 import com.civbuddy.veins.listeners.RightClickListener;
 import com.civbuddy.veins.listeners.MessageListener;
+import com.civbuddy.veins.listeners.WorldEventListener;
+import net.minecraft.client.MinecraftClient;
 import org.joml.Vector3i;
 import com.civbuddy.veins.geo.AABBShape;
 import com.civbuddy.veins.geo.CompoundShape;
@@ -62,9 +64,7 @@ public class VeinClient {
         // --- Init Listeners ---
         RightClickListener.initialize();
         MessageListener.initialize();
-
-        // Initialize VeinBuddy Count system
-        MessageListener.initialize();
+        WorldEventListener.initialize();
     }
 
     public static void notifyChange() {
@@ -89,6 +89,7 @@ public class VeinClient {
         if (!config.doRender) {
             borders.clear();
             markings.clear();
+            draw();
             return;
         }
 

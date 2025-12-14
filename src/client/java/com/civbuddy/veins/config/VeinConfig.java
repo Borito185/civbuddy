@@ -4,7 +4,7 @@ import org.joml.Vector3i;
 import org.joml.Vector4f;
 
 public final class VeinConfig {
-    public boolean doRender;
+    public boolean doRender = true;
 
     public float placeMoveSpeed = 0.2f;
     public float placeRange = 6.0f;
