@@ -41,7 +41,7 @@ public final class ConfigCommands {
     /**
      * Command: Set vein key
      */
-    public static Text cmdSetKey(CommandContext<FabricClientCommandSource> ctx) throws SQLException {
+    public static Text setVein(CommandContext<FabricClientCommandSource> ctx) throws SQLException {
         String newKey = StringArgumentType.getString(ctx, "veinName").toLowerCase();
 
         // Validate key format (alphanumeric, 2-8 chars)
@@ -52,6 +52,8 @@ public final class ConfigCommands {
         VeinKVStore.setActiveVeinName(newKey);
         VeinRow vein = VeinDao.getOrCreate(newKey);
 
-        return Text.literal(String.format("§aVein key set to: §e%s §7(count: %d)", vein.name(), vein.count()));
+        VeinClient.notifyChange();
+
+        return Text.literal(String.format("§aVein key set to: §e%s", vein.name()));
     }
 }

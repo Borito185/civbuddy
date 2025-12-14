@@ -42,8 +42,8 @@ public final class CommandHandler implements CommandsHelper.CommandProvider {
                 .then(ClientCommandManager.literal("set")
                         .then(ClientCommandManager.argument("veinName", StringArgumentType.string())
                                 .suggests(CommandHandler::getSuggestions)
-                                .executes(andRespondWith(ConfigCommands::cmdSetKey))))
-                .then(ClientCommandManager.literal("list").executes(andRespondWith(InfoCommands::cmdList)));
+                                .executes(andRespondWith(ConfigCommands::setVein))))
+                .then(ClientCommandManager.literal("list").executes(andRespondWith(InfoCommands::listVeins)));
     }
 
     @Override

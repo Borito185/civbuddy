@@ -84,6 +84,7 @@ public final class RightClickListener {
     private static void addSelection(Vector3i pos) throws SQLException {
         VeinMarkingRow row = new VeinMarkingRow(VeinClient.getActiveVeinId(), pos, config().markRange);
         VeinMarkingDao.upsert(row);
+        VeinClient.notifyChange();
     }
 
     private static void removeTargetedBlock(Vec3d cameraPos, Vec3d cameraDir) throws SQLException {

@@ -15,7 +15,7 @@ public class InfoCommands {
     /**
      * Command: List all veins
      */
-    public static Text cmdList(CommandContext<FabricClientCommandSource> ctx) throws SQLException {
+    public static Text listVeins(CommandContext<FabricClientCommandSource> ctx) throws SQLException {
         List<VeinRow> veins = VeinDao.top(10);
         VeinRow currentVein = VeinDao.getOrCreate(VeinKVStore.getActiveVeinName());
         if (!veins.contains(currentVein)) veins.add(currentVein);
