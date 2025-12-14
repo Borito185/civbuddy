@@ -45,6 +45,10 @@ dependencies {
 	// expression 4 java: used for the calculator
 	implementation 'net.objecthunter:exp4j:0.4.8'
 	include 'net.objecthunter:exp4j:0.4.8'
+
+	// sqlite
+	implementation "org.xerial:sqlite-jdbc:3.45.3.0"
+	include "org.xerial:sqlite-jdbc:3.45.3.0"
 }
 
 processResources {
