@@ -25,6 +25,7 @@ public class CalculatorClient implements CommandsHelper.CommandProvider {
     private final MinecraftClient mc = MinecraftClient.getInstance();
     private final Map<String, Double> shortcuts = Map.of(
         "s", 64.0d,
+        "b", 9.0d,
         "ci", 64.0d,
         "cs", 64.0d*64d,
         "k", 1000d
