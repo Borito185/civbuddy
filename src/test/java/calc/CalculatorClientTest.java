@@ -39,6 +39,7 @@ public class CalculatorClientTest {
             "1ci, 64",
             "1cs, 4096",
             "3k, 3000",
+            "b, 9",
 
             // arithmetic mixes
             "2cs + 1s, 8256",
@@ -47,7 +48,8 @@ public class CalculatorClientTest {
             "(10k) / (2s), 78.125",
             "1k*2s, 128000",
             "3k - 2cs, -5192",
-            "(2k + 3s) / s, 34.25"
+            "(2k + 3s) / s, 34.25",
+            "sb, 576"
     })
     void shortcutsFixed(String expr, double expected) {
         Assertions.assertEquals(expected, sut.eval(expr), 1e-9);
