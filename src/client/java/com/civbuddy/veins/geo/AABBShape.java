@@ -7,7 +7,6 @@ import net.minecraft.util.shape.VoxelShapes;
 import org.apache.commons.lang3.NotImplementedException;
 import org.joml.*;
 import org.joml.Math;
-
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Objects;
@@ -69,13 +68,13 @@ public record AABBShape(Vector3i center, Vector3i radius, Vector4f color, boolea
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof AABBShape shape)) return false;
-        return Objects.equals(center, shape.center) && Objects.equals(radius, shape.radius);
+        if (!(o instanceof AABBShape aabbShape)) return false;
+        return hasGrid == aabbShape.hasGrid && Objects.equals(center, aabbShape.center) && Objects.equals(radius, aabbShape.radius) && Objects.equals(color, aabbShape.color);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(center, radius);
+        return Objects.hash(center, radius, color, hasGrid);
     }
 
     @Override

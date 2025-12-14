@@ -26,15 +26,20 @@ import static com.civbuddy.serializers.GSONSerializer.GSON;
 public final class JsonConfig<T> {
     @FunctionalInterface
     public interface Factory<T> { T create(); }
+    @FunctionalInterface
+    public interface ConfigUpdate<T> { void update(T c); }
 
     private final String fileName;
     private final Class<T> type;
     private final Factory<T> defaultsFactory;
 
+    private T loaded;
+
     private JsonConfig(String fileName, Class<T> type, Factory<T> defaultsFactory) {
         this.fileName = fileName.endsWith(".json") ? fileName : fileName + ".json";
         this.type = type;
         this.defaultsFactory = defaultsFactory;
+        reload();
     }
 
     public static <T> JsonConfig<T> of(String fileName, Class<T> type, Factory<T> defaultsFactory) {
@@ -46,8 +51,43 @@ public final class JsonConfig<T> {
         return FabricLoader.getInstance().getConfigDir().resolve(fileName);
     }
 
-    /** Load config; if missing, return defaults (does not save). */
-    public T loadOrDefaults() {
+    public T get() {
+        if (loaded == null) {
+            return reload();
+        }
+
+        return loaded;
+    }
+
+    public void updateAndSave(ConfigUpdate<T> func) {
+        func.update(get());
+        save();
+    }
+
+    public T reload() {
+        loaded = load();
+        save();
+        return loaded;
+    }
+
+    public void save() {
+        Path path = path();
+        try {
+            Files.createDirectories(path.getParent());
+            try (BufferedWriter writer = Files.newBufferedWriter(
+                    path, StandardCharsets.UTF_8,
+                    java.nio.file.StandardOpenOption.CREATE,
+                    java.nio.file.StandardOpenOption.TRUNCATE_EXISTING,
+                    java.nio.file.StandardOpenOption.WRITE
+            )) {
+                GSON.toJson(loaded, writer);
+            }
+        } catch (IOException e) {
+            // Optional: log this via your mod logger
+        }
+    }
+
+    private T load() {
         Path path = path();
 
         if (!Files.exists(path)) {
@@ -62,29 +102,4 @@ public final class JsonConfig<T> {
             return defaultsFactory.create();
         }
     }
-
-    /** Load config; if missing/corrupt, create defaults and save immediately. */
-    public T loadOrCreateAndSave() {
-        T cfg = loadOrDefaults();
-        save(cfg);
-        return cfg;
-    }
-
-    public void save(T config) {
-        Path path = path();
-        try {
-            Files.createDirectories(path.getParent());
-            try (BufferedWriter writer = Files.newBufferedWriter(
-                    path, StandardCharsets.UTF_8,
-                    java.nio.file.StandardOpenOption.CREATE,
-                    java.nio.file.StandardOpenOption.TRUNCATE_EXISTING,
-                    java.nio.file.StandardOpenOption.WRITE
-            )) {
-                GSON.toJson(config, writer);
-            }
-        } catch (IOException e) {
-            // Optional: log this via your mod logger
-        }
-    }
 }
-
