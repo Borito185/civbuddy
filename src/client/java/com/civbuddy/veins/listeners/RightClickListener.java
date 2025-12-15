@@ -1,32 +1,32 @@
 package com.civbuddy.veins.listeners;
 
-import com.civbuddy.veins.SimpleRenderer;
 import com.civbuddy.veins.VeinClient;
 import com.civbuddy.veins.config.VeinConfig;
 import com.civbuddy.veins.data.markings.VeinMarkingDao;
 import com.civbuddy.veins.data.markings.VeinMarkingRow;
 import com.civbuddy.veins.geo.shapes.AABBShape;
 import com.civbuddy.veins.geo.shapes.VoxelShape;
+import com.civbuddy.veins.render.ShapeRenderer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.item.Item;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Vector3f;
 import org.joml.Vector3i;
-
 import java.sql.SQLException;
-import java.util.List;
+import java.util.Set;
+
 import static com.civbuddy.veins.VeinClient.config;
 
 public final class RightClickListener {
-    private static SimpleRenderer dynamicRenderer;
+    private static ShapeRenderer highlightRenderer;
     private static int selectionTicks = 0;
 
     private RightClickListener() {}
 
     public static void initialize() {
         ClientTickEvents.END_CLIENT_TICK.register(RightClickListener::onTick);
-        dynamicRenderer = new SimpleRenderer();
+        highlightRenderer = new ShapeRenderer();
     }
 
     public static void onTick(MinecraftClient client) {
@@ -52,14 +52,13 @@ public final class RightClickListener {
         int chargeTime = Math.clamp(selectionTicks - config.placeDelayTicks, 0, config.getMaxTicks());
         if (!isHoldingPickaxe || released) {
             selectionTicks = 0;
-            dynamicRenderer.clear();
+            highlightRenderer.setInnerShapes(Set.of());
         }
         if (isHolding) selectionTicks++;
         if (!isHoldingPickaxe || (!isHolding && !released) || (isHolding && !isCharged)) return;
 
         Vec3d playerPos = client.player.getEyePos();
         Vec3d playerDir = client.player.getRotationVector();
-
 
         if (released && !isCharged) {
             removeTargetedBlock(playerPos, playerDir);
@@ -77,7 +76,8 @@ public final class RightClickListener {
         if (isHolding && isCharged) {
             AABBShape aabb = new AABBShape(new Vector3i(targetedBlock, 2), new Vector3i(0));
 
-            dynamicRenderer.draw(List.of(aabb));
+            highlightRenderer.setStyle(config.highlightWallColor, config.highlightHasGrid);
+            highlightRenderer.setInnerShapes(Set.of(aabb));
         }
     }
 
