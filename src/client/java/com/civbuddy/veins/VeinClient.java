@@ -97,11 +97,11 @@ public class VeinClient {
         List<VeinMarkingRow> rows = VeinMarkingDao.findAllForVein(getActiveVeinId());
         Set<VoxelShape> bordersShapes = rows
                 .stream()
-                .map(r -> new AABBShape(r.pos(), r.range()))
+                .map(r -> AABBShape.of(r.pos(), r.range()))
                 .collect(Collectors.toSet());
         Set<VoxelShape> markingsShapes = rows
                 .stream()
-                .map(r -> new AABBShape(r.pos(), new Vector3i(0)))
+                .map(r -> AABBShape.of(r.pos(), new Vector3i(0)))
                 .collect(Collectors.toSet());
 
         borderRenderer.setInnerShapes(bordersShapes);

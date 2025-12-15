@@ -7,21 +7,21 @@ import org.joml.Vector3ic;
 
 import java.util.Objects;
 
-public record Face(Vector3ic a, Vector3ic b, Vector3ic c, Vector3ic d, Vector3fc center, Vector3fc normal) {
+public record UnitFace(Vector3ic a, Vector3ic b, Vector3ic c, Vector3ic d, Vector3fc center, Vector3fc normal) {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof Face face)) return false;
-        return Objects.equals(a, face.a) && Objects.equals(b, face.b) && Objects.equals(c, face.c) && Objects.equals(d, face.d);
+        if (!(o instanceof UnitFace unitFace)) return false;
+        return Objects.equals(center, unitFace.center);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(a, b, c, d);
+        return Objects.hash(center);
     }
 
-    public static Face of(Vector3i a, Vector3i b, Vector3i c, Vector3i d) {
-        return new Face(
+    public static UnitFace of(Vector3i a, Vector3i b, Vector3i c, Vector3i d) {
+        return new UnitFace(
                 a, b, c, d,
                 compute_center(a, b, c, d),
                 compute_normal(a, b, c, d)

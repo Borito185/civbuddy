@@ -2,6 +2,8 @@ package com.civbuddy.veins.data.markings;
 
 import com.civbuddy.storage.sql.DatabaseManager;
 import org.joml.Vector3i;
+import org.joml.Vector3ic;
+
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -69,7 +71,7 @@ public final class VeinMarkingDao {
     }
 
     /** Delete one marking for a vein at a position. */
-    public static boolean delete(long veinId, Vector3i pos) throws SQLException {
+    public static boolean delete(long veinId, Vector3ic pos) throws SQLException {
         String sql = """
             DELETE FROM vein_marking
             WHERE vein_id = ? AND pos_x = ? AND pos_y = ? AND pos_z = ?
@@ -78,9 +80,9 @@ public final class VeinMarkingDao {
         try (var ps = DatabaseManager.connection().prepareStatement(sql)) {
             int i = 1;
             ps.setLong(i++, veinId);
-            ps.setInt(i++, pos.x);
-            ps.setInt(i++, pos.y);
-            ps.setInt(i++, pos.z);
+            ps.setInt(i++, pos.x());
+            ps.setInt(i++, pos.y());
+            ps.setInt(i++, pos.z());
             return ps.executeUpdate() > 0;
         }
     }

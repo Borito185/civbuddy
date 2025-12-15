@@ -2,6 +2,7 @@ package com.civbuddy.veins.render;
 
 import com.civbuddy.veins.geo.primitives.Edge;
 import com.civbuddy.veins.geo.primitives.Face;
+import com.civbuddy.veins.geo.primitives.UnitFace;
 import com.civbuddy.veins.geo.shapes.CompoundShape;
 import com.civbuddy.veins.geo.shapes.VoxelShape;
 import com.civbuddy.veins.geo.util.Face2Edge;
@@ -12,10 +13,9 @@ import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.util.math.Vec3d;
-import org.joml.Matrix4f;
-import org.joml.Vector3f;
-import org.joml.Vector3i;
-import org.joml.Vector4f;
+import org.joml.*;
+
+import java.lang.Math;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Set;
@@ -48,10 +48,11 @@ public class ShapeRenderer {
     }
 
     private void remesh() {
-        faces = shape.getFaces();
-        edges = Face2Edge.generateEdges(faces);
+        Collection<UnitFace> unitFaces = shape.getFaces();
+        edges = Face2Edge.generateEdges(unitFaces);
 
-        faces = GridAlignedFaceOptimizer.optimize(faces);
+
+        faces = GridAlignedFaceOptimizer.optimize(unitFaces);
         edges = GridAlignedEdgeOptimizer.optimize(edges);
     }
 
@@ -115,8 +116,8 @@ public class ShapeRenderer {
 
     /** Returns world-space offset along the face normal, flipped to face the camera. */
     private static Vector3f biasTowardCamera(Face f, Vec3d cp) {
-        Vector3f n = f.normal();          // normalized
-        Vector3f ctr = f.center();
+        Vector3f n = new Vector3f(f.normal());          // normalized
+        Vector3fc ctr = f.center();
 
         // world-space camera position
         Vector3f toCam = new Vector3f((float)cp.x, (float)cp.y, (float)cp.z).sub(ctr);
@@ -125,19 +126,19 @@ public class ShapeRenderer {
         return n.mul(NORMAL_BIAS);
     }
 
-    private static Vector3f biasTowardCamera(Vector3i pos, Vec3d cp) {
-        float dx = (float) cp.x - pos.x;
-        float dy = (float) cp.y - pos.y;
-        float dz = (float) cp.z - pos.z;
+    private static Vector3f biasTowardCamera(Vector3ic pos, Vec3d cp) {
+        float dx = (float) cp.x - pos.x();
+        float dy = (float) cp.y - pos.y();
+        float dz = (float) cp.z - pos.z();
 
         float len = (float) Math.sqrt(dx*dx + dy*dy + dz*dz);
         if (len == 0f) return new Vector3f(pos);
 
         float inv = NORMAL_BIAS / len;
         return new Vector3f(
-                pos.x + dx * inv,
-                pos.y + dy * inv,
-                pos.z + dz * inv
+                pos.x() + dx * inv,
+                pos.y() + dy * inv,
+                pos.z() + dz * inv
         );
     }
     private static VertexConsumer setPositionColor(VertexConsumer vc, Matrix4f mat, Vector3f pos, Vector4f color) {

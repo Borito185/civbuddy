@@ -1,6 +1,6 @@
 package com.civbuddy.veins.geo.shapes;
 
-import com.civbuddy.veins.geo.primitives.Face;
+import com.civbuddy.veins.geo.primitives.UnitFace;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
@@ -8,11 +8,18 @@ import net.minecraft.util.shape.VoxelShapes;
 import org.apache.commons.lang3.NotImplementedException;
 import org.joml.*;
 import org.joml.Math;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Objects;
 
-public record AABBShape(Vector3i center, Vector3i radius) implements VoxelShape {
+import java.util.*;
+
+public record AABBShape(Vector3ic center, Vector3ic radius, Vector3fc realCenter) implements VoxelShape {
+    public static AABBShape of(Vector3ic center, Vector3ic radius) {
+        return new AABBShape(
+                center,
+                radius,
+                new Vector3f(center).add(0.5f, 0.5f, 0.5f)
+        );
+    }
+
     public boolean overlaps(AABBShape o, float tolerance) {
         tolerance += 1;
 
@@ -31,7 +38,7 @@ public record AABBShape(Vector3i center, Vector3i radius) implements VoxelShape 
     }
 
     @Override
-    public boolean contains(final Vector3i pos) {
+    public boolean contains(final Vector3ic pos) {
         int dx = Math.abs(pos.x() - center.x());
         int dy = Math.abs(pos.y() - center.y());
         int dz = Math.abs(pos.z() - center.z());
@@ -40,8 +47,8 @@ public record AABBShape(Vector3i center, Vector3i radius) implements VoxelShape 
     }
 
     @Override
-    public Vector3f getCenter() {
-        return new Vector3f(center.x+.5f, center.y+.5f, center.z+.5f);
+    public Vector3fc getCenter() {
+        return realCenter;
     }
 
     @Override
@@ -51,12 +58,12 @@ public record AABBShape(Vector3i center, Vector3i radius) implements VoxelShape 
     }
 
     @Override
-    public boolean contains(final Vector3f p, final float tolerance) {
-        Vector3f center = getCenter();
+    public boolean contains(final Vector3fc p, final float tolerance) {
+        Vector3fc center = getCenter();
 
-        return Math.abs(p.x - center.x) <= radius.x + .5f + tolerance &&
-                Math.abs(p.y - center.y) <= radius.y + .5f + tolerance &&
-                Math.abs(p.z - center.z) <= radius.z + .5f + tolerance;
+        return Math.abs(p.x() - center.x()) <= radius.x() + .5f + tolerance &&
+                Math.abs(p.y() - center.y()) <= radius.y() + .5f + tolerance &&
+                Math.abs(p.z() - center.z()) <= radius.z() + .5f + tolerance;
     }
 
     public boolean intersectsCenter(Vec3d a, Vec3d b) {
@@ -79,18 +86,22 @@ public record AABBShape(Vector3i center, Vector3i radius) implements VoxelShape 
     }
 
     @Override
-    public Collection<Face> getFaces() {
-        HashSet<Face> faces = new HashSet<>();
+    public Collection<UnitFace> getFaces() {
+        int x = (radius.x()+1);
+        int y = (radius.y()+1);
+        int z = (radius.z()+1);
+        int size = 2 * (x*x + y*y + z*z);
+        ArrayList<UnitFace> faces = new ArrayList<>(size);
         generateFaces(faces);
         return faces;
     }
 
-    private void generateFaces(HashSet<Face> set) {
-        Vector3i c = center, r = radius;
+    private void generateFaces(List<UnitFace> set) {
+        Vector3ic c = center, r = radius;
 
-        int minX = c.x - r.x, maxX = c.x + r.x;
-        int minY = c.y - r.y, maxY = c.y + r.y;
-        int minZ = c.z - r.z, maxZ = c.z + r.z;
+        int minX = c.x() - r.x(), maxX = c.x() + r.x();
+        int minY = c.y() - r.y(), maxY = c.y() + r.y();
+        int minZ = c.z() - r.z(), maxZ = c.z() + r.z();
 
         // Planes at the box boundary (note the +1 for the "positive" side planes)
         int xL = minX,      xR = maxX + 1;
@@ -101,7 +112,7 @@ public record AABBShape(Vector3i center, Vector3i radius) implements VoxelShape 
         for (int y = minY; y <= maxY; y++)
         for (int z = minZ; z <= maxZ; z++) {
             // -X (left)
-            set.add(new Face(
+            set.add(UnitFace.of(
                     new Vector3i(xL, y,   z),
                     new Vector3i(xL, y+1, z),
                     new Vector3i(xL, y+1, z+1),
@@ -109,7 +120,7 @@ public record AABBShape(Vector3i center, Vector3i radius) implements VoxelShape 
             ));
 
             // +X (right)
-            set.add(new Face(
+            set.add(UnitFace.of(
                     new Vector3i(xR, y,   z+1),
                     new Vector3i(xR, y+1, z+1),
                     new Vector3i(xR, y+1, z),
@@ -121,7 +132,7 @@ public record AABBShape(Vector3i center, Vector3i radius) implements VoxelShape 
         for (int x = minX; x <= maxX; x++)
         for (int z = minZ; z <= maxZ; z++) {
             // -Y (bottom)
-            set.add(new Face(
+            set.add(UnitFace.of(
                     new Vector3i(x,   yB, z+1),
                     new Vector3i(x+1, yB, z+1),
                     new Vector3i(x+1, yB, z),
@@ -129,7 +140,7 @@ public record AABBShape(Vector3i center, Vector3i radius) implements VoxelShape 
             ));
 
             // +Y (top)
-            set.add(new Face(
+            set.add(UnitFace.of(
                     new Vector3i(x,   yT, z),
                     new Vector3i(x+1, yT, z),
                     new Vector3i(x+1, yT, z+1),
@@ -141,7 +152,7 @@ public record AABBShape(Vector3i center, Vector3i radius) implements VoxelShape 
         for (int x = minX; x <= maxX; x++)
         for (int y = minY; y <= maxY; y++) {
             // -Z (front)
-            set.add(new Face(
+            set.add(UnitFace.of(
                     new Vector3i(x+1, y,   zF),
                     new Vector3i(x+1, y+1, zF),
                     new Vector3i(x,   y+1, zF),
@@ -149,7 +160,7 @@ public record AABBShape(Vector3i center, Vector3i radius) implements VoxelShape 
             ));
 
             // +Z (back)
-            set.add(new Face(
+            set.add(UnitFace.of(
                     new Vector3i(x,   y,   zB),
                     new Vector3i(x,   y+1, zB),
                     new Vector3i(x+1, y+1, zB),

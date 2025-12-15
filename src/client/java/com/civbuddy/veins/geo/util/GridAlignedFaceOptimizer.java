@@ -1,18 +1,21 @@
 package com.civbuddy.veins.geo.util;
 
 import com.civbuddy.veins.geo.primitives.Face;
+import com.civbuddy.veins.geo.primitives.UnitFace;
 import org.joml.Vector3i;
+import org.joml.Vector3ic;
+
 import java.util.*;
 
 public final class GridAlignedFaceOptimizer {
     private GridAlignedFaceOptimizer() {}
 
-    public static List<Face> optimize(Collection<Face> in) {
+    public static List<Face> optimize(Collection<UnitFace> in) {
         if (in == null || in.isEmpty()) return List.of();
 
         // Dedup + normalize into unit-cells on a plane
         HashSet<Cell> cells = new HashSet<>(in.size() * 2);
-        for (Face f : in) {
+        for (UnitFace f : in) {
             Cell c = Cell.fromUnitFace(f);
             if (c != null) cells.add(c);
         }
@@ -129,7 +132,7 @@ public final class GridAlignedFaceOptimizer {
             }
             default -> throw new IllegalStateException();
         }
-        return new Face(A, B, C, D);
+        return Face.of(A, B, C, D);
     }
 
     // ---------- data model ----------
@@ -141,28 +144,28 @@ public final class GridAlignedFaceOptimizer {
 
     /** A unit cell on a plane: (axis, planeC) plus its lower-left (u,v). */
     private record Cell(Axis axis, int planeC, int u, int v) {
-        static Cell fromUnitFace(Face f) {
-            Vector3i a = f.a(), b = f.b(), c = f.c(), d = f.d();
+        static Cell fromUnitFace(UnitFace f) {
+            Vector3ic a = f.a(), b = f.b(), c = f.c(), d = f.d();
 
-            boolean x = a.x==b.x && a.x==c.x && a.x==d.x;
-            boolean y = a.y==b.y && a.y==c.y && a.y==d.y;
-            boolean z = a.z==b.z && a.z==c.z && a.z==d.z;
+            boolean x = a.x()==b.x() && a.x()==c.x() && a.x()==d.x();
+            boolean y = a.y()==b.y() && a.y()==c.y() && a.y()==d.y();
+            boolean z = a.z()==b.z() && a.z()==c.z() && a.z()==d.z();
 
             if (x) {
-                int u0 = min4(a.y,b.y,c.y,d.y), u1 = max4(a.y,b.y,c.y,d.y);
-                int v0 = min4(a.z,b.z,c.z,d.z), v1 = max4(a.z,b.z,c.z,d.z);
+                int u0 = min4(a.y(),b.y(),c.y(),d.y()), u1 = max4(a.y(),b.y(),c.y(),d.y());
+                int v0 = min4(a.z(),b.z(),c.z(),d.z()), v1 = max4(a.z(),b.z(),c.z(),d.z());
                 if (u1-u0 != 1 || v1-v0 != 1) return null;
-                return new Cell(Axis.X, a.x, u0, v0);
+                return new Cell(Axis.X, a.x(), u0, v0);
             } else if (y) {
-                int u0 = min4(a.x,b.x,c.x,d.x), u1 = max4(a.x,b.x,c.x,d.x);
-                int v0 = min4(a.z,b.z,c.z,d.z), v1 = max4(a.z,b.z,c.z,d.z);
+                int u0 = min4(a.x(),b.x(),c.x(),d.x()), u1 = max4(a.x(),b.x(),c.x(),d.x());
+                int v0 = min4(a.z(),b.z(),c.z(),d.z()), v1 = max4(a.z(),b.z(),c.z(),d.z());
                 if (u1-u0 != 1 || v1-v0 != 1) return null;
-                return new Cell(Axis.Y, a.y, u0, v0);
+                return new Cell(Axis.Y, a.y(), u0, v0);
             } else if (z) {
-                int u0 = min4(a.x,b.x,c.x,d.x), u1 = max4(a.x,b.x,c.x,d.x);
-                int v0 = min4(a.y,b.y,c.y,d.y), v1 = max4(a.y,b.y,c.y,d.y);
+                int u0 = min4(a.x(),b.x(),c.x(),d.x()), u1 = max4(a.x(),b.x(),c.x(),d.x());
+                int v0 = min4(a.y(),b.y(),c.y(),d.y()), v1 = max4(a.y(),b.y(),c.y(),d.y());
                 if (u1-u0 != 1 || v1-v0 != 1) return null;
-                return new Cell(Axis.Z, a.z, u0, v0);
+                return new Cell(Axis.Z, a.z(), u0, v0);
             }
 
             return null; // non-axis-aligned -> ignored by this optimizer
