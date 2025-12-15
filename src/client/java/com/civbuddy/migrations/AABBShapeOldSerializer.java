@@ -1,8 +1,6 @@
 package com.civbuddy.migrations;
 
 import com.civbuddy.serializers.GSONSerializer;
-import com.civbuddy.veins.geo.AABBShape;
-import com.google.gson.Gson;
 import com.google.gson.TypeAdapter;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;

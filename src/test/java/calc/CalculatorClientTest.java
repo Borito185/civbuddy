@@ -10,8 +10,6 @@ import org.junit.jupiter.params.provider.CsvSource;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class CalculatorClientTest {
-    CalculatorClient sut;
-
     @ParameterizedTest
     @CsvSource({
             "1+2,3",

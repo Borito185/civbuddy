@@ -20,9 +20,9 @@ import com.civbuddy.veins.listeners.MessageListener;
 import com.civbuddy.veins.listeners.WorldEventListener;
 import com.civbuddy.veins.render.ShapeRenderer;
 import org.joml.Vector3i;
-import com.civbuddy.veins.geo.AABBShape;
-import com.civbuddy.veins.geo.CompoundShape;
-import com.civbuddy.veins.geo.VoxelShape;
+import com.civbuddy.veins.geo.shapes.AABBShape;
+import com.civbuddy.veins.geo.shapes.CompoundShape;
+import com.civbuddy.veins.geo.shapes.VoxelShape;
 
 public class VeinClient {
     private static VeinClient instance;
@@ -105,6 +105,7 @@ public class VeinClient {
                 .collect(Collectors.toSet());
 
         borderRenderer.getShape().set(bordersShapes);
+        borderRenderer.notifyChange();
 //        borders.set(bordersShapes);
 //        markings.set(markingsShapes);
 //

@@ -1,9 +1,6 @@
 package com.civbuddy.veins;
 
-import com.civbuddy.veins.geo.Edge;
-import com.civbuddy.veins.geo.Face;
-import com.civbuddy.veins.geo.ShapeUtils;
-import com.civbuddy.veins.geo.VoxelShape;
+import com.civbuddy.veins.geo.shapes.VoxelShape;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.pipeline.BlendFunction;
@@ -26,7 +23,6 @@ import net.minecraft.util.math.Vec3d;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
-import org.joml.Vector3i;
 import org.joml.Vector4f;
 import org.lwjgl.system.MemoryUtil;
 import java.nio.ByteBuffer;
