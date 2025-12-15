@@ -51,7 +51,6 @@ public class ShapeRenderer {
         Collection<UnitFace> unitFaces = shape.getFaces();
         edges = Face2Edge.generateEdges(unitFaces);
 
-
         faces = GridAlignedFaceOptimizer.optimize(unitFaces);
         edges = GridAlignedEdgeOptimizer.optimize(edges);
     }

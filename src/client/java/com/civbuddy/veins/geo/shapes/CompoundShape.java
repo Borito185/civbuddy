@@ -144,6 +144,7 @@ public class CompoundShape implements VoxelShape {
         }
     }
 
+    private final Vector3f tmp = new Vector3f();
     private boolean shouldCull(UnitFace f, VoxelShape shape) {
         Vector3fc p = f.center();
         if (!shape.contains(p, EPS)) return false;
@@ -152,7 +153,7 @@ public class CompoundShape implements VoxelShape {
         }
 
         Vector3fc n = f.normal();
-        Vector3f toCenter = shape.getCenter().sub(p, new Vector3f());
+        Vector3f toCenter = shape.getCenter().sub(p, tmp);
         return (n.dot(toCenter) < 0f);
     }
 
