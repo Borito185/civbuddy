@@ -1,23 +1,9 @@
 package com.civbuddy.veins.geo;
 
 import org.joml.Vector3f;
-import org.joml.Vector4f;
+import org.joml.Vector3i;
 
-public record Face(Vector3f a, Vector3f b, Vector3f c, Vector3f d, Vector4f color, boolean hasEdges) {
-    public static Face of(float x1, float y1, float z1,
-                   float x2, float y2, float z2,
-                   float x3, float y3, float z3,
-                   float x4, float y4, float z4,
-                   Vector4f color, boolean hasEdges) {
-        return new Face(
-                new Vector3f(x1, y1, z1),
-                new Vector3f(x2, y2, z2),
-                new Vector3f(x3, y3, z3),
-                new Vector3f(x4, y4, z4),
-                color, hasEdges
-        );
-    }
-
+public record Face(Vector3i a, Vector3i b, Vector3i c, Vector3i d) {
     public Vector3f center() {
         return new Vector3f(
                 (a.x + b.x + c.x + d.x) * 0.25f,

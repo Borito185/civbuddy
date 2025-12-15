@@ -11,7 +11,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Objects;
 
-public record AABBShape(Vector3i center, Vector3i radius, Vector4f color, boolean hasGrid) implements VoxelShape {
+public record AABBShape(Vector3i center, Vector3i radius) implements VoxelShape {
     public boolean overlaps(AABBShape o, float tolerance) {
         tolerance += 1;
 
@@ -69,12 +69,12 @@ public record AABBShape(Vector3i center, Vector3i radius, Vector4f color, boolea
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof AABBShape aabbShape)) return false;
-        return hasGrid == aabbShape.hasGrid && Objects.equals(center, aabbShape.center) && Objects.equals(radius, aabbShape.radius) && Objects.equals(color, aabbShape.color);
+        return Objects.equals(center, aabbShape.center) && Objects.equals(radius, aabbShape.radius);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(center, radius, color, hasGrid);
+        return Objects.hash(center, radius);
     }
 
     @Override
@@ -86,7 +86,6 @@ public record AABBShape(Vector3i center, Vector3i radius, Vector4f color, boolea
 
     private void generateFaces(HashSet<Face> set) {
         Vector3i c = center, r = radius;
-        Vector4f col = color;
 
         int minX = c.x - r.x, maxX = c.x + r.x;
         int minY = c.y - r.y, maxY = c.y + r.y;
@@ -99,29 +98,62 @@ public record AABBShape(Vector3i center, Vector3i radius, Vector4f color, boolea
 
         // -X / +X walls: sweep y,z
         for (int y = minY; y <= maxY; y++)
-            for (int z = minZ; z <= maxZ; z++) {
-                // -X (left)
-                set.add(Face.of(xL, y, z,   xL, y+1, z,   xL, y+1, z+1,   xL, y, z+1,   col, hasGrid));
-                // +X (right)
-                set.add(Face.of(xR, y, z+1, xR, y+1, z+1, xR, y+1, z,     xR, y, z,     col, hasGrid));
-            }
+        for (int z = minZ; z <= maxZ; z++) {
+            // -X (left)
+            set.add(new Face(
+                    new Vector3i(xL, y,   z),
+                    new Vector3i(xL, y+1, z),
+                    new Vector3i(xL, y+1, z+1),
+                    new Vector3i(xL, y,   z+1)
+            ));
+
+            // +X (right)
+            set.add(new Face(
+                    new Vector3i(xR, y,   z+1),
+                    new Vector3i(xR, y+1, z+1),
+                    new Vector3i(xR, y+1, z),
+                    new Vector3i(xR, y,   z)
+            ));
+        }
 
         // -Y / +Y walls: sweep x,z
         for (int x = minX; x <= maxX; x++)
-            for (int z = minZ; z <= maxZ; z++) {
-                // -Y (bottom)
-                set.add(Face.of(x,   yB, z+1,  x+1, yB, z+1,  x+1, yB, z,    x,   yB, z,    col, hasGrid));
-                // +Y (top)
-                set.add(Face.of(x,   yT, z,    x+1, yT, z,    x+1, yT, z+1,  x,   yT, z+1,  col, hasGrid));
-            }
+        for (int z = minZ; z <= maxZ; z++) {
+            // -Y (bottom)
+            set.add(new Face(
+                    new Vector3i(x,   yB, z+1),
+                    new Vector3i(x+1, yB, z+1),
+                    new Vector3i(x+1, yB, z),
+                    new Vector3i(x,   yB, z)
+            ));
+
+            // +Y (top)
+            set.add(new Face(
+                    new Vector3i(x,   yT, z),
+                    new Vector3i(x+1, yT, z),
+                    new Vector3i(x+1, yT, z+1),
+                    new Vector3i(x,   yT, z+1)
+            ));
+        }
 
         // -Z / +Z walls: sweep x,y
         for (int x = minX; x <= maxX; x++)
-            for (int y = minY; y <= maxY; y++) {
-                // -Z (front)
-                set.add(Face.of(x+1, y, zF,   x+1, y+1, zF,   x, y+1, zF,    x, y, zF,     col, hasGrid));
-                // +Z (back)
-                set.add(Face.of(x,   y, zB,   x,   y+1, zB,   x+1, y+1, zB,  x+1, y, zB,   col, hasGrid));
-            }
+        for (int y = minY; y <= maxY; y++) {
+            // -Z (front)
+            set.add(new Face(
+                    new Vector3i(x+1, y,   zF),
+                    new Vector3i(x+1, y+1, zF),
+                    new Vector3i(x,   y+1, zF),
+                    new Vector3i(x,   y,   zF)
+            ));
+
+            // +Z (back)
+            set.add(new Face(
+                    new Vector3i(x,   y,   zB),
+                    new Vector3i(x,   y+1, zB),
+                    new Vector3i(x+1, y+1, zB),
+                    new Vector3i(x+1, y,   zB)
+            ));
+        }
     }
 }

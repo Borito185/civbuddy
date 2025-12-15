@@ -48,7 +48,7 @@ public class ShapeRenderer {
         var vc = ctx.consumers().getBuffer(RenderLayer.getDebugQuads());
         Collection<Face> faces = shape.getFaces();
         for (Face f : faces) {
-            Vector4f c = f.color(); // 0..1
+            Vector4f c = new Vector4f(1,0,0,0.2f); // 0..1 TODO: hardcoded
             vc.vertex(mat, f.a().x, f.a().y, f.a().z).color(c.x, c.y, c.z, c.w);
             vc.vertex(mat, f.b().x, f.b().y, f.b().z).color(c.x, c.y, c.z, c.w);
             vc.vertex(mat, f.c().x, f.c().y, f.c().z).color(c.x, c.y, c.z, c.w);
