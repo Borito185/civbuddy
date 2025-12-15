@@ -57,13 +57,17 @@ public record AABBShape(Vector3ic center, Vector3ic radius, Vector3fc realCenter
         throw new NotImplementedException();
     }
 
+    private final static Vector3f tmp = new Vector3f();
     @Override
     public boolean contains(final Vector3fc p, final float tolerance) {
-        Vector3fc center = getCenter();
+        final float t = 0.5f + tolerance;
 
-        return Math.abs(p.x() - center.x()) <= radius.x() + .5f + tolerance &&
-                Math.abs(p.y() - center.y()) <= radius.y() + .5f + tolerance &&
-                Math.abs(p.z() - center.z()) <= radius.z() + .5f + tolerance;
+        p.sub(realCenter, tmp);
+        tmp.absolute();
+
+        return tmp.x <= radius.x() + t &&
+                tmp.y <= radius.y() + t &&
+                tmp.z <= radius.z() + t;
     }
 
     public boolean intersectsCenter(Vec3d a, Vec3d b) {
