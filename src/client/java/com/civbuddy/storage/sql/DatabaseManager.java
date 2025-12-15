@@ -1,5 +1,8 @@
 package com.civbuddy.storage.sql;
 
+import com.civbuddy.veins.VeinClient;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ServerInfo;
@@ -17,6 +20,14 @@ public final class DatabaseManager {
     private DatabaseManager() {}
 
     /* ===================== PUBLIC API ===================== */
+    public static void initialize() {
+        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
+            DatabaseManager.close(); // your SQLite close / checkpoint
+        });
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            DatabaseManager.close();
+        });
+    }
 
     public static void register(Migration... migrations) {
         MIGRATIONS.addAll(Arrays.asList(migrations));

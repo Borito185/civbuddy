@@ -6,7 +6,7 @@ public final class KeyValueMigrations {
     public static Migration[] migrations() {
         return new Migration[] {
                 new Migration() {
-                    @Override public int version() { return 2025121402; } // pick a globally-unique increasing number
+                    @Override public int version() { return 2025121401; } // pick a globally-unique increasing number
                     @Override public String name() { return "key_value_init"; }
                     @Override public String sql() { return """
                     CREATE TABLE IF NOT EXISTS key_value (

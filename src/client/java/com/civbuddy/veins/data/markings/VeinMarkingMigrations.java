@@ -8,7 +8,7 @@ public final class VeinMarkingMigrations {
     public static Migration[] migrations() {
         return new Migration[] {
                 new Migration() {
-                    @Override public int version() { return 2025121502; }
+                    @Override public int version() { return 2025121503; }
                     @Override public String name() { return "vein_marking_init"; }
                     @Override public String sql() { return """
                     CREATE TABLE IF NOT EXISTS vein_marking (
