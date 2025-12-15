@@ -1,21 +1,24 @@
 package com.civbuddy.veins.render;
 
-import com.civbuddy.veins.geo.CompoundShape;
-import com.civbuddy.veins.geo.Edge;
-import com.civbuddy.veins.geo.Face;
-import com.civbuddy.veins.geo.ShapeUtils;
+import com.civbuddy.veins.geo.primitives.Edge;
+import com.civbuddy.veins.geo.primitives.Face;
+import com.civbuddy.veins.geo.shapes.CompoundShape;
+import com.civbuddy.veins.geo.util.Face2Edge;
+import com.civbuddy.veins.geo.util.GridAlignedEdgeOptimizer;
+import com.civbuddy.veins.geo.util.GridAlignedFaceOptimizer;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
-import org.joml.Vector3f;
+import org.joml.Vector3i;
 import org.joml.Vector4f;
 import java.util.Collection;
-import java.util.HashSet;
 
 public class ShapeRenderer {
     private final CompoundShape shape = new CompoundShape();
+    private Collection<Face> faces;
+    private Collection<Edge> edges;
 
     public ShapeRenderer() {
         WorldRenderEvents.AFTER_TRANSLUCENT.register(this::draw);
@@ -26,7 +29,11 @@ public class ShapeRenderer {
     }
 
     public void notifyChange() {
+        faces = shape.getFaces();
+        edges = Face2Edge.generateEdges(faces);
 
+        faces = GridAlignedFaceOptimizer.optimize(faces);
+        edges = GridAlignedEdgeOptimizer.optimize(edges);
     }
 
     private void draw(WorldRenderContext ctx) {
@@ -46,7 +53,6 @@ public class ShapeRenderer {
 
     private void drawFaces(WorldRenderContext ctx, Matrix4f mat) {
         var vc = ctx.consumers().getBuffer(RenderLayer.getDebugQuads());
-        Collection<Face> faces = shape.getFaces();
         for (Face f : faces) {
             Vector4f c = new Vector4f(1,0,0,0.2f); // 0..1 TODO: hardcoded
             vc.vertex(mat, f.a().x, f.a().y, f.a().z).color(c.x, c.y, c.z, c.w);
@@ -58,15 +64,12 @@ public class ShapeRenderer {
 
     private void drawLines(WorldRenderContext ctx, Matrix4f mat) {
         var vc = ctx.consumers().getBuffer(RenderLayer.getDebugLineStrip(.2));
-        Collection<Face> faces = shape.getFaces();
-        HashSet<Edge> edges = new HashSet<>();
-        ShapeUtils.generateEdges(edges, faces);
         float r = 0, g = 0, b = 0, a = 1f;
         float nx = 0, ny = 0, nz = 0;
 
         for (Edge e : edges) {
-            Vector3f A = e.a();
-            Vector3f B = e.b();
+            Vector3i A = e.a();
+            Vector3i B = e.b();
 
             vc.vertex(mat, A.x, A.y, A.z).color(r, g, b, 0).normal(nx, ny, nz);
 

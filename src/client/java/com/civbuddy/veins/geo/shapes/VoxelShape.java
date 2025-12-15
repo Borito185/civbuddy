@@ -1,5 +1,6 @@
-package com.civbuddy.veins.geo;
+package com.civbuddy.veins.geo.shapes;
 
+import com.civbuddy.veins.geo.primitives.Face;
 import org.joml.Vector3f;
 import org.joml.Vector3i;
 

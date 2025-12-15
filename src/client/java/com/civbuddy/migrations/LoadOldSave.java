@@ -6,7 +6,6 @@ import com.civbuddy.veins.data.VeinDao;
 import com.civbuddy.veins.data.VeinRow;
 import com.civbuddy.veins.data.markings.VeinMarkingDao;
 import com.civbuddy.veins.data.markings.VeinMarkingRow;
-import com.civbuddy.veins.geo.AABBShape;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.minecraft.client.MinecraftClient;
@@ -23,8 +22,6 @@ import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-
-import static com.civbuddy.serializers.GSONSerializer.GSON;
 
 public class LoadOldSave {
     public static class Data {
