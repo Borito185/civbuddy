@@ -1,7 +1,6 @@
-package com.civbuddy.serializers;
+package com.civbuddy.migrations;
 
-import com.civbuddy.veins.geo.AABBShape;
-import com.google.gson.Gson;
+import com.civbuddy.serializers.GSONSerializer;
 import com.google.gson.TypeAdapter;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
@@ -10,9 +9,9 @@ import org.joml.Vector4f;
 
 import java.io.IOException;
 
-public class AABBShapeSerializer extends TypeAdapter<AABBShape> {
+public class AABBShapeOldSerializer extends TypeAdapter<LoadOldSave.AABBShapeOld> {
     @Override
-    public void write(JsonWriter out, AABBShape v) throws IOException {
+    public void write(JsonWriter out, LoadOldSave.AABBShapeOld v) throws IOException {
         out.beginArray();
         GSONSerializer.GSON.toJson(v.center(), Vector3i.class, out);
         GSONSerializer.GSON.toJson(v.radius(), Vector3i.class, out);
@@ -22,7 +21,7 @@ public class AABBShapeSerializer extends TypeAdapter<AABBShape> {
     }
 
     @Override
-    public AABBShape read(JsonReader in) throws IOException {
+    public LoadOldSave.AABBShapeOld read(JsonReader in) throws IOException {
         in.beginArray();
         Vector3i c = GSONSerializer.GSON.fromJson(in, Vector3i.class);
         Vector3i r = GSONSerializer.GSON.fromJson(in, Vector3i.class);
@@ -30,6 +29,6 @@ public class AABBShapeSerializer extends TypeAdapter<AABBShape> {
         boolean grid = in.nextBoolean();
         in.endArray();
 
-        return new AABBShape(c, r, color, grid);
+        return new LoadOldSave.AABBShapeOld(c, r, color, grid);
     }
 }
