@@ -11,5 +11,6 @@ public class GSONSerializer {
             .registerTypeAdapter(Vector3i.class, new Vector3iSerializer())
             .registerTypeAdapter(Vector4f.class, new Vector4fSerializer())
             .registerTypeAdapter(AABBShape.class, new AABBShapeSerializer())
+            .setPrettyPrinting()
             .create();
 }
