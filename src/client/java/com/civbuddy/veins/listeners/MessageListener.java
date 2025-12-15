@@ -89,13 +89,5 @@ public class MessageListener {
     private static void addToCurrentVein(int amount) throws SQLException {
         String veinName = VeinKVStore.getActiveVeinName();
         VeinDao.increment(veinName, amount);
-        VeinRow vein = VeinDao.getOrCreate(veinName);
-
-        // Notify player
-        if (mc.player != null) {
-            String prefix = "§a✓ Auto-detected";
-            mc.player.sendMessage(Text.literal(String.format("%s §7+%d → §ekey: %s count: %d",
-                    prefix, amount, vein.name(), vein.count())), false);
-        }
     }
 }

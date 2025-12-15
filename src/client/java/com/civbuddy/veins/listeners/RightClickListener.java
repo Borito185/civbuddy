@@ -45,7 +45,7 @@ public final class RightClickListener {
         Item item = client.player.getInventory().getSelectedStack().getItem();
 
         boolean isHoldingPickaxe = item.getName().toString().contains("pickaxe");
-        boolean isHolding = client.mouse.wasRightButtonClicked();
+        boolean isHolding = client.options.useKey.isPressed();
         boolean released = !isHolding && selectionTicks > 0;
         boolean isCharged = selectionTicks > config.placeDelayTicks;
 
