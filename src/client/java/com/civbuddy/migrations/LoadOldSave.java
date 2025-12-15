@@ -1,26 +1,28 @@
-package com.civbuddy;
+package com.civbuddy.migrations;
 
-import com.civbuddy.serializers.Vector3iSerializer;
+import com.civbuddy.veins.data.VeinDao;
+import com.civbuddy.veins.data.VeinRow;
+import com.civbuddy.veins.data.markings.VeinMarkingDao;
+import com.civbuddy.veins.data.markings.VeinMarkingRow;
 import com.civbuddy.veins.geo.AABBShape;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.fabricmc.fabric.api.event.Event;
-import net.fabricmc.fabric.api.event.EventFactory;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.server.integrated.IntegratedServer;
 import org.joml.Vector3i;
 import org.joml.Vector4f;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.Reader;
+import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 
 import static com.civbuddy.serializers.GSONSerializer.GSON;
 
-public class Save {
+public class LoadOldSave {
     public static class Data {
         public HashSet<AABBShape> selections = new HashSet<>();
 
@@ -30,7 +32,7 @@ public class Save {
 
         public Vector3i digRange = new Vector3i(5, 5, 5);
         public boolean render = true;
-        
+
         public String countGroup = "";
         public String currentVeinKey = "";
         public Map<String, VeinCounterData> veins = new HashMap<>();
@@ -44,37 +46,6 @@ public class Save {
         public VeinCounterData(String s) {
             key = s;
         }
-    }
-    @FunctionalInterface
-    public interface SaveLoaded {
-        void handle(Data data);
-    }
-    private static File file;
-    public static Data data = new Data();
-
-    public static final Event<SaveLoaded> SAVE_LOADED = EventFactory.createArrayBacked(SaveLoaded.class, listeners -> data -> {
-        for (SaveLoaded listener : listeners) {
-            listener.handle(data);
-        }
-    });
-
-    public static void initialize() {
-        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> load(client));
-    }
-
-    private static void load(MinecraftClient client) {
-        file = getSaveFile(client);
-        data = new Data();
-
-        if (file.exists()) {
-            try (Reader r = new FileReader(file)) {
-                Save.data = GSON.fromJson(r, Data.class);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-        SAVE_LOADED.invoker().handle(data);
     }
 
     private static File getSaveFile(MinecraftClient client) {
@@ -97,21 +68,39 @@ public class Save {
         return new File(client.runDirectory, "data/civbuddy/" + key + ".gson");
     }
 
-    public static void save() {
-        if (!file.exists()) {
-            try {
-                file.getParentFile().mkdirs();
-                file.createNewFile();
+    private static Data load(MinecraftClient client) {
+        var file = getSaveFile(client);
+        var data = new Data();
+
+        if (file.exists()) {
+            try (Reader r = new FileReader(file)) {
+                data = GSON.fromJson(r, Data.class);
             } catch (IOException e) {
                 e.printStackTrace();
-                return;
             }
         }
 
-        try (Writer w = new BufferedWriter(new FileWriter(file))) {
-            GSON.toJson(data, w);
-        } catch (IOException e) {
-            e.printStackTrace();
+        return data;
+    }
+
+    public static void migrate() {
+        try {
+            File saveFile = getSaveFile(MinecraftClient.getInstance());
+            if (saveFile.exists()) {
+                Data data = load(MinecraftClient.getInstance());
+
+                for (VeinCounterData value : data.veins.values()) {
+                    VeinDao.upsert(new VeinRow(value.key, value.count));
+                }
+                long id = VeinDao.getOrCreateId("default");
+                for (AABBShape selection : data.selections) {
+                    VeinMarkingDao.upsert(new VeinMarkingRow(id, selection.center(), selection.radius()));
+                }
+
+                saveFile.delete();
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
         }
     }
 }
