@@ -1,10 +1,14 @@
 package com.civbuddy.migrations;
 
+import com.civbuddy.serializers.Vector3iSerializer;
+import com.civbuddy.serializers.Vector4fSerializer;
 import com.civbuddy.veins.data.VeinDao;
 import com.civbuddy.veins.data.VeinRow;
 import com.civbuddy.veins.data.markings.VeinMarkingDao;
 import com.civbuddy.veins.data.markings.VeinMarkingRow;
 import com.civbuddy.veins.geo.AABBShape;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.server.integrated.IntegratedServer;
@@ -24,7 +28,7 @@ import static com.civbuddy.serializers.GSONSerializer.GSON;
 
 public class LoadOldSave {
     public static class Data {
-        public HashSet<AABBShape> selections = new HashSet<>();
+        public HashSet<AABBShapeOld> selections = new HashSet<>();
 
         public Vector4f rangeWallColor = new Vector4f(1,0,0,0.2f);
         public Vector4f selectionWallColor = new Vector4f(0,1,0,0.2f);
@@ -47,6 +51,15 @@ public class LoadOldSave {
             key = s;
         }
     }
+
+    public record AABBShapeOld(Vector3i center, Vector3i radius, Vector4f color, boolean hasGrid) {}
+
+    public static final Gson GSON = new GsonBuilder()
+            .registerTypeAdapter(Vector3i.class, new Vector3iSerializer())
+            .registerTypeAdapter(Vector4f.class, new Vector4fSerializer())
+            .registerTypeAdapter(AABBShapeOld.class, new AABBShapeOldSerializer())
+            .setPrettyPrinting()
+            .create();
 
     private static File getSaveFile(MinecraftClient client) {
         ServerInfo serverInfo = client.getCurrentServerEntry();
@@ -93,7 +106,7 @@ public class LoadOldSave {
                     VeinDao.upsert(new VeinRow(value.key, value.count));
                 }
                 long id = VeinDao.getOrCreateId("default");
-                for (AABBShape selection : data.selections) {
+                for (AABBShapeOld selection : data.selections) {
                     VeinMarkingDao.upsert(new VeinMarkingRow(id, selection.center(), selection.radius()));
                 }
 

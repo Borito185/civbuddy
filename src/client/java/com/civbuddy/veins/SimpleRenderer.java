@@ -138,47 +138,47 @@ public class SimpleRenderer implements AutoCloseable {
     }
 
     public void draw(Collection<VoxelShape> shapes) {
-        clear();
-
-        Collection<Face> faces = shapes.stream().flatMap(s -> s.getFaces().stream()).toList();
-        HashSet<Edge> edges = new HashSet<>();
-        ShapeUtils.generateEdges(edges, faces);
-
-        // build the walls
-        if (drawWalls && !faces.isEmpty()) {
-            BufferBuilder wallBuilder = Tessellator.getInstance().begin(WALLS.getVertexFormatMode(), WALLS.getVertexFormat());
-            for (Face face : faces) {
-                Vector4f color = face.color();
-                wallBuilder.vertex(face.a()).color(color.x, color.y, color.z, color.w);
-                wallBuilder.vertex(face.b()).color(color.x, color.y, color.z, color.w);
-                wallBuilder.vertex(face.c()).color(color.x, color.y, color.z, color.w);
-                wallBuilder.vertex(face.d()).color(color.x, color.y, color.z, color.w);
-            }
-
-            BuiltBuffer wallBuffer = wallBuilder.endNullable(); // save wall buffer to create indices later
-            if (wallBuffer != null && wallBuffer.getDrawParameters().vertexCount() > 0) {
-                BuiltBuffer.DrawParameters dp = wallBuffer.getDrawParameters();
-                wallVertices = RenderSystem.getDevice().createBuffer(() -> "Walls", GpuBuffer.USAGE_VERTEX, wallBuffer.getBuffer());
-
-                wallSortState = new BuiltBuffer.SortState(faces.stream().map(Face::center).toArray(Vector3f[]::new), dp.indexType());
-            }
-
-            if (wallBuffer != null) wallBuffer.close();
-        }
-        if (drawGrid && !edges.isEmpty()) {
-            BufferBuilder gridBuilder = Tessellator.getInstance().begin(GRID.getVertexFormatMode(), GRID.getVertexFormat());
-            for (Edge edge : edges) {
-                gridBuilder.vertex(edge.a());
-                gridBuilder.vertex(edge.b());
-            }
-
-            BuiltBuffer gridBuffer = gridBuilder.endNullable();
-
-            if (gridBuffer != null && gridBuffer.getDrawParameters().vertexCount() > 0)
-                gridVertices = RenderSystem.getDevice().createBuffer(() -> "Grid", GpuBuffer.USAGE_VERTEX, gridBuffer.getBuffer());
-
-            if (gridBuffer != null) gridBuffer.close();
-        }
+//        clear();
+//
+//        Collection<Face> faces = shapes.stream().flatMap(s -> s.getFaces().stream()).toList();
+//        HashSet<Edge> edges = new HashSet<>();
+//        ShapeUtils.generateEdges(edges, faces);
+//
+//        // build the walls
+//        if (drawWalls && !faces.isEmpty()) {
+//            BufferBuilder wallBuilder = Tessellator.getInstance().begin(WALLS.getVertexFormatMode(), WALLS.getVertexFormat());
+//            for (Face face : faces) {
+//                Vector4f color = face.color();
+//                wallBuilder.vertex(face.a()).color(color.x, color.y, color.z, color.w);
+//                wallBuilder.vertex(face.b()).color(color.x, color.y, color.z, color.w);
+//                wallBuilder.vertex(face.c()).color(color.x, color.y, color.z, color.w);
+//                wallBuilder.vertex(face.d()).color(color.x, color.y, color.z, color.w);
+//            }
+//
+//            BuiltBuffer wallBuffer = wallBuilder.endNullable(); // save wall buffer to create indices later
+//            if (wallBuffer != null && wallBuffer.getDrawParameters().vertexCount() > 0) {
+//                BuiltBuffer.DrawParameters dp = wallBuffer.getDrawParameters();
+//                wallVertices = RenderSystem.getDevice().createBuffer(() -> "Walls", GpuBuffer.USAGE_VERTEX, wallBuffer.getBuffer());
+//
+//                wallSortState = new BuiltBuffer.SortState(faces.stream().map(Face::center).toArray(Vector3f[]::new), dp.indexType());
+//            }
+//
+//            if (wallBuffer != null) wallBuffer.close();
+//        }
+//        if (drawGrid && !edges.isEmpty()) {
+//            BufferBuilder gridBuilder = Tessellator.getInstance().begin(GRID.getVertexFormatMode(), GRID.getVertexFormat());
+//            for (Edge edge : edges) {
+//                gridBuilder.vertex(edge.a());
+//                gridBuilder.vertex(edge.b());
+//            }
+//
+//            BuiltBuffer gridBuffer = gridBuilder.endNullable();
+//
+//            if (gridBuffer != null && gridBuffer.getDrawParameters().vertexCount() > 0)
+//                gridVertices = RenderSystem.getDevice().createBuffer(() -> "Grid", GpuBuffer.USAGE_VERTEX, gridBuffer.getBuffer());
+//
+//            if (gridBuffer != null) gridBuffer.close();
+//        }
     }
 
     public void clear() {

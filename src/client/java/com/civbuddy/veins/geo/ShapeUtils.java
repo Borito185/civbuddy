@@ -8,8 +8,6 @@ import java.util.Set;
 public class ShapeUtils {
     public static void generateEdges(Set<Edge> set, Collection<Face> faces) {
         for (Face f : faces) {
-            if (!f.hasEdges()) continue;
-
             Vector3f[] v = {
                     new Vector3f(f.a().x, f.a().y, f.a().z),
                     new Vector3f(f.b().x, f.b().y, f.b().z),
