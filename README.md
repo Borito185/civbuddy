@@ -3,7 +3,6 @@
 QOL features for the CivMC server. It contains the following features:
 
 - **Vein Marking:** Highlights blocks by holding right-click with a pickaxe in hand. Once marked, a 5×5×5 area will appear around the marked block.
-- **Diamond Counting:** Keeps track of the total number of diamond ore you've found for easy tracking.
 - **Multi-Vein Tracking:** Keep track of multiple separate veins by assigning a name for each one.
 - **Command Bookmarks:** Organize and quickly execute commands with a GUI system (press `\`).
 - **Calculator:** In-game math evaluator with custom shortcuts for quick calculations.
@@ -22,6 +21,8 @@ Visual marking and tracking system for ore veins.
 - `/civbuddy veins changeall digradius <radius>` - Update radius for all existing markers
 - `/civbuddy veins togglerenderer` - Toggle vein overlay rendering
 - `/civbuddy veins clear` - Clear all vein markers
+- `/civbuddy veins set <name>` - Swap to a different named vein
+- `/civbuddy veins info` - Display information about the current vein, including diamonds found by the player.
 
 **Controls:**
 - Hold right-click with pickaxe to charge placement
@@ -35,22 +36,6 @@ Visual marking and tracking system for ore veins.
 - Highlight box shows placement preview when charging
 - Persistent markers saved per world/server
 
-### Vein Counter System
-Automated ore tracking for coordinated mining operations.
-
-**Commands:**
-- `/civbuddy veins group <name>` - Set namelayer group for count broadcasts
-- `/civbuddy veins name <key>` - Assign key identifier to current vein (2-8 alphanumeric characters)
-- `/civbuddy veins reset` - Reset current vein count to 0
-- `/civbuddy veins listnames` - Display all tracked veins with counts
-
-**Functionality:**
-- Automatically detects ore discovery messages from server
-- Tracks count per vein using assigned keys
-- Broadcasts updates to specified namelayer group in format: `key: <key> count: <count>`
-- Filters player chat to only process system messages
-- Per-vein persistent storage with sorted display
-
 ### Calculator
 In-game expression evaluator with CivMC-specific shortcuts.
 
@@ -59,8 +44,9 @@ In-game expression evaluator with CivMC-specific shortcuts.
 - `/civbuddy calc <expression>` - Alternative syntax
 
 **Shortcuts:**
-- `s` or `ci` = 64 (stack/chest item)
-- `cs` = 4,096 (chest stack)
+- `b` = 9 (block)
+- `s` or `ci` = 64 (stack/compacted item)
+- `cs` = 4,096 (compacted stack)
 - `k` = 1,000
 
 **Examples:**
@@ -122,7 +108,7 @@ All commands use the `civbuddy` or `cb` namespace.
 - All other commands work as documented in their sections above
 
 ## Data Storage
-- Vein markers and selections: `data/veinbuddy/<world>.gson`
+- Vein markers and selections: `data/veinbuddy/<world>.db`
 - Vein counter data: Stored in same file per world/server
 - Command bookmarks: `config/civbuddy_bookmarks.json` (per world/server)
 - Prebuilt commands: `config/civbuddy_prebuilt_commands.json` (loaded on first launch)
