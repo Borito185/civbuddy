@@ -18,6 +18,7 @@ import com.civbuddy.veins.data.markings.VeinMarkingRow;
 import com.civbuddy.veins.listeners.RightClickListener;
 import com.civbuddy.veins.listeners.MessageListener;
 import com.civbuddy.veins.listeners.WorldEventListener;
+import com.civbuddy.veins.render.ShapeRenderer;
 import org.joml.Vector3i;
 import com.civbuddy.veins.geo.AABBShape;
 import com.civbuddy.veins.geo.CompoundShape;
@@ -28,6 +29,7 @@ public class VeinClient {
     private final SimpleRenderer staticRenderer = new SimpleRenderer();
     private final CompoundShape borders = new CompoundShape();
     private final CompoundShape markings = new CompoundShape();
+    private final ShapeRenderer borderRenderer = new ShapeRenderer();
 
     private VeinClient() {}
 
@@ -102,10 +104,11 @@ public class VeinClient {
                 .map(r -> new AABBShape(r.pos(), new Vector3i(0), config.markingWallColor, config.markingHasGrid))
                 .collect(Collectors.toSet());
 
-        borders.set(bordersShapes);
-        markings.set(markingsShapes);
-
-        draw();
+        borderRenderer.getShape().set(bordersShapes);
+//        borders.set(bordersShapes);
+//        markings.set(markingsShapes);
+//
+//        draw();
     }
 
     private void draw() {
