@@ -32,7 +32,7 @@ public final class CommandHandler implements CommandsHelper.CommandProvider {
                         .executes(andRespondWith(ConfigCommands::setDigRange))))))
                 .then(literal("digRadius").then(argument("radius", integer(1, 11))
                         .executes(andRespondWith(ConfigCommands::setDigRadius))))
-                .then(literal("clearAll")
+                .then(literal("clear")
                         .executes(andRespondWith(VeinCommands::clear)))
                 .then(literal("toggleRenderer")
                         .executes(andRespondWith(ConfigCommands::toggleRenderer)))
@@ -43,7 +43,7 @@ public final class CommandHandler implements CommandsHelper.CommandProvider {
                         .then(ClientCommandManager.argument("veinName", StringArgumentType.string())
                                 .suggests(CommandHandler::getSuggestions)
                                 .executes(andRespondWith(ConfigCommands::setVein))))
-                .then(ClientCommandManager.literal("list").executes(andRespondWith(InfoCommands::listVeins)));
+                .then(ClientCommandManager.literal("info").executes(andRespondWith(InfoCommands::writeInfo)));
     }
 
     @Override

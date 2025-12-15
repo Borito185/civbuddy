@@ -41,13 +41,15 @@ public class CompoundShape implements VoxelShape {
 
     public void set(Set<VoxelShape> newShapes) {
         List<VoxelShape> toRemove = shapes.stream().filter(s -> !newShapes.contains(s)).toList();
+        if (toRemove.size() > shapes.size() / 3) {
+            clear();
+        } else {
+            for (VoxelShape voxelShape : toRemove)
+                remove(voxelShape);
+        }
+
         List<VoxelShape> toAdd = newShapes.stream().filter(s -> !shapes.contains(s)).toList();
-        for (VoxelShape voxelShape : toRemove) {
-            remove(voxelShape);
-        }
-        for (VoxelShape voxelShape : toAdd) {
-            add(voxelShape);
-        }
+        add(toAdd);
     }
 
     public List<VoxelShape> getInnerShapes() {

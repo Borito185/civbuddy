@@ -10,7 +10,6 @@ import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 
 public class HelpCommand implements CommandsHelper.CommandProvider {
-
     public HelpCommand() {
         // Auto-register when instantiated
         CommandsHelper.register(this);
@@ -42,18 +41,15 @@ public class HelpCommand implements CommandsHelper.CommandProvider {
         help.append(Text.literal("• /veins digRadius <r> - Set mining area\n"));
         help.append(Text.literal("• /veins toggleRenderer - Toggle rendering of vein markings\n"));
         help.append(Text.literal("• /veins changeAll digRadius <r> - Changes the radius of all markings\n"));
-        help.append(Text.literal("• /veins clearAll - Clear all markers\n"));
-        
-        help.append(Text.literal("\nVein Diamond Counter:\n"));
-        help.append(Text.literal("• /veins diaTracking set <veinName> - Set vein diamond tracking\n"));
-        help.append(Text.literal("• /veins diaTracking shareLive <namelayer> - Set broadcast group\n"));
-        help.append(Text.literal("• /veins diaTracking resetCount - Reset current count\n"));
-        help.append(Text.literal("• /veins diaTracking listVeins - Show all veins\n"));
-        
+        help.append(Text.literal("• /veins clear - Clear all markers of current vein\n"));
+        help.append(Text.literal("• /veins set - Switch to either a new or existing vein\n"));
+        help.append(Text.literal("• /veins info - View information about the current vein\n"));
+
         help.append(Text.literal("\nCalculator:\n"));
         help.append(Text.literal("• /calc <expression> - Math evaluator\n"));
-        help.append(Text.literal("• Shortcuts: s/ci=64, cs=4096, k=1000\n"));
-        
+        help.append(Text.literal("• Shortcuts: b=9, s/ci=64, cs=4096, k=1000\n"));
+        help.append(Text.literal("• Example: '/calc 2ci + 1b' -> 137\n"));
+
         help.append(Text.literal("\nCommand Bookmarks:\n"));
         help.append(Text.literal("• Press \\ (backslash) to open GUI\n"));
         help.append(Text.literal("• Organize commands into categories\n"));
