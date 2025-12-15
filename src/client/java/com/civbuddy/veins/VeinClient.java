@@ -1,6 +1,7 @@
 package com.civbuddy.veins;
 
 import java.sql.SQLException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -26,10 +27,8 @@ import com.civbuddy.veins.geo.shapes.VoxelShape;
 
 public class VeinClient {
     private static VeinClient instance;
-    private final SimpleRenderer staticRenderer = new SimpleRenderer();
-    private final CompoundShape borders = new CompoundShape();
-    private final CompoundShape markings = new CompoundShape();
     private final ShapeRenderer borderRenderer = new ShapeRenderer();
+    private final ShapeRenderer markingRenderer = new ShapeRenderer();
 
     private VeinClient() {}
 
@@ -79,18 +78,19 @@ public class VeinClient {
     /**
      * Just didn't feel like it was worth going through DAO for this
      */
-    public List<VoxelShape> getCurrentMarkings() {
-        return markings.getInnerShapes();
+    public Collection<VoxelShape> getCurrentMarkings() {
+        return markingRenderer.getInnerShapes();
     }
 
     /* ===================== INTERNAL ===================== */
     private void redraw() throws SQLException {
         VeinConfig config = config();
+        borderRenderer.setStyle(config.borderWallColor, config.borderHasGrid);
+        markingRenderer.setStyle(config.markingWallColor, config.markingHasGrid);
 
         if (!config.doRender) {
-            borders.clear();
-            markings.clear();
-            draw();
+            borderRenderer.setInnerShapes(Set.of());
+            markingRenderer.setInnerShapes(Set.of());
             return;
         }
 
@@ -104,19 +104,7 @@ public class VeinClient {
                 .map(r -> new AABBShape(r.pos(), new Vector3i(0)))
                 .collect(Collectors.toSet());
 
-        borderRenderer.getShape().set(bordersShapes);
-        borderRenderer.notifyChange();
-//        borders.set(bordersShapes);
-//        markings.set(markingsShapes);
-//
-//        draw();
-    }
-
-    private void draw() {
-        List<VoxelShape> shapes = List.of(borders, markings);
-
-        if (!config().doRender)
-            shapes = List.of();
-        staticRenderer.draw(shapes);
+        borderRenderer.setInnerShapes(bordersShapes);
+        markingRenderer.setInnerShapes(markingsShapes);
     }
 }
