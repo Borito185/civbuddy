@@ -9,6 +9,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
 import org.joml.Vector4f;
 import java.util.Collection;
 import java.util.HashSet;
@@ -48,7 +49,6 @@ public class ShapeRenderer {
         Collection<Face> faces = shape.getFaces();
         for (Face f : faces) {
             Vector4f c = f.color(); // 0..1
-            // ABCD winding (front face); if you want double-sided, also emit DCBA.
             vc.vertex(mat, f.a().x, f.a().y, f.a().z).color(c.x, c.y, c.z, c.w);
             vc.vertex(mat, f.b().x, f.b().y, f.b().z).color(c.x, c.y, c.z, c.w);
             vc.vertex(mat, f.c().x, f.c().y, f.c().z).color(c.x, c.y, c.z, c.w);
@@ -57,16 +57,24 @@ public class ShapeRenderer {
     }
 
     private void drawLines(WorldRenderContext ctx, Matrix4f mat) {
-        var vc = ctx.consumers().getBuffer(RenderLayer.getLines());
+        var vc = ctx.consumers().getBuffer(RenderLayer.getDebugLineStrip(.2));
         Collection<Face> faces = shape.getFaces();
         HashSet<Edge> edges = new HashSet<>();
         ShapeUtils.generateEdges(edges, faces);
+        float r = 0, g = 0, b = 0, a = 1f;
+        float nx = 0, ny = 0, nz = 0;
+
         for (Edge e : edges) {
-            var a = e.a();
-            var b = e.b();
-            // Vanilla line layer expects a "normal" too; using (0,1,0) is fine for debug lines.
-            vc.vertex(mat, a.x, a.y, a.z).color(0, 0, 0, .3f).normal(0f, 1f, 0f);
-            vc.vertex(mat, b.x, b.y, b.z).color(0, 0, 0, .3f).normal(0f, 1f, 0f);
+            Vector3f A = e.a();
+            Vector3f B = e.b();
+
+            vc.vertex(mat, A.x, A.y, A.z).color(r, g, b, 0).normal(nx, ny, nz);
+
+            vc.vertex(mat, A.x, A.y, A.z).color(r, g, b, a).normal(nx, ny, nz);
+            vc.vertex(mat, B.x, B.y, B.z).color(r, g, b, a).normal(nx, ny, nz);
+
+            // Break the strip so the next edge doesn't connect to this one
+            vc.vertex(mat, B.x, B.y, B.z).color(r, g, b, 0).normal(nx, ny, nz);
         }
     }
 }
