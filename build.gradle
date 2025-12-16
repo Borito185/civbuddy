@@ -3,11 +3,11 @@ plugins {
 	id 'maven-publish'
 }
 
-version = "${mod_version}-mc${project.minecraft_version}"
+version = "${mod_version}+${project.minecraft_version}-fabric"
 group = project.maven_group
 
 base {
-	archivesName = "${project.archives_base_name}-mc${project.minecraft_version}"
+	archivesName = project.archives_base_name
 }
 
 repositories {
