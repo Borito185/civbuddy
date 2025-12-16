@@ -15,7 +15,7 @@ public final class VeinConfig {
     public boolean borderHasGrid = true;
     public Vector4f markingWallColor = new Vector4f(0,1,0,0.2f);
     public boolean markingHasGrid = true;
-    public Vector4f highlightWallColor = new Vector4f(0);
+    public Vector4f highlightWallColor = new Vector4f(.6f, .6f, .6f, .2f);
     public boolean highlightHasGrid = true;
 
     public int getMaxTicks() {
