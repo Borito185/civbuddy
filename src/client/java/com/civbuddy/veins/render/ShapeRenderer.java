@@ -25,23 +25,36 @@ import org.joml.*;
 import java.lang.Math;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.OptionalDouble;
 import java.util.Set;
 
 public class ShapeRenderer {
-    private static final Identifier WHITE = Identifier.of(CivBuddyClient.MODID, "textures/white.png");
-    private static final RenderLayer TEST = RenderLayer.of(
-            "civbuddy_test_raaa", 256, false, true,
-            RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
-                    .withCull(false)
-                    .withVertexFormat(VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL, VertexFormat.DrawMode.QUADS)
-                    .withLocation("pipeline/entity_translucent")
+    private static final RenderLayer TRANSLUCENT_QUADS = RenderLayer.of(
+            "civbuddy_translucent_quads", 2048, false, true,
+            RenderPipeline.builder(RenderPipelines.POSITION_COLOR_SNIPPET)
+                    .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS)
+                    .withLocation(Identifier.of(CivBuddyClient.MODID,"pipeline/translucent_quads"))
                     .withBlend(BlendFunction.TRANSLUCENT)
                     .withDepthWrite(false)
+                    .withCull(false)
                     .build(),
-            RenderLayer.MultiPhaseParameters.builder().texture(new RenderPhase.Texture(WHITE, false)).build(false));
+            RenderLayer.MultiPhaseParameters.builder().layering(RenderPhase.Layering.VIEW_OFFSET_Z_LAYERING).build(false));
+    private static final RenderLayer LINES = RenderLayer.of(
+            "civbuddy_lines", 8192, false, false,
+            RenderPipeline.builder(RenderPipelines.POSITION_COLOR_SNIPPET)
+                    .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.DEBUG_LINES)
+                    .withLocation(Identifier.of(CivBuddyClient.MODID,"pipeline/lines"))
+                    .withBlend(BlendFunction.TRANSLUCENT)
+                    .withDepthWrite(false)
+                    .withCull(false)
+                    .build(),
+            RenderLayer.MultiPhaseParameters.builder()
+                    .lineWidth(new RenderPhase.LineWidth(OptionalDouble.of(0.2)))
+                    .build(false));
 
     static {
-        IrisApi.getInstance().assignPipeline(TEST.iris$getPipeline(), IrisProgram.ENTITIES_TRANSLUCENT);
+        IrisApi.getInstance().assignPipeline(TRANSLUCENT_QUADS.iris$getPipeline(), IrisProgram.BASIC);
+        IrisApi.getInstance().assignPipeline(LINES.iris$getPipeline(), IrisProgram.LINES);
     }
 
     private final static float NORMAL_BIAS = 0.001f;
@@ -105,38 +118,30 @@ public class ShapeRenderer {
     }
 
     private void drawFaces(WorldRenderContext ctx, Matrix4f mat) {
-        //RenderLayer.getEntityTranslucent(WHITE);
-        var vc = ctx.consumers().getBuffer(TEST);
-        int light = LightmapTextureManager.MAX_LIGHT_COORDINATE;
-        int overlay = OverlayTexture.DEFAULT_UV;
+        var vc = ctx.consumers().getBuffer(TRANSLUCENT_QUADS);
         Vec3d cameraPos = ctx.camera().getCameraPos();
         for (Face f : faces) {
             Vector3f offset = biasTowardCamera(f, cameraPos);
             Vector4f c = color; // 0..1
-            Vector3fc n = f.normal();
 
-            setPositionColor(vc, mat, new Vector3f(f.a()).add(offset), c).light(light).overlay(overlay).normal(n.x(), n.y(), n.z()).texture(0,0);
-            setPositionColor(vc, mat, new Vector3f(f.b()).add(offset), c).light(light).overlay(overlay).normal(n.x(), n.y(), n.z()).texture(0,0);
-            setPositionColor(vc, mat, new Vector3f(f.c()).add(offset), c).light(light).overlay(overlay).normal(n.x(), n.y(), n.z()).texture(0,0);
-            setPositionColor(vc, mat, new Vector3f(f.d()).add(offset), c).light(light).overlay(overlay).normal(n.x(), n.y(), n.z()).texture(0,0);
+            setPositionColor(vc, mat, new Vector3f(f.a()).add(offset), c);
+            setPositionColor(vc, mat, new Vector3f(f.b()).add(offset), c);
+            setPositionColor(vc, mat, new Vector3f(f.c()).add(offset), c);
+            setPositionColor(vc, mat, new Vector3f(f.d()).add(offset), c);
         }
     }
 
     private void drawLines(WorldRenderContext ctx, Matrix4f mat) {
-        var vc = ctx.consumers().getBuffer(RenderLayer.getDebugLineStrip(.2));
-        Vector4f black = new Vector4f(0,0,0,1);
-        Vector4f hidden = new Vector4f(0,0,0,0);
-        float nx = 0, ny = 0, nz = 0;
+        var vc = ctx.consumers().getBuffer(LINES);
+        Vector4f color = new Vector4f(0,0,0,.3f);
         Vec3d cameraPos = ctx.camera().getCameraPos();
 
         for (Edge e : edges) {
             Vector3f A = biasTowardCamera(e.a(), cameraPos);
             Vector3f B = biasTowardCamera(e.b(), cameraPos);
 
-            setPositionColor(vc, mat, A, hidden).normal(nx, ny, nz);
-            setPositionColor(vc, mat, A, black).normal(nx, ny, nz);
-            setPositionColor(vc, mat, B, black).normal(nx, ny, nz);
-            setPositionColor(vc, mat, B, hidden).normal(nx, ny, nz);
+            setPositionColor(vc, mat, A, color);
+            setPositionColor(vc, mat, B, color);
         }
     }
 
