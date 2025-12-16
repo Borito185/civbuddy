@@ -64,7 +64,7 @@ dependencies {
 
 	// shaders
 	//modRuntimeOnly "maven.modrinth:sodium:0.7.3"
-	modImplementation "maven.modrinth:iris:1.9.6+1.21.8-fabric"
+	modCompileOnly "maven.modrinth:iris:1.9.6+1.21.8-fabric"
 }
 
 processResources {

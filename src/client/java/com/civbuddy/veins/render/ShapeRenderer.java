@@ -8,17 +8,14 @@ import com.civbuddy.veins.geo.shapes.VoxelShape;
 import com.civbuddy.veins.geo.util.Face2Edge;
 import com.civbuddy.veins.geo.util.GridAlignedEdgeOptimizer;
 import com.civbuddy.veins.geo.util.GridAlignedFaceOptimizer;
-import com.mojang.authlib.GameProfile;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.profiler.Profiler;
-import net.minecraft.util.profiler.ProfilerSystem;
 import net.minecraft.util.profiler.Profilers;
-import org.joml.*;
 import org.joml.Math;
+import org.joml.*;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -28,6 +25,7 @@ import static com.civbuddy.veins.render.RenderLayers.LINES;
 import static com.civbuddy.veins.render.RenderLayers.TRANSLUCENT_QUADS;
 
 public class ShapeRenderer {
+    public static float grid_alpha = 1;
     private final static float NORMAL_BIAS = 0.001f;
     private final CompoundShape shape = new CompoundShape();
     private Collection<Face> faces;
@@ -140,7 +138,7 @@ public class ShapeRenderer {
         final Vec3d cp = ctx.camera().getCameraPos();
         final float cx = (float) cp.x, cy = (float) cp.y, cz = (float) cp.z;
 
-        final float r = 0f, g = 0f, b = 0f, a = 0.3f;
+        final float r = 0f, g = 0f, b = 0f, a = grid_alpha;
 
         for (Edge e : edges) {
             final Vector3ic A = e.a();
