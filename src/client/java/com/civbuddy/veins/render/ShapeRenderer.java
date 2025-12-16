@@ -10,17 +10,22 @@ import com.civbuddy.veins.geo.util.GridAlignedEdgeOptimizer;
 import com.civbuddy.veins.geo.util.GridAlignedFaceOptimizer;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
-import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.profiler.Profiler;
+import net.minecraft.util.profiler.Profilers;
+import org.joml.Math;
 import org.joml.*;
 
-import java.lang.Math;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Set;
 
+import static com.civbuddy.veins.render.RenderLayers.LINES;
+import static com.civbuddy.veins.render.RenderLayers.TRANSLUCENT_QUADS;
+
 public class ShapeRenderer {
+    public static float grid_alpha = 1;
     private final static float NORMAL_BIAS = 0.001f;
     private final CompoundShape shape = new CompoundShape();
     private Collection<Face> faces;
@@ -59,18 +64,27 @@ public class ShapeRenderer {
         if (ctx.matrixStack() == null || ctx.consumers() == null) return;
         if (!hasFaces() && !hasGrid()) return;
 
+        Profiler profiler = Profilers.get();
+
+        profiler.push("vein_rendering");
+
         var ms = ctx.matrixStack();
         Vec3d cam = ctx.camera().getPos();
         ms.push();
         ms.translate(-cam.x, -cam.y, -cam.z);
         Matrix4f mat = ms.peek().getPositionMatrix();
 
+        profiler.push("grid");
+
         if (hasGrid())
             drawLines(ctx, mat);
+        profiler.swap("walls");
         if (hasFaces())
             drawFaces(ctx, mat);
+        profiler.pop();
 
         ms.pop();
+        profiler.pop();
     }
 
     private boolean hasFaces() {
@@ -82,65 +96,77 @@ public class ShapeRenderer {
     }
 
     private void drawFaces(WorldRenderContext ctx, Matrix4f mat) {
-        var vc = ctx.consumers().getBuffer(RenderLayer.getDebugStructureQuads());
-        Vec3d cameraPos = ctx.camera().getCameraPos();
-        for (Face f : faces) {
-            Vector3f offset = biasTowardCamera(f, cameraPos);
-            Vector4f c = color; // 0..1
+        final VertexConsumer vc = ctx.consumers().getBuffer(TRANSLUCENT_QUADS);
 
-            setPositionColor(vc, mat, new Vector3f(f.a()).add(offset), c);
-            setPositionColor(vc, mat, new Vector3f(f.b()).add(offset), c);
-            setPositionColor(vc, mat, new Vector3f(f.c()).add(offset), c);
-            setPositionColor(vc, mat, new Vector3f(f.d()).add(offset), c);
+        final Vec3d cp = ctx.camera().getCameraPos();
+        final float cx = (float) cp.x, cy = (float) cp.y, cz = (float) cp.z;
+
+        final float r = color.x, g = color.y, b = color.z, a = color.w;
+
+        for (Face f : faces) {
+            // normal (assumed normalized)
+            final Vector3fc n0 = f.normal();
+            float nx = n0.x(), ny = n0.y(), nz = n0.z();
+
+            // center
+            final Vector3fc ctr = f.center();
+            final float tx = cx - ctr.x();
+            final float ty = cy - ctr.y();
+            final float tz = cz - ctr.z();
+
+            // flip normal toward camera
+            if (nx * tx + ny * ty + nz * tz < 0f) {
+                nx = -nx; ny = -ny; nz = -nz;
+            }
+
+            final float ox = nx * NORMAL_BIAS;
+            final float oy = ny * NORMAL_BIAS;
+            final float oz = nz * NORMAL_BIAS;
+
+            final Vector3ic A = f.a(), B = f.b(), C = f.c(), D = f.d();
+
+            vc.vertex(mat, A.x() + ox, A.y() + oy, A.z() + oz).color(r, g, b, a);
+            vc.vertex(mat, B.x() + ox, B.y() + oy, B.z() + oz).color(r, g, b, a);
+            vc.vertex(mat, C.x() + ox, C.y() + oy, C.z() + oz).color(r, g, b, a);
+            vc.vertex(mat, D.x() + ox, D.y() + oy, D.z() + oz).color(r, g, b, a);
         }
     }
 
     private void drawLines(WorldRenderContext ctx, Matrix4f mat) {
-        var vc = ctx.consumers().getBuffer(RenderLayer.getDebugLineStrip(.2));
-        Vector4f black = new Vector4f(0,0,0,1);
-        Vector4f hidden = new Vector4f(0,0,0,0);
-        float nx = 0, ny = 0, nz = 0;
-        Vec3d cameraPos = ctx.camera().getCameraPos();
+        final VertexConsumer vc = ctx.consumers().getBuffer(LINES);
+
+        final Vec3d cp = ctx.camera().getCameraPos();
+        final float cx = (float) cp.x, cy = (float) cp.y, cz = (float) cp.z;
+
+        final float r = 0f, g = 0f, b = 0f, a = grid_alpha;
 
         for (Edge e : edges) {
-            Vector3f A = biasTowardCamera(e.a(), cameraPos);
-            Vector3f B = biasTowardCamera(e.b(), cameraPos);
+            final Vector3ic A = e.a();
+            final Vector3ic Bp = e.b();
 
-            setPositionColor(vc, mat, A, hidden).normal(nx, ny, nz);
-            setPositionColor(vc, mat, A, black).normal(nx, ny, nz);
-            setPositionColor(vc, mat, B, black).normal(nx, ny, nz);
-            setPositionColor(vc, mat, B, hidden).normal(nx, ny, nz);
+            // bias A toward camera
+            {
+                final float dx = cx - A.x();
+                final float dy = cy - A.y();
+                final float dz = cz - A.z();
+                final float inv = NORMAL_BIAS * invLen(dx, dy, dz);
+                vc.vertex(mat, A.x() + dx * inv, A.y() + dy * inv, A.z() + dz * inv).color(r, g, b, a);
+            }
+
+            // bias B toward camera
+            {
+                final float dx = cx - Bp.x();
+                final float dy = cy - Bp.y();
+                final float dz = cz - Bp.z();
+                final float inv = NORMAL_BIAS * invLen(dx, dy, dz);
+                vc.vertex(mat, Bp.x() + dx * inv, Bp.y() + dy * inv, Bp.z() + dz * inv).color(r, g, b, a);
+            }
         }
     }
 
-    /** Returns world-space offset along the face normal, flipped to face the camera. */
-    private static Vector3f biasTowardCamera(Face f, Vec3d cp) {
-        Vector3f n = new Vector3f(f.normal());          // normalized
-        Vector3fc ctr = f.center();
-
-        // world-space camera position
-        Vector3f toCam = new Vector3f((float)cp.x, (float)cp.y, (float)cp.z).sub(ctr);
-
-        if (n.dot(toCam) < 0f) n.negate(); // make normal point toward camera
-        return n.mul(NORMAL_BIAS);
-    }
-
-    private static Vector3f biasTowardCamera(Vector3ic pos, Vec3d cp) {
-        float dx = (float) cp.x - pos.x();
-        float dy = (float) cp.y - pos.y();
-        float dz = (float) cp.z - pos.z();
-
-        float len = (float) Math.sqrt(dx*dx + dy*dy + dz*dz);
-        if (len == 0f) return new Vector3f(pos);
-
-        float inv = NORMAL_BIAS / len;
-        return new Vector3f(
-                pos.x() + dx * inv,
-                pos.y() + dy * inv,
-                pos.z() + dz * inv
-        );
-    }
-    private static VertexConsumer setPositionColor(VertexConsumer vc, Matrix4f mat, Vector3f pos, Vector4f color) {
-        return vc.vertex(mat, pos.x, pos.y, pos.z).color(color.x, color.y, color.z, color.w);
+    /** Returns 1/len, safely (0 if len==0). */
+    private static float invLen(float x, float y, float z) {
+        final float d2 = x * x + y * y + z * z;
+        return d2 > 0f ? (float) (1.0 / Math.sqrt(d2)) : 0f;
     }
 }
