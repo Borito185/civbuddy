@@ -14,28 +14,34 @@ import java.util.OptionalDouble;
 
 public final class RenderLayers {
     private RenderLayers() {}
+    public static final RenderPipeline TRANSLUCENT_QUADS_PIPELINE = RenderPipeline
+            .builder(RenderPipelines.POSITION_COLOR_SNIPPET)
+            .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS) // only need a position and color per vertex
+            .withLocation(Identifier.of(CivBuddyClient.MODID,"pipeline/translucent_quads"))
+            .withBlend(BlendFunction.TRANSLUCENT)
+            .withDepthWrite(false) // best to keep this turned off unless we swap to proper sorting
+            .withCull(false) // render both sides of quads
+            .build();
+    public static final RenderPipeline LINES_PIPELINE = RenderPipeline
+            .builder(RenderPipelines.POSITION_COLOR_SNIPPET)
+            .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.DEBUG_LINES)
+            .withLocation(Identifier.of(CivBuddyClient.MODID,"pipeline/lines"))
+            .withBlend(BlendFunction.TRANSLUCENT)
+            .withDepthWrite(false)
+            .withCull(false)
+            .build();
+
+
     public static final RenderLayer TRANSLUCENT_QUADS = RenderLayer.of(
             "civbuddy_translucent_quads", 2048, false, true,
-            RenderPipeline.builder(RenderPipelines.POSITION_COLOR_SNIPPET)
-                    .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS) // only need a position and color per vertex
-                    .withLocation(Identifier.of(CivBuddyClient.MODID,"pipeline/translucent_quads"))
-                    .withBlend(BlendFunction.TRANSLUCENT)
-                    .withDepthWrite(false) // best to keep this turned off unless we swap to proper sorting
-                    .withCull(false) // render both sides of quads
-                    .build(),
+            TRANSLUCENT_QUADS_PIPELINE,
             RenderLayer.MultiPhaseParameters.builder()
                     .layering(RenderPhase.Layering.VIEW_OFFSET_Z_LAYERING)
                     .build(false));
     public static final RenderLayer LINES = RenderLayer.of(
             "civbuddy_lines", 8192, false, false,
-            RenderPipeline.builder(RenderPipelines.POSITION_COLOR_SNIPPET)
-                    .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.DEBUG_LINES)
-                    .withLocation(Identifier.of(CivBuddyClient.MODID,"pipeline/lines"))
-                    .withBlend(BlendFunction.TRANSLUCENT)
-                    .withDepthWrite(false)
-                    .withCull(false)
-                    .build(),
+            LINES_PIPELINE,
             RenderLayer.MultiPhaseParameters.builder()
-                    .lineWidth(new RenderPhase.LineWidth(OptionalDouble.of(0.2)))
+                    .lineWidth(new RenderPhase.LineWidth(OptionalDouble.of(1)))
                     .build(false));
 }
