@@ -63,8 +63,7 @@ dependencies {
 	include "org.xerial:sqlite-jdbc:3.45.3.0"
 
 	// shaders
-	//modRuntimeOnly "maven.modrinth:sodium:0.7.3"
-	modCompileOnly "maven.modrinth:iris:1.9.6+1.21.8-fabric"
+	modCompileOnly "maven.modrinth:iris:${project.iris_version}+${project.minecraft_version}-fabric"
 }
 
 processResources {
