@@ -1,5 +1,6 @@
 package com.civbuddy.veins.render;
 
+import com.civbuddy.CivBuddyClient;
 import com.civbuddy.veins.geo.primitives.Edge;
 import com.civbuddy.veins.geo.primitives.Face;
 import com.civbuddy.veins.geo.primitives.UnitFace;
@@ -8,10 +9,16 @@ import com.civbuddy.veins.geo.shapes.VoxelShape;
 import com.civbuddy.veins.geo.util.Face2Edge;
 import com.civbuddy.veins.geo.util.GridAlignedEdgeOptimizer;
 import com.civbuddy.veins.geo.util.GridAlignedFaceOptimizer;
+import com.mojang.blaze3d.pipeline.BlendFunction;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.vertex.VertexFormat;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.VertexConsumer;
+import net.irisshaders.iris.api.v0.IrisApi;
+import net.irisshaders.iris.api.v0.IrisProgram;
+import net.minecraft.client.gl.RenderPipelines;
+import net.minecraft.client.render.*;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
 import org.joml.*;
 
@@ -21,6 +28,22 @@ import java.util.Collection;
 import java.util.Set;
 
 public class ShapeRenderer {
+    private static final Identifier WHITE = Identifier.of(CivBuddyClient.MODID, "textures/white.png");
+    private static final RenderLayer TEST = RenderLayer.of(
+            "civbuddy_test_raaa", 256, false, true,
+            RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
+                    .withCull(false)
+                    .withVertexFormat(VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL, VertexFormat.DrawMode.QUADS)
+                    .withLocation("pipeline/entity_translucent")
+                    .withBlend(BlendFunction.TRANSLUCENT)
+                    .withDepthWrite(false)
+                    .build(),
+            RenderLayer.MultiPhaseParameters.builder().texture(new RenderPhase.Texture(WHITE, false)).build(false));
+
+    static {
+        IrisApi.getInstance().assignPipeline(TEST.iris$getPipeline(), IrisProgram.ENTITIES_TRANSLUCENT);
+    }
+
     private final static float NORMAL_BIAS = 0.001f;
     private final CompoundShape shape = new CompoundShape();
     private Collection<Face> faces;
@@ -82,16 +105,20 @@ public class ShapeRenderer {
     }
 
     private void drawFaces(WorldRenderContext ctx, Matrix4f mat) {
-        var vc = ctx.consumers().getBuffer(RenderLayer.getDebugStructureQuads());
+        //RenderLayer.getEntityTranslucent(WHITE);
+        var vc = ctx.consumers().getBuffer(TEST);
+        int light = LightmapTextureManager.MAX_LIGHT_COORDINATE;
+        int overlay = OverlayTexture.DEFAULT_UV;
         Vec3d cameraPos = ctx.camera().getCameraPos();
         for (Face f : faces) {
             Vector3f offset = biasTowardCamera(f, cameraPos);
             Vector4f c = color; // 0..1
+            Vector3fc n = f.normal();
 
-            setPositionColor(vc, mat, new Vector3f(f.a()).add(offset), c);
-            setPositionColor(vc, mat, new Vector3f(f.b()).add(offset), c);
-            setPositionColor(vc, mat, new Vector3f(f.c()).add(offset), c);
-            setPositionColor(vc, mat, new Vector3f(f.d()).add(offset), c);
+            setPositionColor(vc, mat, new Vector3f(f.a()).add(offset), c).light(light).overlay(overlay).normal(n.x(), n.y(), n.z()).texture(0,0);
+            setPositionColor(vc, mat, new Vector3f(f.b()).add(offset), c).light(light).overlay(overlay).normal(n.x(), n.y(), n.z()).texture(0,0);
+            setPositionColor(vc, mat, new Vector3f(f.c()).add(offset), c).light(light).overlay(overlay).normal(n.x(), n.y(), n.z()).texture(0,0);
+            setPositionColor(vc, mat, new Vector3f(f.d()).add(offset), c).light(light).overlay(overlay).normal(n.x(), n.y(), n.z()).texture(0,0);
         }
     }
 

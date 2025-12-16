@@ -17,6 +17,18 @@ repositories {
 	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
 	// for more information about repositories.
 	mavenCentral()
+
+	exclusiveContent {
+		forRepository {
+			maven {
+				name = "Modrinth"
+				url = "https://api.modrinth.com/maven"
+			}
+		}
+		filter {
+			includeGroup "maven.modrinth"
+		}
+	}
 }
 
 loom {
@@ -49,6 +61,10 @@ dependencies {
 	// sqlite
 	implementation "org.xerial:sqlite-jdbc:3.45.3.0"
 	include "org.xerial:sqlite-jdbc:3.45.3.0"
+
+	// shaders
+	//modRuntimeOnly "maven.modrinth:sodium:0.7.3"
+	modImplementation "maven.modrinth:iris:1.9.6+1.21.8-fabric"
 }
 
 processResources {
