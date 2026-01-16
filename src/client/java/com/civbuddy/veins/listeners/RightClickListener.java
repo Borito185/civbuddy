@@ -8,11 +8,15 @@ import com.civbuddy.veins.geo.shapes.AABBShape;
 import com.civbuddy.veins.geo.shapes.VoxelShape;
 import com.civbuddy.veins.render.ShapeRenderer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.util.InputUtil;
 import net.minecraft.item.Item;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Vector3f;
 import org.joml.Vector3i;
+import org.lwjgl.glfw.GLFW;
 import java.sql.SQLException;
 import java.util.Set;
 
@@ -21,10 +25,18 @@ import static com.civbuddy.veins.VeinClient.config;
 public final class RightClickListener {
     private static ShapeRenderer highlightRenderer;
     private static int selectionTicks = 0;
+    private static KeyBinding key;
 
     private RightClickListener() {}
 
     public static void initialize() {
+        key = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+            "key.civbuddy.vein_mark",
+            InputUtil.Type.MOUSE,
+            GLFW.GLFW_MOUSE_BUTTON_2,
+            "category.civbuddy"
+        ));
+
         ClientTickEvents.END_CLIENT_TICK.register(RightClickListener::onTick);
         highlightRenderer = new ShapeRenderer();
     }
@@ -45,7 +57,7 @@ public final class RightClickListener {
         Item item = client.player.getInventory().getSelectedStack().getItem();
 
         boolean isHoldingPickaxe = item.getName().toString().contains("pickaxe");
-        boolean isHolding = client.options.useKey.isPressed();
+        boolean isHolding = isPressing();
         boolean released = !isHolding && selectionTicks > 0;
         boolean isCharged = selectionTicks > config.placeDelayTicks;
 
@@ -109,5 +121,16 @@ public final class RightClickListener {
 
         VeinMarkingDao.delete(VeinClient.getActiveVeinId(), closest.center());
         VeinClient.notifyChange();
+    }
+
+    private static boolean isPressing() {
+        if (key.isPressed()) return true;
+
+        for (KeyBinding binding : MinecraftClient.getInstance().options.allKeys) {
+            if (key.equals(binding) && binding.isPressed())
+                return true;
+        }
+
+        return false;
     }
 }
