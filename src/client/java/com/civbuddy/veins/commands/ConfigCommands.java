@@ -44,9 +44,9 @@ public final class ConfigCommands {
     public static Text setVein(CommandContext<FabricClientCommandSource> ctx) throws SQLException {
         String newKey = StringArgumentType.getString(ctx, "veinName").toLowerCase();
 
-        // Validate key format (alphanumeric, 2-8 chars)
-        if (!newKey.matches("^[a-z0-9]{2,8}$")) {
-            return Text.literal("§cInvalid key format! §aUse 2-8 alphanumeric characters (e.g., f2da)");
+        // Validate key format
+        if (!newKey.matches("^[\\p{L}\\p{N}_-]{2,16}$")) {
+            return Text.literal("§cInvalid key format! §aUse 2–16 characters: letters, numbers, _ or -.");
         }
 
         VeinKVStore.setActiveVeinName(newKey);
