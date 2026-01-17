@@ -58,8 +58,6 @@ public class MessageListener {
     }
 
     private static void checkMessage(String message) throws SQLException {
-        if (!VeinKVStore.getDoCountDia()) return;
-
         // Filter out player chat messages (they contain player names with <> or brackets)
         // Only process system messages (ore detection from the server)
         if (Arrays.stream(IGNORE_MSG_CHARACTERS).anyMatch(message::contains)) {
