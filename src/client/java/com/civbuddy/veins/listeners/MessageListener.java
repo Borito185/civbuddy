@@ -4,10 +4,8 @@ import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import com.civbuddy.veins.data.VeinDao;
 import com.civbuddy.veins.data.VeinKVStore;
-import com.civbuddy.veins.data.VeinRow;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
@@ -33,7 +31,7 @@ public class MessageListener {
         "You sense a diamond nearby\\s+(\\d+)\\s+.*",
         Pattern.CASE_INSENSITIVE
     );
-    private static final String[] IGNORE_MSG_CHARACTERS = new String[] {"<", ">", "[", "]"};
+    private static final String[] IGNORE_MSG_CHARACTERS = new String[] {"<", ">", "[", "]", "joined", "left", "From", "to", "combat", "brand new!"};
 
     private MessageListener() {}
 
@@ -65,11 +63,6 @@ public class MessageListener {
             return;
         }
 
-        String key = VeinKVStore.getActiveVeinName();
-
-        // Auto-detect ore discoveries if we have an active vein key
-        if (!key.equals("default")) return;
-
         Matcher matcher = ORE_SENSE_PATTERN.matcher(message);
         if (matcher.matches()) {
             // Parse the count from the message
@@ -77,6 +70,7 @@ public class MessageListener {
             // "You sense a diamond nearby 3 DEEPSLATE_DIAMOND_ORE nearby" = 3
             String countStr = matcher.group(1);
             int amount = Integer.parseInt(countStr);
+
             addToCurrentVein(amount);
         }
     }
