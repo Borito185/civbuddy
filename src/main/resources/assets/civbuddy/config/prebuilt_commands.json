@@ -38,6 +38,7 @@
     { "name": "Freeport", "command": "/dest ! -,+ deluvia southsea freeport" },
     { "name": "Grenada", "command": "/dest ! -,+ deluvia southsea grenada" },
     { "name": "Winterbourne", "command": "/dest ! -,- northlandia winterbourne" },
+    { "name": "Gothia", "command": "/dest ! -,- northlandia gothia" },
     { "name": "Micronook", "command": "/dest ! -,- occident micronook" },
     { "name": "Icenia", "command": "/dest ! -,- occident icenia" },
     { "name": "Shockton", "command": "/dest ! -,- occident volterra shockton" },
