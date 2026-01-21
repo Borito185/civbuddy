@@ -6,7 +6,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 
 import java.io.*;
 import java.lang.reflect.Type;
@@ -31,7 +31,7 @@ public class BookmarkManager {
     }
 
     public void loadBookmarks() {
-        File file = new File(MinecraftClient.getInstance().runDirectory, BOOKMARK_FILE);
+        File file = new File(Minecraft.getInstance().gameDirectory, BOOKMARK_FILE);
 
         if (file.exists()) {
             try (FileReader reader = new FileReader(file)) {
@@ -61,7 +61,7 @@ public class BookmarkManager {
     }
 
     public void saveBookmarks() {
-        File file = new File(MinecraftClient.getInstance().runDirectory, BOOKMARK_FILE);
+        File file = new File(Minecraft.getInstance().gameDirectory, BOOKMARK_FILE);
         file.getParentFile().mkdirs();
 
         try (FileWriter writer = new FileWriter(file)) {

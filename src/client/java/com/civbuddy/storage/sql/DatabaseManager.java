@@ -4,9 +4,9 @@ import com.civbuddy.veins.VeinClient;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ServerInfo;
-import net.minecraft.server.integrated.IntegratedServer;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.client.server.IntegratedServer;
 
 import java.nio.file.*;
 import java.sql.*;
@@ -67,16 +67,16 @@ public final class DatabaseManager {
     }
 
     private static String getWorldKey() {
-        MinecraftClient client = MinecraftClient.getInstance();
-        ServerInfo serverInfo = client.getCurrentServerEntry();
-        IntegratedServer server = client.getServer();
+        Minecraft client = Minecraft.getInstance();
+        ServerData serverInfo = client.getCurrentServer();
+        IntegratedServer server = client.getSingleplayerServer();
 
         if (server != null) {
-            return sanitize(server.getSaveProperties().getLevelName());
+            return sanitize(server.getWorldData().getLevelName());
         }
 
         if (serverInfo != null) {
-            return sanitize(serverInfo.address);
+            return sanitize(serverInfo.ip);
         }
 
         return null;

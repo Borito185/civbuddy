@@ -7,8 +7,8 @@ import java.util.regex.Pattern;
 import com.civbuddy.veins.data.VeinDao;
 import com.civbuddy.veins.data.VeinKVStore;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 
 /**
  * VeinBuddy Count - Lightweight vein tracking for miners
@@ -23,7 +23,7 @@ import net.minecraft.text.Text;
  *   /civbuddy listnames      - List all tracked veins
  */
 public class MessageListener {
-    private static final MinecraftClient mc = MinecraftClient.getInstance();
+    private static final Minecraft mc = Minecraft.getInstance();
 
     
     // Ore detection pattern - detects "You sense a diamond nearby 2 DEEPSLATE_DIAMOND_ORE nearby"
@@ -43,7 +43,7 @@ public class MessageListener {
     /**
      * Handle incoming chat messages
      */
-    private static void onChatMessage(Text message, boolean overlay) {
+    private static void onChatMessage(Component message, boolean overlay) {
         if (overlay) return;
 
         String msg = message.getString();

@@ -5,11 +5,11 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.HoverEvent;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 import net.objecthunter.exp4j.ExpressionBuilder;
 
 import java.math.BigDecimal;
@@ -48,7 +48,7 @@ public class CalculatorClient implements CommandsHelper.CommandProvider {
         return true;
     }
 
-    public static Text calc(CommandContext<FabricClientCommandSource> ctx) {
+    public static Component calc(CommandContext<FabricClientCommandSource> ctx) {
         String exp = StringArgumentType.getString(ctx, "expression");
         exp = exp.toLowerCase();
         double result = eval(exp);
@@ -57,17 +57,17 @@ public class CalculatorClient implements CommandsHelper.CommandProvider {
                 .stripTrailingZeros()
                 .toPlainString();
 
-        MutableText value = Text.literal(resultString).styled(s -> s
-                .withColor(Formatting.GREEN)
+        MutableComponent value = Component.literal(resultString).withStyle(s -> s
+                .withColor(ChatFormatting.GREEN)
                 .withBold(true)
                 .withClickEvent(new ClickEvent.CopyToClipboard(resultString))
-                .withHoverEvent(new HoverEvent.ShowText(Text.literal("Click to copy").formatted(Formatting.GRAY)))
+                .withHoverEvent(new HoverEvent.ShowText(Component.literal("Click to copy").withStyle(ChatFormatting.GRAY)))
         );
 
-        MutableText hint = Text.literal(" [copy]")
-                .styled(s -> s.withColor(Formatting.YELLOW)
+        MutableComponent hint = Component.literal(" [copy]")
+                .withStyle(s -> s.withColor(ChatFormatting.YELLOW)
                                 .withClickEvent(new ClickEvent.CopyToClipboard(resultString))
-                                .withHoverEvent(new HoverEvent.ShowText(Text.literal("Click to copy").formatted(Formatting.GRAY))));
+                                .withHoverEvent(new HoverEvent.ShowText(Component.literal("Click to copy").withStyle(ChatFormatting.GRAY))));
 
         return value.append(hint);
     }

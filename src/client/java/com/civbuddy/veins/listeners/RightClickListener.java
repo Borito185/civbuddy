@@ -8,9 +8,9 @@ import com.civbuddy.veins.geo.shapes.AABBShape;
 import com.civbuddy.veins.geo.shapes.VoxelShape;
 import com.civbuddy.veins.render.ShapeRenderer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.item.Item;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
 import org.joml.Vector3i;
 import java.sql.SQLException;
@@ -29,7 +29,7 @@ public final class RightClickListener {
         highlightRenderer = new ShapeRenderer();
     }
 
-    public static void onTick(MinecraftClient client) {
+    public static void onTick(Minecraft client) {
         try {
             checkAction(client);
         } catch (SQLException e) {
@@ -37,15 +37,15 @@ public final class RightClickListener {
         }
     }
 
-    private static void checkAction(MinecraftClient client) throws SQLException {
+    private static void checkAction(Minecraft client) throws SQLException {
         VeinConfig config = config();
         if (null == client.player) return;
-        if (null == client.mouse) return;
-        if (null == client.world) return;
-        Item item = client.player.getInventory().getSelectedStack().getItem();
+        if (null == client.mouseHandler) return;
+        if (null == client.level) return;
+        Item item = client.player.getInventory().getSelectedItem().getItem();
 
         boolean isHoldingPickaxe = item.getName().toString().contains("pickaxe");
-        boolean isHolding = client.options.useKey.isPressed();
+        boolean isHolding = client.options.keyUse.isDown();
         boolean released = !isHolding && selectionTicks > 0;
         boolean isCharged = selectionTicks > config.placeDelayTicks;
 
@@ -57,8 +57,8 @@ public final class RightClickListener {
         if (isHolding) selectionTicks++;
         if (!isHoldingPickaxe || (!isHolding && !released) || (isHolding && !isCharged)) return;
 
-        Vec3d playerPos = client.player.getEyePos();
-        Vec3d playerDir = client.player.getRotationVector();
+        Vec3 playerPos = client.player.getEyePosition();
+        Vec3 playerDir = client.player.getLookAngle();
 
         if (released && !isCharged) {
             removeTargetedBlock(playerPos, playerDir);
@@ -87,12 +87,12 @@ public final class RightClickListener {
         VeinClient.notifyChange();
     }
 
-    private static void removeTargetedBlock(Vec3d cameraPos, Vec3d cameraDir) throws SQLException {
+    private static void removeTargetedBlock(Vec3 cameraPos, Vec3 cameraDir) throws SQLException {
         AABBShape closest = null;
         float closestDist = Float.MAX_VALUE;
 
-        Vec3d closeEnd = cameraPos.subtract(cameraDir);
-        Vec3d farEnd = cameraPos.add(cameraDir.multiply(1000));
+        Vec3 closeEnd = cameraPos.subtract(cameraDir);
+        Vec3 farEnd = cameraPos.add(cameraDir.scale(1000));
 
         for (VoxelShape shape : VeinClient.getInstance().getCurrentMarkings()) {
             if (!(shape instanceof AABBShape bounds)) continue;

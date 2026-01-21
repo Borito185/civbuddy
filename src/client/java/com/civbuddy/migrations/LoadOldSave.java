@@ -8,9 +8,9 @@ import com.civbuddy.veins.data.markings.VeinMarkingDao;
 import com.civbuddy.veins.data.markings.VeinMarkingRow;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ServerInfo;
-import net.minecraft.server.integrated.IntegratedServer;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.client.server.IntegratedServer;
 import org.joml.Vector3i;
 import org.joml.Vector4f;
 
@@ -58,27 +58,27 @@ public class LoadOldSave {
             .setPrettyPrinting()
             .create();
 
-    private static File getSaveFile(MinecraftClient client) {
-        ServerInfo serverInfo = client.getCurrentServerEntry();
-        IntegratedServer server = client.getServer();
+    private static File getSaveFile(Minecraft client) {
+        ServerData serverInfo = client.getCurrentServer();
+        IntegratedServer server = client.getSingleplayerServer();
 
         String key = null;
 
         if (server != null) {
-            key = server.getSaveProperties().getLevelName();
+            key = server.getWorldData().getLevelName();
         }
 
         if (serverInfo != null) {
-            key = serverInfo.address;
+            key = serverInfo.ip;
         }
 
         if (key == null)
             return null;
 
-        return new File(client.runDirectory, "data/civbuddy/" + key + ".gson");
+        return new File(client.gameDirectory, "data/civbuddy/" + key + ".gson");
     }
 
-    private static Data load(MinecraftClient client) {
+    private static Data load(Minecraft client) {
         var file = getSaveFile(client);
         var data = new Data();
 
@@ -95,9 +95,9 @@ public class LoadOldSave {
 
     public static void migrate() {
         try {
-            File saveFile = getSaveFile(MinecraftClient.getInstance());
+            File saveFile = getSaveFile(Minecraft.getInstance());
             if (saveFile.exists()) {
-                Data data = load(MinecraftClient.getInstance());
+                Data data = load(Minecraft.getInstance());
 
                 for (VeinCounterData value : data.veins.values()) {
                     VeinDao.upsert(new VeinRow(value.key, value.count));

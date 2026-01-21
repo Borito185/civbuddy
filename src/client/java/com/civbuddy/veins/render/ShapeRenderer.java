@@ -10,10 +10,10 @@ import com.civbuddy.veins.geo.util.GridAlignedEdgeOptimizer;
 import com.civbuddy.veins.geo.util.GridAlignedFaceOptimizer;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.profiler.Profiler;
-import net.minecraft.util.profiler.Profilers;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.util.profiling.ProfilerFiller;
+import net.minecraft.util.profiling.Profiler;
 import org.joml.Math;
 import org.joml.*;
 
@@ -64,26 +64,26 @@ public class ShapeRenderer {
         if (ctx.matrixStack() == null || ctx.consumers() == null) return;
         if (!hasFaces() && !hasGrid()) return;
 
-        Profiler profiler = Profilers.get();
+        ProfilerFiller profiler = Profiler.get();
 
         profiler.push("vein_rendering");
 
         var ms = ctx.matrixStack();
-        Vec3d cam = ctx.camera().getPos();
-        ms.push();
+        Vec3 cam = ctx.camera().getPosition();
+        ms.pushPose();
         ms.translate(-cam.x, -cam.y, -cam.z);
-        Matrix4f mat = ms.peek().getPositionMatrix();
+        Matrix4f mat = ms.last().pose();
 
         profiler.push("grid");
 
         if (hasGrid())
             drawLines(ctx, mat);
-        profiler.swap("walls");
+        profiler.popPush("walls");
         if (hasFaces())
             drawFaces(ctx, mat);
         profiler.pop();
 
-        ms.pop();
+        ms.popPose();
         profiler.pop();
     }
 
@@ -98,7 +98,7 @@ public class ShapeRenderer {
     private void drawFaces(WorldRenderContext ctx, Matrix4f mat) {
         final VertexConsumer vc = ctx.consumers().getBuffer(TRANSLUCENT_QUADS);
 
-        final Vec3d cp = ctx.camera().getCameraPos();
+        final Vec3 cp = ctx.camera().position();
         final float cx = (float) cp.x, cy = (float) cp.y, cz = (float) cp.z;
 
         final float r = color.x, g = color.y, b = color.z, a = color.w;
@@ -125,17 +125,17 @@ public class ShapeRenderer {
 
             final Vector3ic A = f.a(), B = f.b(), C = f.c(), D = f.d();
 
-            vc.vertex(mat, A.x() + ox, A.y() + oy, A.z() + oz).color(r, g, b, a);
-            vc.vertex(mat, B.x() + ox, B.y() + oy, B.z() + oz).color(r, g, b, a);
-            vc.vertex(mat, C.x() + ox, C.y() + oy, C.z() + oz).color(r, g, b, a);
-            vc.vertex(mat, D.x() + ox, D.y() + oy, D.z() + oz).color(r, g, b, a);
+            vc.addVertex(mat, A.x() + ox, A.y() + oy, A.z() + oz).setColor(r, g, b, a);
+            vc.addVertex(mat, B.x() + ox, B.y() + oy, B.z() + oz).setColor(r, g, b, a);
+            vc.addVertex(mat, C.x() + ox, C.y() + oy, C.z() + oz).setColor(r, g, b, a);
+            vc.addVertex(mat, D.x() + ox, D.y() + oy, D.z() + oz).setColor(r, g, b, a);
         }
     }
 
     private void drawLines(WorldRenderContext ctx, Matrix4f mat) {
         final VertexConsumer vc = ctx.consumers().getBuffer(LINES);
 
-        final Vec3d cp = ctx.camera().getCameraPos();
+        final Vec3 cp = ctx.camera().position();
         final float cx = (float) cp.x, cy = (float) cp.y, cz = (float) cp.z;
 
         final float r = 0f, g = 0f, b = 0f, a = grid_alpha;
@@ -150,7 +150,7 @@ public class ShapeRenderer {
                 final float dy = cy - A.y();
                 final float dz = cz - A.z();
                 final float inv = NORMAL_BIAS * invLen(dx, dy, dz);
-                vc.vertex(mat, A.x() + dx * inv, A.y() + dy * inv, A.z() + dz * inv).color(r, g, b, a);
+                vc.addVertex(mat, A.x() + dx * inv, A.y() + dy * inv, A.z() + dz * inv).setColor(r, g, b, a);
             }
 
             // bias B toward camera
@@ -159,7 +159,7 @@ public class ShapeRenderer {
                 final float dy = cy - Bp.y();
                 final float dz = cz - Bp.z();
                 final float inv = NORMAL_BIAS * invLen(dx, dy, dz);
-                vc.vertex(mat, Bp.x() + dx * inv, Bp.y() + dy * inv, Bp.z() + dz * inv).color(r, g, b, a);
+                vc.addVertex(mat, Bp.x() + dx * inv, Bp.y() + dy * inv, Bp.z() + dz * inv).setColor(r, g, b, a);
             }
         }
     }

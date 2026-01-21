@@ -5,10 +5,10 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 import java.sql.SQLException;
 import java.util.HashSet;
@@ -19,7 +19,7 @@ import static com.mojang.brigadier.builder.LiteralArgumentBuilder.literal;
 public class CommandsHelper {
     @FunctionalInterface
     public interface CommandExecutor {
-        Text execute(CommandContext<FabricClientCommandSource> ctx) throws SQLException;
+        Component execute(CommandContext<FabricClientCommandSource> ctx) throws SQLException;
     }
 
     public interface CommandProvider {
@@ -55,12 +55,12 @@ public class CommandsHelper {
     public static Command<FabricClientCommandSource> andRespondWith(CommandExecutor exe) {
         return ctx -> {
             try {
-                MutableText prefix = Text.literal("[CivBuddy]").styled(s -> s.withColor(Formatting.GOLD)).append(": ");
-                Text result = exe.execute(ctx);
+                MutableComponent prefix = Component.literal("[CivBuddy]").withStyle(s -> s.withColor(ChatFormatting.GOLD)).append(": ");
+                Component result = exe.execute(ctx);
                 // write to chat
                 if (result == null)
-                    result = Text.literal("Success!").styled(s -> s.withColor(Formatting.GREEN));
-                MinecraftClient.getInstance().player.sendMessage(prefix.append(result), false);
+                    result = Component.literal("Success!").withStyle(s -> s.withColor(ChatFormatting.GREEN));
+                Minecraft.getInstance().player.displayClientMessage(prefix.append(result), false);
                 return 1;
             } catch (SQLException e) {
                 throw new RuntimeException(e);

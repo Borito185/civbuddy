@@ -5,9 +5,9 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Component;
 
 public class HelpCommand implements CommandsHelper.CommandProvider {
     public HelpCommand() {
@@ -18,9 +18,9 @@ public class HelpCommand implements CommandsHelper.CommandProvider {
     @Override
     public LiteralArgumentBuilder<FabricClientCommandSource> commands() {
         return ClientCommandManager.literal("help").executes(ctx -> {
-            MinecraftClient client = MinecraftClient.getInstance();
+            Minecraft client = Minecraft.getInstance();
             if (client.player != null) {
-                client.player.sendMessage(getHelpText(), false);
+                client.player.displayClientMessage(getHelpText(), false);
             }
             return 1;
         });
@@ -31,32 +31,32 @@ public class HelpCommand implements CommandsHelper.CommandProvider {
         return false; 
     }
 
-    private static Text getHelpText() {
-        MutableText help = Text.literal("\n=== CivBuddy Help ===\n");
+    private static Component getHelpText() {
+        MutableComponent help = Component.literal("\n=== CivBuddy Help ===\n");
         
-        help.append(Text.literal("\nVein Marking:\n"));
-        help.append(Text.literal("• Hold right-click with pickaxe to place marker\n"));
-        help.append(Text.literal("• Quick right-click to remove marker\n"));
-        help.append(Text.literal("• /veins digRange <x> <y> <z> - Set mining area\n"));
-        help.append(Text.literal("• /veins digRadius <r> - Set mining area\n"));
-        help.append(Text.literal("• /veins toggleRenderer - Toggle rendering of vein markings\n"));
-        help.append(Text.literal("• /veins changeAll digRadius <r> - Changes the radius of all markings\n"));
-        help.append(Text.literal("• /veins clear - Clear all markers of current vein\n"));
-        help.append(Text.literal("• /veins set - Switch to either a new or existing vein\n"));
-        help.append(Text.literal("• /veins info - View information about the current vein\n"));
+        help.append(Component.literal("\nVein Marking:\n"));
+        help.append(Component.literal("• Hold right-click with pickaxe to place marker\n"));
+        help.append(Component.literal("• Quick right-click to remove marker\n"));
+        help.append(Component.literal("• /veins digRange <x> <y> <z> - Set mining area\n"));
+        help.append(Component.literal("• /veins digRadius <r> - Set mining area\n"));
+        help.append(Component.literal("• /veins toggleRenderer - Toggle rendering of vein markings\n"));
+        help.append(Component.literal("• /veins changeAll digRadius <r> - Changes the radius of all markings\n"));
+        help.append(Component.literal("• /veins clear - Clear all markers of current vein\n"));
+        help.append(Component.literal("• /veins set - Switch to either a new or existing vein\n"));
+        help.append(Component.literal("• /veins info - View information about the current vein\n"));
 
-        help.append(Text.literal("\nCalculator:\n"));
-        help.append(Text.literal("• /calc <expression> - Math evaluator\n"));
-        help.append(Text.literal("• Shortcuts: b=9, s/ci=64, cs=4096, k=1000\n"));
-        help.append(Text.literal("• Example: '/calc 2ci + 1b' -> 137\n"));
+        help.append(Component.literal("\nCalculator:\n"));
+        help.append(Component.literal("• /calc <expression> - Math evaluator\n"));
+        help.append(Component.literal("• Shortcuts: b=9, s/ci=64, cs=4096, k=1000\n"));
+        help.append(Component.literal("• Example: '/calc 2ci + 1b' -> 137\n"));
 
-        help.append(Text.literal("\nCommand Bookmarks:\n"));
-        help.append(Text.literal("• Press \\ (backslash) to open GUI\n"));
-        help.append(Text.literal("• Organize commands into categories\n"));
-        help.append(Text.literal("• Search, drag-drop, auto history\n"));
+        help.append(Component.literal("\nCommand Bookmarks:\n"));
+        help.append(Component.literal("• Press \\ (backslash) to open GUI\n"));
+        help.append(Component.literal("• Organize commands into categories\n"));
+        help.append(Component.literal("• Search, drag-drop, auto history\n"));
         
-        help.append(Text.literal("\nAll commands can also be found under /civbuddy\n"));
-        help.append(Text.literal("Alias: /cb = /civbuddy\n"));
+        help.append(Component.literal("\nAll commands can also be found under /civbuddy\n"));
+        help.append(Component.literal("Alias: /cb = /civbuddy\n"));
 
         return help;
     }
