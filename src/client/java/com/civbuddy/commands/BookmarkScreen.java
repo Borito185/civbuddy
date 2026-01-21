@@ -1,43 +1,43 @@
 package com.civbuddy.commands;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.network.chat.Component;
 
 public class BookmarkScreen extends Screen {
     private final Screen parent;
     public BookmarkListWidget leftList;
     private CommandListWidget rightList;
-    private ButtonWidget addButton;
-    private ButtonWidget deleteButton;
-    private ButtonWidget editButton;
-    private TextFieldWidget searchField;
+    private Button addButton;
+    private Button deleteButton;
+    private Button editButton;
+    private EditBox searchField;
 
     private BookmarkCategory selectedCategory;
     public BookmarkEntry selectedCommand;
 
     public BookmarkScreen(Screen parent) {
-        super(Text.literal("CivBuddy Command Manager"));
+        super(Component.literal("CivBuddy Command Manager"));
         this.parent = parent;
     }
 
     @Override
     protected void init() {
         // Search field - positioned better
-        searchField = new TextFieldWidget(this.textRenderer, 195, 8, 200, 16, Text.literal(""));
+        searchField = new EditBox(this.font, 195, 8, 200, 16, Component.literal(""));
         searchField.setMaxLength(64);
-        searchField.setPlaceholder(Text.literal("Search all commands..."));
-        searchField.setChangedListener(text -> {
+        searchField.setHint(Component.literal("Search all commands..."));
+        searchField.setResponder(text -> {
             refreshRightList();
         });
-        this.addDrawableChild(searchField);
+        this.addRenderableWidget(searchField);
 
         // Initialize left list (bookmarks/categories) - 25px height
         leftList = new BookmarkListWidget(
-                this.client,
+                this.minecraft,
                 150,
                 this.height - 80,
                 55,
@@ -61,31 +61,31 @@ public class BookmarkScreen extends Screen {
         refreshLeftList();
 
         // Add button
-        addButton = ButtonWidget.builder(Text.literal("+ Add"), button -> openAddDialog())
-                .dimensions(10, 5, 55, 20)
+        addButton = Button.builder(Component.literal("+ Add"), button -> openAddDialog())
+                .bounds(10, 5, 55, 20)
                 .build();
 
         // Edit button
-        editButton = ButtonWidget.builder(Text.literal("Edit"), button -> openEditDialog())
-                .dimensions(70, 5, 50, 20)
+        editButton = Button.builder(Component.literal("Edit"), button -> openEditDialog())
+                .bounds(70, 5, 50, 20)
                 .build();
 
         // Delete button
-        deleteButton = ButtonWidget.builder(Text.literal("Delete"), button -> deleteSelected())
-                .dimensions(125, 5, 60, 20)
+        deleteButton = Button.builder(Component.literal("Delete"), button -> deleteSelected())
+                .bounds(125, 5, 60, 20)
                 .build();
 
         // Close button
-        ButtonWidget closeButton = ButtonWidget.builder(Text.literal("Close"), button -> this.close())
-                .dimensions(this.width / 2 - 50, this.height - 25, 100, 20)
+        Button closeButton = Button.builder(Component.literal("Close"), button -> this.onClose())
+                .bounds(this.width / 2 - 50, this.height - 25, 100, 20)
                 .build();
 
-        this.addDrawableChild(addButton);
-        this.addDrawableChild(editButton);
-        this.addDrawableChild(deleteButton);
-        this.addDrawableChild(closeButton);
-        this.addDrawableChild(leftList);
-        this.addDrawableChild(rightList);
+        this.addRenderableWidget(addButton);
+        this.addRenderableWidget(editButton);
+        this.addRenderableWidget(deleteButton);
+        this.addRenderableWidget(closeButton);
+        this.addRenderableWidget(leftList);
+        this.addRenderableWidget(rightList);
     }
 
     public void refreshLeftList() {
@@ -97,7 +97,7 @@ public class BookmarkScreen extends Screen {
 
     void refreshRightList() {
         rightList.clearEntries();
-        String searchText = searchField != null ? searchField.getText().toLowerCase() : "";
+        String searchText = searchField != null ? searchField.getValue().toLowerCase() : "";
 
         // If there's search text, always do global search
         if (!searchText.isEmpty()) {
@@ -152,8 +152,8 @@ public class BookmarkScreen extends Screen {
         if (selectedCategory != null) {
             // Prevent adding to History category
             if (selectedCategory.getName().equals("History")) {
-                if (client.player != null) {
-                    client.player.sendMessage(Text.literal("§cCannot add commands to History!"), false);
+                if (minecraft.player != null) {
+                    minecraft.player.displayClientMessage(Component.literal("§cCannot add commands to History!"), false);
                 }
                 return;
             }
@@ -162,10 +162,10 @@ public class BookmarkScreen extends Screen {
             selectedCommand = null;
             updateButtonStates();
             // Add command to selected bookmark
-            MinecraftClient.getInstance().setScreen(new AddCommandScreen(this, selectedCategory, null));
+            Minecraft.getInstance().setScreen(new AddCommandScreen(this, selectedCategory, null));
         } else {
             // No bookmark selected, add new bookmark
-            MinecraftClient.getInstance().setScreen(new AddCategoryScreen(this));
+            Minecraft.getInstance().setScreen(new AddCategoryScreen(this));
         }
     }
 
@@ -173,21 +173,21 @@ public class BookmarkScreen extends Screen {
         if (selectedCommand != null && selectedCategory != null) {
             // Don't allow editing history commands
             if (selectedCategory.getName().equals("History")) {
-                if (client.player != null) {
-                    client.player.sendMessage(Text.literal("§cCannot edit History commands!"), false);
+                if (minecraft.player != null) {
+                    minecraft.player.displayClientMessage(Component.literal("§cCannot edit History commands!"), false);
                 }
                 return;
             }
-            MinecraftClient.getInstance().setScreen(new AddCommandScreen(this, selectedCategory, selectedCommand));
+            Minecraft.getInstance().setScreen(new AddCommandScreen(this, selectedCategory, selectedCommand));
         } else if (selectedCategory != null) {
             // Edit the category itself
             if (selectedCategory.getName().equals("History")) {
-                if (client.player != null) {
-                    client.player.sendMessage(Text.literal("§cCannot edit " + selectedCategory.getName() + " category!"), false);
+                if (minecraft.player != null) {
+                    minecraft.player.displayClientMessage(Component.literal("§cCannot edit " + selectedCategory.getName() + " category!"), false);
                 }
                 return;
             }
-            MinecraftClient.getInstance().setScreen(new AddCategoryScreen(this, selectedCategory));
+            Minecraft.getInstance().setScreen(new AddCategoryScreen(this, selectedCategory));
         }
     }
 
@@ -195,8 +195,8 @@ public class BookmarkScreen extends Screen {
         if (selectedCommand != null && selectedCategory != null) {
             // Don't allow deleting commands from protected categories
             if (selectedCategory.getName().equals("History")) {
-                if (client.player != null) {
-                    client.player.sendMessage(Text.literal("§cCannot delete commands from " + selectedCategory.getName() + "!"), false);
+                if (minecraft.player != null) {
+                    minecraft.player.displayClientMessage(Component.literal("§cCannot delete commands from " + selectedCategory.getName() + "!"), false);
                 }
                 return;
             }
@@ -207,8 +207,8 @@ public class BookmarkScreen extends Screen {
             // Prevent deletion of History and Destinations
             String categoryName = selectedCategory.getName();
             if (categoryName.equals("History")) {
-                if (client.player != null) {
-                    client.player.sendMessage(Text.literal("§cCannot delete " + categoryName + " category!"), false);
+                if (minecraft.player != null) {
+                    minecraft.player.displayClientMessage(Component.literal("§cCannot delete " + categoryName + " category!"), false);
                 }
                 return;
             }
@@ -222,16 +222,16 @@ public class BookmarkScreen extends Screen {
     }
 
     public void executeCommand(BookmarkEntry entry) {
-        if (entry != null && client != null && client.player != null) {
+        if (entry != null && minecraft != null && minecraft.player != null) {
             String command = entry.getCommand();
             if (command.startsWith("/")) {
-                client.player.networkHandler.sendChatCommand(command.substring(1));
+                minecraft.player.connection.sendCommand(command.substring(1));
             } else {
-                client.player.networkHandler.sendChatMessage(command);
+                minecraft.player.connection.sendChat(command);
             }
 
             BookmarkManager.getInstance().addToHistory(entry);
-            this.close();
+            this.onClose();
         }
     }
 
@@ -262,7 +262,7 @@ public class BookmarkScreen extends Screen {
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {
         // Dark background
         context.fillGradient(0, 0, this.width, this.height, 0xE0101010, 0xE0101010);
 
@@ -270,20 +270,20 @@ public class BookmarkScreen extends Screen {
         super.render(context, mouseX, mouseY, delta);
 
         // Draw labels on top in BRIGHT WHITE
-        context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 12, 0xFFFFFF);
-        context.drawTextWithShadow(this.textRenderer, "Bookmarks", 15, 35, 0xFFFFFF);
-        context.drawTextWithShadow(this.textRenderer, "Commands", 175, 35, 0xFFFFFF);
+        context.drawCenteredString(this.font, this.title, this.width / 2, 12, 0xFFFFFF);
+        context.drawString(this.font, "Bookmarks", 15, 35, 0xFFFFFF);
+        context.drawString(this.font, "Commands", 175, 35, 0xFFFFFF);
     }
 
     @Override
-    public void close() {
-        if (this.client != null) {
-            this.client.setScreen(parent);
+    public void onClose() {
+        if (this.minecraft != null) {
+            this.minecraft.setScreen(parent);
         }
     }
 
     @Override
-    public boolean shouldPause() {
+    public boolean isPauseScreen() {
         return false;
     }
 }

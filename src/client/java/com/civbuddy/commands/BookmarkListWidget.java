@@ -1,17 +1,17 @@
 package com.civbuddy.commands;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.widget.AlwaysSelectedEntryListWidget;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.ObjectSelectionList;
+import net.minecraft.network.chat.Component;
 
 import java.util.List;
 
-public class BookmarkListWidget extends AlwaysSelectedEntryListWidget<BookmarkListWidget.CategoryEntry> {
+public class BookmarkListWidget extends ObjectSelectionList<BookmarkListWidget.CategoryEntry> {
     private final BookmarkScreen parent;
     private CategoryEntry draggingEntry = null;
 
-    public BookmarkListWidget(MinecraftClient client, int width, int height, int top, int bottom, int itemHeight, BookmarkScreen parent) {
+    public BookmarkListWidget(Minecraft client, int width, int height, int top, int bottom, int itemHeight, BookmarkScreen parent) {
         super(client, width, height, top, itemHeight);
         this.parent = parent;
     }
@@ -22,7 +22,7 @@ public class BookmarkListWidget extends AlwaysSelectedEntryListWidget<BookmarkLi
     }
 
     @Override
-    protected int getScrollbarX() {
+    protected int scrollBarX() {
         return this.getX() + this.width - 6;
     }
 
@@ -72,7 +72,7 @@ public class BookmarkListWidget extends AlwaysSelectedEntryListWidget<BookmarkLi
         return super.mouseReleased(mouseX, mouseY, button);
     }
 
-    public static class CategoryEntry extends AlwaysSelectedEntryListWidget.Entry<CategoryEntry> {
+    public static class CategoryEntry extends ObjectSelectionList.Entry<CategoryEntry> {
         private final BookmarkListWidget widget;
         public final BookmarkCategory category;
         private final BookmarkScreen parent;
@@ -84,9 +84,9 @@ public class BookmarkListWidget extends AlwaysSelectedEntryListWidget<BookmarkLi
         }
 
         @Override
-        public void render(DrawContext context, int index, int y, int x, int entryWidth, int entryHeight,
+        public void render(GuiGraphics context, int index, int y, int x, int entryWidth, int entryHeight,
                            int mouseX, int mouseY, boolean hovered, float tickDelta) {
-            MinecraftClient client = MinecraftClient.getInstance();
+            Minecraft client = Minecraft.getInstance();
 
             // Use the actual entry height (25px)
             boolean isDragging = widget.draggingEntry == this;
@@ -102,16 +102,16 @@ public class BookmarkListWidget extends AlwaysSelectedEntryListWidget<BookmarkLi
 
             // Draw count on the right side (accounting for scrollbar)
             String countText = "(" + category.getEntries().size() + ")";
-            int countWidth = client.textRenderer.getWidth(countText);
+            int countWidth = client.font.width(countText);
             int countX = x + entryWidth - countWidth - 12; // 12px padding from right (scrollbar space)
-            context.drawTextWithShadow(client.textRenderer, countText, countX, y + 8, 0xFFAAAAAA);
+            context.drawString(client.font, countText, countX, y + 8, 0xFFAAAAAA);
 
             // Truncate name if needed to not overlap with count
             String name = category.getName();
             int maxNameWidth = entryWidth - countWidth - 20; // Space for count + padding + scrollbar
             String displayName = name;
 
-            while (client.textRenderer.getWidth(displayName) > maxNameWidth && displayName.length() > 0) {
+            while (client.font.width(displayName) > maxNameWidth && displayName.length() > 0) {
                 displayName = displayName.substring(0, displayName.length() - 1);
             }
             if (displayName.length() < name.length()) {
@@ -119,7 +119,7 @@ public class BookmarkListWidget extends AlwaysSelectedEntryListWidget<BookmarkLi
             }
 
             // Draw name on the left - BRIGHT WHITE text - centered for 25px height
-            context.drawTextWithShadow(client.textRenderer, displayName, x + 5, y + 8, 0xFFFFFFFF);
+            context.drawString(client.font, displayName, x + 5, y + 8, 0xFFFFFFFF);
         }
 
         @Override
@@ -133,8 +133,8 @@ public class BookmarkListWidget extends AlwaysSelectedEntryListWidget<BookmarkLi
         }
 
         @Override
-        public Text getNarration() {
-            return Text.literal(category.getName());
+        public Component getNarration() {
+            return Component.literal(category.getName());
         }
     }
 }

@@ -1,10 +1,10 @@
 package com.civbuddy.veins.geo.shapes;
 
 import com.civbuddy.veins.geo.primitives.UnitFace;
-import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.shape.VoxelShapes;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.Shapes;
 import org.apache.commons.lang3.NotImplementedException;
 import org.joml.*;
 import org.joml.Math;
@@ -70,10 +70,10 @@ public record AABBShape(Vector3ic center, Vector3ic radius, Vector3fc realCenter
                 tmp.z <= radius.z() + t;
     }
 
-    public boolean intersectsCenter(Vec3d a, Vec3d b) {
-        BlockHitResult raycast = VoxelShapes
-                .cuboid(center.x(), center.y(), center.z(), center.x() + 1, center.y() + 1, center.z() + 1)
-                .raycast(a, b, BlockPos.ORIGIN);
+    public boolean intersectsCenter(Vec3 a, Vec3 b) {
+        BlockHitResult raycast = Shapes
+                .box(center.x(), center.y(), center.z(), center.x() + 1, center.y() + 1, center.z() + 1)
+                .clip(a, b, BlockPos.ZERO);
         return raycast != null;
     }
 

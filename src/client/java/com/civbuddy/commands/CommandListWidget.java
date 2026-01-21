@@ -1,14 +1,14 @@
 package com.civbuddy.commands;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.widget.ClickableWidget;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class CommandListWidget extends ClickableWidget {
+public class CommandListWidget extends AbstractWidget {
     private final BookmarkScreen parent;
     private final List<CommandEntry> entries = new ArrayList<>();
     private CommandEntry draggingEntry;
@@ -20,7 +20,7 @@ public class CommandListWidget extends ClickableWidget {
     private double dragMouseY = 0;
 
     public CommandListWidget(int x, int y, int width, int height, BookmarkScreen parent) {
-        super(x, y, width, height, Text.literal("Commands"));
+        super(x, y, width, height, Component.literal("Commands"));
         this.parent = parent;
     }
 
@@ -34,7 +34,7 @@ public class CommandListWidget extends ClickableWidget {
     }
 
     @Override
-    public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void renderWidget(GuiGraphics context, int mouseX, int mouseY, float delta) {
         // Track mouse position for drag preview
         dragMouseX = mouseX;
         dragMouseY = mouseY;
@@ -186,7 +186,7 @@ public class CommandListWidget extends ClickableWidget {
     }
 
     @Override
-    protected void appendClickableNarrations(net.minecraft.client.gui.screen.narration.NarrationMessageBuilder builder) {
+    protected void updateWidgetNarration(net.minecraft.client.gui.narration.NarrationElementOutput builder) {
         // Add narration for accessibility
     }
 
@@ -199,8 +199,8 @@ public class CommandListWidget extends ClickableWidget {
             this.sourceCategory = sourceCategory;
         }
 
-        public void render(DrawContext context, int x, int y, int width, int mouseX, int mouseY, boolean isDragging, boolean isSelected) {
-            MinecraftClient client = MinecraftClient.getInstance();
+        public void render(GuiGraphics context, int x, int y, int width, int mouseX, int mouseY, boolean isDragging, boolean isSelected) {
+            Minecraft client = Minecraft.getInstance();
 
             // Check if mouse over
             boolean isMouseOver = mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + VISUAL_HEIGHT;
@@ -226,21 +226,21 @@ public class CommandListWidget extends ClickableWidget {
 
             // Drop zone marker inside the box on the right
             int markerX = x + width - 15; // 15 pixels from right edge
-            context.drawTextWithShadow(client.textRenderer, "⁝⁝⁝", markerX, y + 4, 0xFFAAAAAA);
+            context.drawString(client.font, "⁝⁝⁝", markerX, y + 4, 0xFFAAAAAA);
 
             // Text (always show)
             String cmd = entry.getCommand();
             String truncated = cmd;
             int maxWidth = width - 25; // Leave room for ⁝⁝⁝ marker on the right
 
-            while (client.textRenderer.getWidth(truncated) > maxWidth && truncated.length() > 0) {
+            while (client.font.width(truncated) > maxWidth && truncated.length() > 0) {
                 truncated = truncated.substring(0, truncated.length() - 1);
             }
             if (truncated.length() < cmd.length()) {
                 truncated = truncated.substring(0, Math.max(0, truncated.length() - 3)) + "...";
             }
 
-            context.drawTextWithShadow(client.textRenderer, truncated, x + 5, y + 4, 0xFFFFFFFF);
+            context.drawString(client.font, truncated, x + 5, y + 4, 0xFFFFFFFF);
         }
     }
 }
