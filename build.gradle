@@ -29,6 +29,11 @@ repositories {
 			includeGroup "maven.modrinth"
 		}
 	}
+
+	maven {
+		name = "Gegy"
+		url = "https://maven.gegy.dev"
+	}
 }
 
 loom {
@@ -64,6 +69,10 @@ dependencies {
 
 	// shaders
 	modCompileOnly "maven.modrinth:iris:${project.iris_version}+${project.minecraft_version}-fabric"
+
+	// SpruceUI - GUI library
+	include(modImplementation("dev.lambdaurora:spruceui:${project.spruceui_version}"))
+	include "dev.yumi.mc.core:yumi-mc-foundation:1.0.0-beta.1+1.21.11"
 }
 
 processResources {
