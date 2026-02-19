@@ -22,13 +22,12 @@ import com.civbuddy.veins.listeners.WorldEventListener;
 import com.civbuddy.veins.render.ShapeRenderer;
 import org.joml.Vector3i;
 import com.civbuddy.veins.geo.shapes.AABBShape;
-import com.civbuddy.veins.geo.shapes.CompoundShape;
 import com.civbuddy.veins.geo.shapes.VoxelShape;
 
 public class VeinClient {
     private static VeinClient instance;
-    private final ShapeRenderer borderRenderer = new ShapeRenderer();
     private final ShapeRenderer markingRenderer = new ShapeRenderer();
+    private final ShapeRenderer borderRenderer = new ShapeRenderer();
 
     private VeinClient() {}
 
