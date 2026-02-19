@@ -7,10 +7,10 @@ import com.civbuddy.veins.geo.shapes.CompoundShape;
 import com.civbuddy.veins.geo.shapes.VoxelShape;
 import com.civbuddy.veins.geo.util.Face2Edge;
 import com.civbuddy.veins.geo.util.GridAlignedEdgeOptimizer;
-import com.civbuddy.veins.geo.util.GridAlignedFaceOptimizer;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
+import net.minecraft.client.Minecraft;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.util.profiling.Profiler;
@@ -20,6 +20,7 @@ import org.joml.*;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.civbuddy.veins.render.RenderLayers.LINES;
 import static com.civbuddy.veins.render.RenderLayers.TRANSLUCENT_QUADS;
@@ -35,7 +36,7 @@ public class ShapeRenderer {
     private boolean hasGrid = true;
 
     public ShapeRenderer() {
-        WorldRenderEvents.AFTER_TRANSLUCENT.register(this::draw);
+        WorldRenderEvents.END_MAIN.register(this::draw);
     }
 
     public void setStyle(Vector4f color, boolean hasGrid) {
@@ -56,20 +57,23 @@ public class ShapeRenderer {
         Collection<UnitFace> unitFaces = shape.getFaces();
         edges = Face2Edge.generateEdges(unitFaces);
 
-        faces = GridAlignedFaceOptimizer.optimize(unitFaces);
+        faces = unitFaces.stream().map(f -> Face.of(new Vector3i(f.a()), new Vector3i(f.b()), new Vector3i(f.c()), new Vector3i(f.d()))).collect(Collectors.toSet());
         edges = GridAlignedEdgeOptimizer.optimize(edges);
     }
 
     private void draw(WorldRenderContext ctx) {
-        if (ctx.matrixStack() == null || ctx.consumers() == null) return;
+        if (ctx.matrices() == null || ctx.consumers() == null) return;
         if (!hasFaces() && !hasGrid()) return;
 
         ProfilerFiller profiler = Profiler.get();
 
         profiler.push("vein_rendering");
 
-        var ms = ctx.matrixStack();
-        Vec3 cam = ctx.camera().getPosition();
+        var ms = ctx.matrices();
+        Vec3 cam = Minecraft.getInstance()
+                .gameRenderer
+                .getMainCamera()
+                .position();
         ms.pushPose();
         ms.translate(-cam.x, -cam.y, -cam.z);
         Matrix4f mat = ms.last().pose();
@@ -98,7 +102,10 @@ public class ShapeRenderer {
     private void drawFaces(WorldRenderContext ctx, Matrix4f mat) {
         final VertexConsumer vc = ctx.consumers().getBuffer(TRANSLUCENT_QUADS);
 
-        final Vec3 cp = ctx.camera().position();
+        final Vec3 cp = Minecraft.getInstance()
+                .gameRenderer
+                .getMainCamera()
+                .position();
         final float cx = (float) cp.x, cy = (float) cp.y, cz = (float) cp.z;
 
         final float r = color.x, g = color.y, b = color.z, a = color.w;
@@ -135,7 +142,10 @@ public class ShapeRenderer {
     private void drawLines(WorldRenderContext ctx, Matrix4f mat) {
         final VertexConsumer vc = ctx.consumers().getBuffer(LINES);
 
-        final Vec3 cp = ctx.camera().position();
+        final Vec3 cp = Minecraft.getInstance()
+                .gameRenderer
+                .getMainCamera()
+                .position();
         final float cx = (float) cp.x, cy = (float) cp.y, cz = (float) cp.z;
 
         final float r = 0f, g = 0f, b = 0f, a = grid_alpha;
