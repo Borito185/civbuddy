@@ -7,6 +7,7 @@ import com.civbuddy.veins.geo.shapes.CompoundShape;
 import com.civbuddy.veins.geo.shapes.VoxelShape;
 import com.civbuddy.veins.geo.util.Face2Edge;
 import com.civbuddy.veins.geo.util.GridAlignedEdgeOptimizer;
+import com.civbuddy.veins.geo.util.GridAlignedFaceOptimizer;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
@@ -57,7 +58,7 @@ public class ShapeRenderer {
         Collection<UnitFace> unitFaces = shape.getFaces();
         edges = Face2Edge.generateEdges(unitFaces);
 
-        faces = unitFaces.stream().map(f -> Face.of(new Vector3i(f.a()), new Vector3i(f.b()), new Vector3i(f.c()), new Vector3i(f.d()))).collect(Collectors.toSet());
+        faces = GridAlignedFaceOptimizer.optimize(unitFaces);
         edges = GridAlignedEdgeOptimizer.optimize(edges);
     }
 
