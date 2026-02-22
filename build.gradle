@@ -29,6 +29,14 @@ repositories {
 			includeGroup "maven.modrinth"
 		}
 	}
+
+	maven {
+		name = "WispForest"
+		url = "https://maven.wispforest.io/releases/"
+	}
+	maven {
+		url = "https://jitpack.io"
+	}
 }
 
 loom {
@@ -64,6 +72,10 @@ dependencies {
 
 	// shaders
 	modCompileOnly "maven.modrinth:iris:${project.iris_version}+${project.minecraft_version}-fabric"
+
+	// owo-lib - GUI library
+	modImplementation "io.wispforest:owo-lib:${project.owo_version}"
+	include "io.wispforest:owo-sentinel:${project.owo_version}"
 }
 
 processResources {
