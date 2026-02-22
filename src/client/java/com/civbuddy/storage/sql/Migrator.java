@@ -42,4 +42,5 @@ public final class Migrator {
             st.execute("PRAGMA user_version=" + v);
         }
     }
+
 }
