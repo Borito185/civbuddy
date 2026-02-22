@@ -31,8 +31,11 @@ repositories {
 	}
 
 	maven {
-		name = "Gegy"
-		url = "https://maven.gegy.dev"
+		name = "WispForest"
+		url = "https://maven.wispforest.io/releases/"
+	}
+	maven {
+		url = "https://jitpack.io"
 	}
 }
 
@@ -70,9 +73,9 @@ dependencies {
 	// shaders
 	modCompileOnly "maven.modrinth:iris:${project.iris_version}+${project.minecraft_version}-fabric"
 
-	// SpruceUI - GUI library
-	include(modImplementation("dev.lambdaurora:spruceui:${project.spruceui_version}"))
-	include "dev.yumi.mc.core:yumi-mc-foundation:1.0.0-beta.1+1.21.11"
+	// owo-lib - GUI library
+	modImplementation "io.wispforest:owo-lib:${project.owo_version}"
+	include "io.wispforest:owo-sentinel:${project.owo_version}"
 }
 
 processResources {

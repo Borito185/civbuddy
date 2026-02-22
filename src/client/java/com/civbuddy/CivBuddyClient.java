@@ -3,8 +3,11 @@ package com.civbuddy;
 import com.civbuddy.calc.CalculatorClient;
 import com.civbuddy.commands.CommandClient;
 import com.civbuddy.commands.HelpCommand;
+import com.civbuddy.commands.data.CommandDao;
+import com.civbuddy.commands.data.CommandMigrations;
 import com.civbuddy.compat.CompatManager;
 import com.civbuddy.migrations.LoadOldSave;
+import com.civbuddy.migrations.MigrateCommandsToSql;
 import com.civbuddy.storage.config.GlobalConfig;
 import com.civbuddy.storage.config.JsonConfig;
 import com.civbuddy.storage.sql.DatabaseManager;
@@ -33,6 +36,7 @@ public class CivBuddyClient implements ClientModInitializer {
         // --- Init Database ---
         DatabaseManager.initialize();
         DatabaseManager.register(KeyValueMigrations.migrations());
+        DatabaseManager.register(CommandMigrations.migrations());
 
 
         // --- Init Features ---
@@ -46,6 +50,10 @@ public class CivBuddyClient implements ClientModInitializer {
         CommandsHelper.initialize();
 
         // --- Init Migrations ---
-        ClientPlayConnectionEvents.JOIN.register((a, b, c) -> LoadOldSave.migrate());
+        ClientPlayConnectionEvents.JOIN.register((a, b, c) -> {
+            LoadOldSave.migrate();
+            MigrateCommandsToSql.migrate();
+            CommandDao.getInstance().initialize();
+        });
     }
 }
