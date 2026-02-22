@@ -16,8 +16,10 @@ public final class Migrator {
         try {
             for (Migration m : migrations) {
                 if (m.version() > current) {
-                    try (var st = c.createStatement()) {
-                        st.execute(m.sql());
+                    for (String stmt : splitStatements(m.sql())) {
+                        try (var st = c.createStatement()) {
+                            st.execute(stmt);
+                        }
                     }
                     setUserVersion(c, m.version());
                 }
@@ -41,5 +43,17 @@ public final class Migrator {
         try (var st = c.createStatement()) {
             st.execute("PRAGMA user_version=" + v);
         }
+    }
+
+    /** Split a multi-statement SQL string on ';' boundaries, skipping blanks. */
+    private static List<String> splitStatements(String sql) {
+        List<String> stmts = new ArrayList<>();
+        for (String part : sql.split(";")) {
+            String trimmed = part.trim();
+            if (!trimmed.isEmpty()) {
+                stmts.add(trimmed);
+            }
+        }
+        return stmts;
     }
 }
