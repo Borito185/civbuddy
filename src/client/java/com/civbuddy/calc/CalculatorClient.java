@@ -52,7 +52,6 @@ public class CalculatorClient implements CommandsHelper.CommandProvider {
         String exp = StringArgumentType.getString(ctx, "expression");
         exp = exp.toLowerCase();
         double result = eval(exp);
-
         String resultString = BigDecimal.valueOf(result)
                 .stripTrailingZeros()
                 .toPlainString();
@@ -61,7 +60,7 @@ public class CalculatorClient implements CommandsHelper.CommandProvider {
                 .withColor(ChatFormatting.GREEN)
                 .withBold(true)
                 .withClickEvent(new ClickEvent.CopyToClipboard(resultString))
-                .withHoverEvent(new HoverEvent.ShowText(Component.literal("Click to copy").withStyle(ChatFormatting.GRAY)))
+                .withHoverEvent(new HoverEvent.ShowText(Component.literal(asCsCi(result)).withStyle(ChatFormatting.GRAY)))
         );
 
         MutableComponent hint = Component.literal(" [copy]")
@@ -70,6 +69,21 @@ public class CalculatorClient implements CommandsHelper.CommandProvider {
                                 .withHoverEvent(new HoverEvent.ShowText(Component.literal("Click to copy").withStyle(ChatFormatting.GRAY))));
 
         return value.append(hint);
+    }
+
+    private static String asCsCi(double value) {
+        long cs = (long)Math.floor(value / shortcuts.get("cs"));
+        value -= cs * shortcuts.get("cs");
+        long ci = (long)Math.floor(value / shortcuts.get("ci"));
+        value -= ci * shortcuts.get("ci");
+
+        StringBuilder sb = new StringBuilder();
+
+        if (cs != 0)    sb.append(cs).append(" CS ");
+        if (ci != 0)    sb.append(ci).append(" CI ");
+        if (value != 0) sb.append(value % 1 == 0 ? (long) value : value);
+
+        return sb.toString().trim();
     }
 
     public static double eval(String s) {
