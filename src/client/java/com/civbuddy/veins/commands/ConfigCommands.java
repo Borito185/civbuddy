@@ -32,7 +32,7 @@ public final class ConfigCommands {
         return Component.literal(String.format("§aChanged dig range to: %d %d %d", radius, radius, radius));
     }
 
-    public static Component toggleRenderer(CommandContext<FabricClientCommandSource> ctx) {
+    public static Component toggle(CommandContext<FabricClientCommandSource> ctx) {
         config.updateAndSave(c -> c.veins.doRender = !c.veins.doRender);
         VeinClient.notifyChange();
         return Component.literal(String.format("§aVein rendering turned %s", config.get().veins.doRender ? "on" : "off"));
