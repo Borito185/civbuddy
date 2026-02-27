@@ -42,6 +42,7 @@ public final class RightClickListener {
         if (null == client.player) return;
         if (null == client.mouseHandler) return;
         if (null == client.level) return;
+        if (!config.doRender) return;
         Item item = client.player.getInventory().getSelectedItem().getItem();
 
         boolean isHoldingPickaxe = item.getName().toString().contains("pickaxe");
