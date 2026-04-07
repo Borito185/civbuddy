@@ -1,6 +1,7 @@
 package com.civbuddy.veins.commands;
 
 import com.civbuddy.veins.VeinClient;
+import com.civbuddy.veins.VeinShareClient;
 import com.civbuddy.veins.data.markings.VeinMarkingDao;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
@@ -16,6 +17,9 @@ public final class VeinCommands {
         int size = VeinMarkingDao.countForVein(activeVeinId);
         VeinMarkingDao.clearForVein(activeVeinId);
         VeinClient.notifyChange();
+
+        // prevent clear from removing markings for others to prevent griefing
+        VeinShareClient.setGroup(VeinShareClient.getSharingGroup());
 
         return Component.literal(String.format("§aCleared %d markings", size));
     }
