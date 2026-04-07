@@ -4,9 +4,14 @@ import com.civbuddy.utils.ChatHelper;
 import com.civbuddy.veins.data.markings.VeinMarkingDao;
 import com.civbuddy.veins.data.markings.VeinMarkingRow;
 import com.civbuddy.veins.serializers.ShareMarkingSerializer;
+import com.sun.jna.platform.unix.solaris.LibKstat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Tuple;
 import org.joml.Vector3i;
 import org.jspecify.annotations.NonNull;
 import java.sql.SQLException;
@@ -60,10 +65,12 @@ public final class VeinShareClient {
     private static void onTick(Minecraft minecraft) {
         try {
             if (!isSharing()) return;
-            if (!isSameVein()) return;
+
+            drawSharingIndicator();
 
             // only run every 20 ticks
             if (tick++ % 20 == 0) {
+                if (!isSameVein()) return;
                 ageStagedChanges();
                 findNewChanges();
                 commitMarkings();
@@ -71,7 +78,7 @@ public final class VeinShareClient {
         } catch (Exception ignored) {}
     }
 
-    private static boolean isSameVein() {
+    private static boolean isSameVein() throws SQLException {
         long currentVein = -2;
         try {
             currentVein = VeinClient.getActiveVeinId();
@@ -79,8 +86,7 @@ public final class VeinShareClient {
         }
 
         if (sharingVein != currentVein) {
-            sharingVein = -1;
-            sharingGroup = "";
+            setGroup("");
             ChatHelper.say(Component.literal("§aVein sharing cancelled by swapping vein"));
             return false;
         }
@@ -200,5 +206,18 @@ public final class VeinShareClient {
 
     public static long getSharingVein() {
         return sharingVein;
+    }
+
+    private static boolean indicatedZero = true;
+    private static void drawSharingIndicator() {
+        int count = commiting.size() + stage.size();
+
+        if (count == 0 && indicatedZero) return;
+
+        indicatedZero = count == 0;
+
+        Component text = Component.literal("§aSharing " + count + " markings with: §6§o" + sharingGroup);
+        Minecraft mc = Minecraft.getInstance();
+        mc.player.displayClientMessage(text, true);
     }
 }
