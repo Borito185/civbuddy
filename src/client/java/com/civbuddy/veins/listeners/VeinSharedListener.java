@@ -15,23 +15,35 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static com.civbuddy.CivBuddyClient.WORKER;
+
 public final class VeinSharedListener {
+
     public static void initialize() {
         ClientReceiveMessageEvents.GAME.register(VeinSharedListener::onChatMessage);
     }
 
     private static void onChatMessage(Component component, boolean b) {
-        try {
-            if (!VeinShareClient.isSharing()) return;
-            String msg = component.getString();
-            if (!msg.contains(VeinShareClient.PREPEND)) return;
+        if (!VeinShareClient.isSharing()) return;
 
+        String msg = component.getString();
+        if (!msg.contains(VeinShareClient.PREPEND)) return;
+
+        // Offload everything heavy
+        WORKER.submit(() -> handleMessage(msg));
+    }
+
+    private static void handleMessage(String msg) {
+        try {
             List<VeinShareClient.ShareMarking> markings = extractMarkings(msg);
-            if (markings != null && !markings.isEmpty()) {
-                processIncoming(markings);
-            }
+            if (markings == null || markings.isEmpty()) return;
+
+            processIncoming(markings);
+
+            VeinClient.notifyChange();
+
         } catch (Exception e) {
-            CivBuddy.LOGGER.error("Unexpected Error", e);
+            CivBuddy.LOGGER.error("Async error", e);
         }
     }
 

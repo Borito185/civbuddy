@@ -17,6 +17,8 @@ import org.jspecify.annotations.NonNull;
 import java.sql.SQLException;
 import java.util.*;
 
+import static com.civbuddy.CivBuddyClient.WORKER;
+
 public final class VeinShareClient {
     public static final String PREPEND = "[cb]:";
     private static String sharingGroup = "";
@@ -70,10 +72,14 @@ public final class VeinShareClient {
 
             // only run every 20 ticks
             if (tick++ % 20 == 0) {
-                if (!isSameVein()) return;
-                ageStagedChanges();
-                findNewChanges();
-                commitMarkings();
+                WORKER.submit(() -> {
+                    try {
+                        if (!isSameVein()) return;
+                        ageStagedChanges();
+                        findNewChanges();
+                        commitMarkings();
+                    } catch (SQLException ignored) {}
+                });
             }
         } catch (Exception ignored) {}
     }
