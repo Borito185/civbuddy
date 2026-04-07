@@ -17,7 +17,7 @@ import com.civbuddy.veins.data.markings.VeinMarkingDao;
 import com.civbuddy.veins.data.markings.VeinMarkingMigrations;
 import com.civbuddy.veins.data.markings.VeinMarkingRow;
 import com.civbuddy.veins.listeners.RightClickListener;
-import com.civbuddy.veins.listeners.MessageListener;
+import com.civbuddy.veins.listeners.DiaOreFoundListener;
 import com.civbuddy.veins.listeners.WorldEventListener;
 import com.civbuddy.veins.render.ShapeRenderer;
 import org.joml.Vector3i;
@@ -62,8 +62,11 @@ public class VeinClient {
 
         // --- Init Listeners ---
         RightClickListener.initialize();
-        MessageListener.initialize();
+        DiaOreFoundListener.initialize();
         WorldEventListener.initialize();
+
+        // --- Init Vein Share Client ---
+        VeinShareClient.initialize();
     }
 
     public static void notifyChange() {
