@@ -11,7 +11,7 @@ import java.util.Set;
 
 public final class Face2Edge {
     public static Collection<Edge> generateEdges(Collection<UnitFace> faces) {
-        Set<Edge> result = new HashSet<>();
+        Set<Edge> result = new HashSet<>(faces.size() * 2);
         generateEdges(result, faces);
         return result;
     }

@@ -19,7 +19,6 @@ public final class GridAlignedEdgeOptimizer {
 
             int dx = Integer.compare(b.x(), a.x());
             int dy = Integer.compare(b.y(), a.y());
-            int dz = Integer.compare(b.z(), a.z());
 
             int axis;
             int c1, c2;
@@ -86,5 +85,4 @@ public final class GridAlignedEdgeOptimizer {
             );
         };
     }
-
 }
