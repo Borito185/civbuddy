@@ -17,9 +17,13 @@ import com.civbuddy.veins.VeinClient;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 public class CivBuddyClient implements ClientModInitializer {
     public static final String MODID = "civbuddy";
     public static JsonConfig<GlobalConfig> config;
+    public static final ExecutorService WORKER = Executors.newSingleThreadExecutor();
 
     @Override
     public void onInitializeClient() {
