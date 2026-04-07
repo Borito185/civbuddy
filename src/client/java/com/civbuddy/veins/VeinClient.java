@@ -25,6 +25,8 @@ import org.joml.Vector3i;
 import com.civbuddy.veins.geo.shapes.AABBShape;
 import com.civbuddy.veins.geo.shapes.VoxelShape;
 
+import static com.civbuddy.CivBuddyClient.WORKER;
+
 public class VeinClient {
     private static VeinClient instance;
     private final ShapeRenderer markingRenderer = new ShapeRenderer();
@@ -72,11 +74,13 @@ public class VeinClient {
     }
 
     public static void notifyChange() {
-        try {
-            getInstance().redraw();
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+        WORKER.submit(() -> {
+            try {
+                getInstance().redraw();
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
     /**
