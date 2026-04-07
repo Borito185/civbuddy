@@ -22,7 +22,7 @@ import net.minecraft.network.chat.Component;
  *   /civbuddy reset          - Reset current vein count to 0
  *   /civbuddy listnames      - List all tracked veins
  */
-public class MessageListener {
+public class DiaOreFoundListener {
     private static final Minecraft mc = Minecraft.getInstance();
 
     
@@ -33,11 +33,11 @@ public class MessageListener {
     );
     private static final String[] IGNORE_MSG_CHARACTERS = new String[] {"<", ">", "[", "]", "joined", "left", "From", "to", "combat", "brand new!"};
 
-    private MessageListener() {}
+    private DiaOreFoundListener() {}
 
     public static void initialize() {
         // Register chat listener
-        ClientReceiveMessageEvents.GAME.register(MessageListener::onChatMessage);
+        ClientReceiveMessageEvents.GAME.register(DiaOreFoundListener::onChatMessage);
     }
 
     /**
