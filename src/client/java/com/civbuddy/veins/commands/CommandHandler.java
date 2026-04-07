@@ -28,22 +28,27 @@ public final class CommandHandler implements CommandsHelper.CommandProvider {
     @Override
     public LiteralArgumentBuilder<FabricClientCommandSource> commands() {
         return literal("veins")
-                .then(literal("digRange").then(argument("x", integer(1, 11)).then(argument("y", integer(1, 11)).then(argument("z", integer(1, 11))
-                        .executes(andRespondWith(ConfigCommands::setDigRange))))))
+            .then(literal("digRange").then(argument("x", integer(1, 11)).then(argument("y", integer(1, 11)).then(argument("z", integer(1, 11))
+                .executes(andRespondWith(ConfigCommands::setDigRange))))))
+            .then(literal("digRadius").then(argument("radius", integer(1, 11))
+                .executes(andRespondWith(ConfigCommands::setDigRadius))))
+            .then(literal("clear")
+                .executes(andRespondWith(VeinCommands::clear)))
+            .then(literal("toggle")
+                .executes(andRespondWith(ConfigCommands::toggle)))
+            .then(literal("changeAll")
                 .then(literal("digRadius").then(argument("radius", integer(1, 11))
-                        .executes(andRespondWith(ConfigCommands::setDigRadius))))
-                .then(literal("clear")
-                        .executes(andRespondWith(VeinCommands::clear)))
-                .then(literal("toggle")
-                        .executes(andRespondWith(ConfigCommands::toggle)))
-                .then(literal("changeAll")
-                        .then(literal("digRadius").then(argument("radius", integer(1, 11))
-                                .executes(andRespondWith(VeinCommands::onChangeAllDigRange)))))
-                .then(ClientCommandManager.literal("set")
-                        .then(ClientCommandManager.argument("veinName", StringArgumentType.string())
-                                .suggests(CommandHandler::getSuggestions)
-                                .executes(andRespondWith(ConfigCommands::setVein))))
-                .then(ClientCommandManager.literal("info").executes(andRespondWith(InfoCommands::writeInfo)));
+                    .executes(andRespondWith(VeinCommands::onChangeAllDigRange)))))
+            .then(ClientCommandManager.literal("set")
+                .then(ClientCommandManager.argument("veinName", StringArgumentType.string())
+                    .suggests(CommandHandler::getSuggestions)
+                        .executes(andRespondWith(ConfigCommands::setVein))))
+            .then(ClientCommandManager.literal("info").executes(andRespondWith(InfoCommands::writeInfo)))
+            .then(ClientCommandManager.literal("share")
+                .then(ClientCommandManager.literal("with").executes(andRespondWith(ShareCommands::shareWithClear))
+                        .then(ClientCommandManager.argument("nl", StringArgumentType.string())
+                                .executes(andRespondWith(ShareCommands::shareWith))))
+                .then(ClientCommandManager.literal("all").executes(andRespondWith(ShareCommands::shareAll))));
     }
 
     @Override
