@@ -55,12 +55,12 @@ public class CommandsHelper {
     public static Command<FabricClientCommandSource> andRespondWith(CommandExecutor exe) {
         return ctx -> {
             try {
-                MutableComponent prefix = Component.literal("[CivBuddy]").withStyle(s -> s.withColor(ChatFormatting.GOLD)).append(": ");
                 Component result = exe.execute(ctx);
                 // write to chat
                 if (result == null)
                     result = Component.literal("Success!").withStyle(s -> s.withColor(ChatFormatting.GREEN));
-                Minecraft.getInstance().player.displayClientMessage(prefix.append(result), false);
+
+                ChatHelper.say(result);
                 return 1;
             } catch (SQLException e) {
                 throw new RuntimeException(e);
