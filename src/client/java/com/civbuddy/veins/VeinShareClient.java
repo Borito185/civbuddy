@@ -1,24 +1,19 @@
 package com.civbuddy.veins;
 
-import com.civbuddy.CivBuddy;
 import com.civbuddy.utils.ChatHelper;
 import com.civbuddy.veins.data.markings.VeinMarkingDao;
 import com.civbuddy.veins.data.markings.VeinMarkingRow;
 import com.civbuddy.veins.serializers.ShareMarkingSerializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import org.joml.Vector3i;
 import org.jspecify.annotations.NonNull;
-
 import java.sql.SQLException;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public final class VeinShareClient {
-    private static final String PREPEND = "[cb]:";
+    public static final String PREPEND = "[cb]:";
     private static String sharingGroup = "";
     private static long sharingVein = -1;
     private static final Set<VeinMarkingRow> known = new HashSet<>();
@@ -58,118 +53,123 @@ public final class VeinShareClient {
     }
 
     public static void initialize() {
-        ClientTickEvents.END_CLIENT_TICK.register(VeinShareClient::heartbeat);
-        ClientReceiveMessageEvents.GAME.register(VeinShareClient::onChatMessage);
-    }
-
-    private static void onChatMessage(Component component, boolean b) {
-        if (!isSharing()) return;
-        String msg = component.getString();
-        if (!msg.contains(PREPEND)) return;
-
-        String regex = "(?i)^\\[" + Pattern.quote(sharingGroup) + "\\].*?"
-                + Pattern.quote(PREPEND)
-                + "(\\S+)";
-
-        Pattern p = Pattern.compile(regex);
-        Matcher m = p.matcher(msg);
-        try {
-            if (m.find()) {
-                String encoded = m.group(1);
-                List<ShareMarking> decoded = ShareMarkingSerializer.decode(encoded);
-                for (ShareMarking shareMarking : decoded) {
-                    if (shareMarking.isRemove) {
-                        VeinMarkingDao.delete(sharingVein, shareMarking.pos);
-                        known.removeIf(marking -> marking.pos().equals(shareMarking.pos));
-                    } else {
-                        VeinMarkingRow row = new VeinMarkingRow(sharingVein, shareMarking.pos, shareMarking.range);
-                        VeinMarkingDao.upsert(row);
-                        known.add(row);
-                    }
-                }
-                VeinClient.notifyChange();
-            }
-        } catch (Exception ignored) {}
+        ClientTickEvents.END_CLIENT_TICK.register(VeinShareClient::onTick);
     }
 
     private static long tick = 0;
-    private static void heartbeat(Minecraft minecraft) {
+    private static void onTick(Minecraft minecraft) {
         try {
-            // only run every 20 ticks
-            if (tick++ % 20 != 0) return;
-
-            // check if sharing
             if (!isSharing()) return;
+            if (!isSameVein()) return;
 
-            // compare vein key
-            //   diff: clear and quit
-            //   same: continue
-            long currentVein = -2;
-            try {
-                currentVein = VeinClient.getActiveVeinId();
-            } catch (Exception ignored) {
+            // only run every 20 ticks
+            if (tick++ % 20 == 0) {
+                ageStagedChanges();
+                findNewChanges();
+                commitMarkings();
             }
-
-            if (sharingVein != currentVein) {
-                sharingVein = -1;
-                sharingGroup = "";
-                ChatHelper.say(Component.literal("§aVein sharing cancelled by swapping vein"));
-            }
-
-            // increment time on staged ones
-            for (ShareMarking s : stage) {
-                s.age++;
-            }
-
-            // find & stage diff
-            try {
-                stageDiff();
-            } catch (SQLException ignored) {
-            }
-
-            // commit staged diff's above threshold
-
-            stage.removeIf(s -> {
-                if (s.age <= 5) return false;
-                commiting.add(s);
-
-                VeinMarkingRow row = new VeinMarkingRow(sharingVein, s.pos, s.range);
-                if (s.isRemove) {
-                    known.remove(row);
-                } else {
-                    known.add(row);
-                }
-
-                return true; // remove from stage
-            });
-
-            commitMarkings();
         } catch (Exception ignored) {}
     }
 
-    private static void stageDiff() throws SQLException {
+    private static boolean isSameVein() {
+        long currentVein = -2;
+        try {
+            currentVein = VeinClient.getActiveVeinId();
+        } catch (Exception ignored) {
+        }
+
+        if (sharingVein != currentVein) {
+            sharingVein = -1;
+            sharingGroup = "";
+            ChatHelper.say(Component.literal("§aVein sharing cancelled by swapping vein"));
+            return false;
+        }
+
+        return true;
+    }
+
+    private static void ageStagedChanges() {
+        for (ShareMarking s : stage) {
+            s.age++;
+        }
+    }
+
+    private static void findNewChanges() throws SQLException {
+        // compare what is currently in db with what is known and add to stage
         Set<VeinMarkingRow> current = new HashSet<>(VeinMarkingDao.findAllForVein(sharingVein));
 
-        Set<VeinMarkingRow> added = new HashSet<>(current);
-        added.removeAll(known);
+        Set<VeinMarkingRow> added = new HashSet<>(current); added.removeAll(known);
+        Set<VeinMarkingRow> removed = new HashSet<>(known); removed.removeAll(current);
 
-        Set<VeinMarkingRow> removed = new HashSet<>(known);
-        removed.removeAll(current);
+        for (VeinMarkingRow row : added)   stage.add(new ShareMarking(row, false));
+        for (VeinMarkingRow row : removed) stage.add(new ShareMarking(row, true));
 
-        for (VeinMarkingRow row : added) {
-            stage.add(new ShareMarking(row, false));
-        }
-
-        for (VeinMarkingRow row : removed) {
-            stage.add(new ShareMarking(row, true));
-        }
-
+        // remove elements from stage if they are no longer in db
         stage.removeIf(s -> {
             VeinMarkingRow row = new VeinMarkingRow(sharingVein, s.pos, s.range);
             if (!s.isRemove && !added.contains(row)) return true;
             if (s.isRemove && !removed.contains(row)) return true;
             return false;
         });
+
+        // commit staged diff's above threshold
+        stage.removeIf(s -> {
+            if (s.age <= 5) return false;
+
+            addToKnown(s, true);
+
+            return true; // remove from stage
+        });
+    }
+
+    private static void commitMarkings() {
+        if (commiting.isEmpty()) return;
+
+        int maxLen = 220;
+
+        List<ShareMarking> list = new ArrayList<>(commiting);
+        int lo = 1;
+        int hi = Math.min(64, list.size());
+        int best = 0;
+
+        while (lo <= hi) {
+            int mid = (lo + hi) >>> 1;
+
+            String encoded = ShareMarkingSerializer.encode(list.subList(0, mid));
+
+            if (encoded.length() <= maxLen) {
+                best = mid;
+                lo = mid + 1;
+            } else {
+                hi = mid - 1;
+            }
+        }
+
+        if (best == 0) return;
+
+        List<ShareMarking> batch = list.subList(0, best);
+        String encoded = ShareMarkingSerializer.encode(batch);
+
+        // remove committed
+        for (int i = 0; i < best; i++) {
+            commiting.remove(list.get(i));
+        }
+
+        if (Minecraft.getInstance().player != null) {
+            Minecraft.getInstance().player.connection.sendCommand(
+                    "g " + sharingGroup + " " + PREPEND + encoded
+            );
+        }
+    }
+
+    public static void addToKnown(ShareMarking marking, boolean share) {
+        if (share) {
+            commiting.add(marking);
+        }
+
+        VeinMarkingRow row = new VeinMarkingRow(sharingVein, marking.pos, marking.range);
+        if (marking.isRemove) known.remove(row);
+        else known.add(row);
     }
 
     public static void setGroup(String namelayer) throws SQLException {
@@ -190,28 +190,15 @@ public final class VeinShareClient {
         return true;
     }
 
-    private static void commitMarkings() {
-        if (commiting.isEmpty()) return;
-
-        List<ShareMarking> batch = new ArrayList<>();
-        int maxLen = 220;
-
-        for (ShareMarking s : commiting) {
-            batch.add(s);
-
-            String encoded = ShareMarkingSerializer.encode(batch);
-            if (encoded.length() > maxLen) {
-                batch.remove(batch.size() - 1);
-                break;
-            }
-        }
-
-        batch.forEach(commiting::remove);
-
-        Minecraft.getInstance().player.connection.sendCommand("g " + sharingGroup + " " + PREPEND + ShareMarkingSerializer.encode(batch));
+    public static boolean isSharing() {
+        return sharingVein != -1 && sharingGroup != null && !sharingGroup.isBlank();
     }
 
-    private static boolean isSharing() {
-        return sharingVein != -1 && sharingGroup != null && !sharingGroup.isBlank();
+    public static String getSharingGroup() {
+        return sharingGroup;
+    }
+
+    public static long getSharingVein() {
+        return sharingVein;
     }
 }
