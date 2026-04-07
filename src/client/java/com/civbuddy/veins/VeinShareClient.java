@@ -208,15 +208,13 @@ public final class VeinShareClient {
         return sharingVein;
     }
 
-    private static boolean indicatedZero = true;
     private static void drawSharingIndicator() {
         int count = commiting.size() + stage.size();
 
-        if (count == 0 && indicatedZero) return;
+        String msg = "§6CivBuddy: §aSharing vein markings with: §6§o" + sharingGroup;
+        msg += count != 0 ? " §r§a(sending " + count + ")" : "";
+        Component text = Component.literal(msg);
 
-        indicatedZero = count == 0;
-
-        Component text = Component.literal("§aSharing " + count + " markings with: §6§o" + sharingGroup);
         Minecraft mc = Minecraft.getInstance();
         mc.player.displayClientMessage(text, true);
     }
