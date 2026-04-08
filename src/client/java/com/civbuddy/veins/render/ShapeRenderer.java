@@ -27,6 +27,8 @@ import static com.civbuddy.veins.render.RenderLayers.LINES;
 import static com.civbuddy.veins.render.RenderLayers.TRANSLUCENT_QUADS;
 
 public class ShapeRenderer {
+    private final Object lock = new Object();
+
     public static float grid_alpha = 1;
     private final static float NORMAL_BIAS = 0.001f;
     private final CompoundShape shape = new CompoundShape();
@@ -50,8 +52,10 @@ public class ShapeRenderer {
     }
 
     public void setInnerShapes(Set<VoxelShape> shapes) {
-        shape.set(shapes);
-        remesh();
+        synchronized (lock) {
+            shape.set(shapes);
+            remesh();
+        }
     }
 
     private void remesh() {
@@ -63,33 +67,35 @@ public class ShapeRenderer {
     }
 
     private void draw(WorldRenderContext ctx) {
-        if (ctx.matrices() == null || ctx.consumers() == null) return;
-        if (!hasFaces() && !hasGrid()) return;
+        synchronized (lock) {
+            if (ctx.matrices() == null || ctx.consumers() == null) return;
+            if (!hasFaces() && !hasGrid()) return;
 
-        ProfilerFiller profiler = Profiler.get();
+            ProfilerFiller profiler = Profiler.get();
 
-        profiler.push("vein_rendering");
+            profiler.push("vein_rendering");
 
-        var ms = ctx.matrices();
-        Vec3 cam = Minecraft.getInstance()
-                .gameRenderer
-                .getMainCamera()
-                .position();
-        ms.pushPose();
-        ms.translate(-cam.x, -cam.y, -cam.z);
-        Matrix4f mat = ms.last().pose();
+            var ms = ctx.matrices();
+            Vec3 cam = Minecraft.getInstance()
+                    .gameRenderer
+                    .getMainCamera()
+                    .position();
+            ms.pushPose();
+            ms.translate(-cam.x, -cam.y, -cam.z);
+            Matrix4f mat = ms.last().pose();
 
-        profiler.push("grid");
+            profiler.push("grid");
 
-        if (hasGrid())
-            drawLines(ctx, mat);
-        profiler.popPush("walls");
-        if (hasFaces())
-            drawFaces(ctx, mat);
-        profiler.pop();
+            if (hasGrid())
+                drawLines(ctx, mat);
+            profiler.popPush("walls");
+            if (hasFaces())
+                drawFaces(ctx, mat);
+            profiler.pop();
 
-        ms.popPose();
-        profiler.pop();
+            ms.popPose();
+            profiler.pop();
+        }
     }
 
     private boolean hasFaces() {
