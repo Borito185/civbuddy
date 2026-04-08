@@ -23,6 +23,8 @@ Visual marking and tracking system for ore veins.
 - `/civbuddy veins clear` - Clear all vein markers
 - `/civbuddy veins set <name>` - Swap to a different named vein
 - `/civbuddy veins info` - Display information about the current vein, including diamonds found by the player.
+- `/civbuddy veins share with <nl>` - Live share the current vein with a namelayer.
+- `/civbuddy veins share all` - Share the current vein fully, including previous markings.
 
 **Controls:**
 - Hold right-click with pickaxe to charge placement
