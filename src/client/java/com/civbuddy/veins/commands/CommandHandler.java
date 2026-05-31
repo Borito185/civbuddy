@@ -44,15 +44,19 @@ public final class CommandHandler implements CommandsHelper.CommandProvider {
                                 .executes(andRespondWith(VeinCommands::onChangeAllDigRange)))))
                 .then(ClientCommandManager.literal("set")
                         .then(ClientCommandManager.argument("veinName", StringArgumentType.string())
-                                .suggests(CommandHandler::getSuggestions)
+                            .suggests(CommandHandler::getSuggestions)
                                 .executes(andRespondWith(ConfigCommands::setVein))))
                 .then(ClientCommandManager.literal("info").executes(andRespondWith(InfoCommands::writeInfo)))
                 .then(ClientCommandManager.literal("share")
                         .then(ClientCommandManager.literal("with").executes(andRespondWith(ShareCommands::shareWithClear))
                                 .then(ClientCommandManager.argument("nl", StringArgumentType.string())
-                                        .suggests(CommandHandler::getNamelayerSuggestions)
+                                    .suggests(CommandHandler::getNamelayerSuggestions)
                                         .executes(andRespondWith(ShareCommands::shareWith))))
-                        .then(ClientCommandManager.literal("all").executes(andRespondWith(ShareCommands::shareAll))));
+                        .then(ClientCommandManager.literal("all").executes(andRespondWith(ShareCommands::shareAll))))
+                .then(ClientCommandManager.literal("shape")
+                        .then(ClientCommandManager.argument("type", StringArgumentType.word())
+                            .suggests(VeinCommands::suggestShapeModes)
+                                .executes(andRespondWith(VeinCommands::setShapeType))));
     }
 
     @Override
