@@ -93,16 +93,26 @@ public class ShapeRenderer {
     private void drawFaces(WorldRenderContext ctx, Matrix4f mat) {
         final VertexConsumer vc = ctx.consumers().getBuffer(TRANSLUCENT_QUADS);
 
-        final Vec3 cp = Minecraft.getInstance()
-                .gameRenderer
-                .getMainCamera()
-                .position();
+        final var camera = Minecraft.getInstance().gameRenderer.getMainCamera();
+        final Vector3fc look = camera.forwardVector();
+        final float lx = look.x();
+        final float ly = look.y();
+        final float lz = look.z();
+        final Vec3 cp = camera.position();
         final float cx = (float) cp.x, cy = (float) cp.y, cz = (float) cp.z;
+        final float r = color.x, g = color.y, b = color.z, a = color.w;
 
         float drawDistanceSqr = getDrawDistanceSqr();
-        final float r = color.x, g = color.y, b = color.z, a = color.w;
         for (ChunkedVoxelField.Chunk chunk : chunks) {
-            if (chunk.center.distanceSquared((int)cx, (int)cy, (int)cz) > drawDistanceSqr)
+            float dx = chunk.center.x() - cx;
+            float dy = chunk.center.y() - cy;
+            float dz = chunk.center.z() - cz;
+
+            if (dx * dx + dy * dy + dz * dz > drawDistanceSqr)
+                continue;
+
+            // Behind camera?
+            if (dx * lx + dy * ly + dz * lz < -16f)
                 continue;
 
             for (Face f : chunk.faces) {
@@ -138,17 +148,26 @@ public class ShapeRenderer {
     private void drawLines(WorldRenderContext ctx, Matrix4f mat) {
         final VertexConsumer vc = ctx.consumers().getBuffer(LINES);
 
-        final Vec3 cp = Minecraft.getInstance()
-                .gameRenderer
-                .getMainCamera()
-                .position();
+        final var camera = Minecraft.getInstance().gameRenderer.getMainCamera();
+        final Vector3fc look = camera.forwardVector();
+        final float lx = look.x();
+        final float ly = look.y();
+        final float lz = look.z();
+        final Vec3 cp = camera.position();
         final float cx = (float) cp.x, cy = (float) cp.y, cz = (float) cp.z;
-
         final float r = 0f, g = 0f, b = 0f, a = grid_alpha;
 
         float drawDistanceSqr = getDrawDistanceSqr();
         for (ChunkedVoxelField.Chunk chunk : chunks) {
-            if (chunk.center.distanceSquared((int)cx, (int)cy, (int)cz) > drawDistanceSqr)
+            float dx = chunk.center.x() - cx;
+            float dy = chunk.center.y() - cy;
+            float dz = chunk.center.z() - cz;
+
+            if (dx * dx + dy * dy + dz * dz > drawDistanceSqr)
+                continue;
+
+            // Behind camera?
+            if (dx * lx + dy * ly + dz * lz < -16f)
                 continue;
 
             for (Edge e : chunk.edges) {
@@ -157,18 +176,18 @@ public class ShapeRenderer {
 
                 // bias A toward camera
                 {
-                    final float dx = cx - A.x();
-                    final float dy = cy - A.y();
-                    final float dz = cz - A.z();
+                    dx = cx - A.x();
+                    dy = cy - A.y();
+                    dz = cz - A.z();
                     final float inv = NORMAL_BIAS * invLen(dx, dy, dz);
                     vc.addVertex(mat, A.x() + dx * inv, A.y() + dy * inv, A.z() + dz * inv).setColor(r, g, b, a);
                 }
 
                 // bias B toward camera
                 {
-                    final float dx = cx - Bp.x();
-                    final float dy = cy - Bp.y();
-                    final float dz = cz - Bp.z();
+                    dx = cx - Bp.x();
+                    dy = cy - Bp.y();
+                    dz = cz - Bp.z();
                     final float inv = NORMAL_BIAS * invLen(dx, dy, dz);
                     vc.addVertex(mat, Bp.x() + dx * inv, Bp.y() + dy * inv, Bp.z() + dz * inv).setColor(r, g, b, a);
                 }
