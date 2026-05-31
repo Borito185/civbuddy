@@ -5,6 +5,7 @@ import org.joml.Vector4f;
 
 public final class VeinConfig {
     public boolean doRender = true;
+    public ShapeMode shapeMode = ShapeMode.Cuboid;
 
     public float placeMoveSpeed = 0.2f;
     public float placeRange = 6.0f;
@@ -20,5 +21,10 @@ public final class VeinConfig {
 
     public int getMaxTicks() {
         return (int) (placeRange / placeMoveSpeed);
+    }
+
+    public enum ShapeMode {
+        Cuboid,
+        Spheroid
     }
 }

@@ -93,18 +93,9 @@ public class ChunkedVoxelField {
             if (!removed) return;
         }
         short shiftAmount = (short)(isAdd ? 1 : -1);
+        VoxelConsumer c = (x,y,z) -> shift(x,y,z, shiftAmount);
 
-        if (shape instanceof AABBShape aabb) {
-            Vector3ic center = aabb.center();
-            Vector3ic radius = aabb.radius();
-
-            for (int x = center.x() - radius.x(); x <= center.x() + radius.x(); x++)
-                for (int y = center.y() - radius.y(); y <= center.y() + radius.y(); y++)
-                    for (int z = center.z() - radius.z(); z <= center.z() + radius.z(); z++)
-                        shift(x, y, z, shiftAmount);
-        } else {
-            throw new NotImplementedException();
-        }
+        shape.AddVoxels(c);
     }
 
     private void shift(int x, int y, int z, short diff) {
@@ -149,9 +140,6 @@ public class ChunkedVoxelField {
     // =========================================================
 
     private void rebuildChunkMesh(int cx, int cy, int cz, Chunk chunk) {
-
-        chunk.faces.clear();
-
         int baseX = cx << 4;
         int baseY = cy << 4;
         int baseZ = cz << 4;
