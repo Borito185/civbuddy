@@ -16,6 +16,7 @@ import com.civbuddy.veins.data.VeinMigrations;
 import com.civbuddy.veins.data.markings.VeinMarkingDao;
 import com.civbuddy.veins.data.markings.VeinMarkingMigrations;
 import com.civbuddy.veins.data.markings.VeinMarkingRow;
+import com.civbuddy.veins.geo.shapes.SphereShape;
 import com.civbuddy.veins.listeners.RightClickListener;
 import com.civbuddy.veins.listeners.DiaOreFoundListener;
 import com.civbuddy.veins.listeners.VeinSharedListener;
@@ -105,11 +106,11 @@ public class VeinClient {
         List<VeinMarkingRow> rows = VeinMarkingDao.findAllForVein(getActiveVeinId());
         Set<VoxelShape> bordersShapes = rows
                 .stream()
-                .map(r -> AABBShape.of(r.pos(), r.range()))
+                .map(r -> VoxelShape.of(r.pos(), r.range(), config.shapeMode.ordinal()))
                 .collect(Collectors.toSet());
         Set<VoxelShape> markingsShapes = rows
                 .stream()
-                .map(r -> AABBShape.of(r.pos(), new Vector3i(0)))
+                .map(r -> VoxelShape.of(r.pos(), new Vector3i(0), 0))
                 .collect(Collectors.toSet());
 
         borderRenderer.setInnerShapes(bordersShapes);

@@ -1,6 +1,7 @@
 package com.civbuddy.veins.geo.util;
 
 import com.civbuddy.veins.geo.primitives.Edge;
+import com.civbuddy.veins.geo.primitives.Face;
 import com.civbuddy.veins.geo.primitives.UnitFace;
 import org.joml.Vector3i;
 import org.joml.Vector3ic;
@@ -10,40 +11,85 @@ import java.util.HashSet;
 import java.util.Set;
 
 public final class Face2Edge {
-    public static Collection<Edge> generateEdges(Collection<UnitFace> faces) {
-        Set<Edge> result = new HashSet<>(faces.size() * 2);
-        generateEdges(result, faces);
-        return result;
-    }
+    public static Collection<Edge> generateEdges(Collection<Face> faces) {
+        Set<Edge> edges = new HashSet<>();
 
-    public static void generateEdges(Set<Edge> set, Collection<UnitFace> faces) {
-        if (faces == null || faces.isEmpty()) return;
+        for (Face face : faces) {
 
-        for (UnitFace f : faces) {
-            Vector3ic a = f.a(), b = f.b(), c = f.c(), d = f.d();
+            Vector3ic a = face.a();
+            Vector3ic b = face.b();
+            Vector3ic d = face.d();
 
-            // quad perimeter: a-b-c-d-a
-            addUndirectedEdge(set, a, b);
-            addUndirectedEdge(set, b, c);
-            addUndirectedEdge(set, c, d);
-            addUndirectedEdge(set, d, a);
+            int abx = Integer.signum(b.x() - a.x());
+            int aby = Integer.signum(b.y() - a.y());
+            int abz = Integer.signum(b.z() - a.z());
+
+            int adx = Integer.signum(d.x() - a.x());
+            int ady = Integer.signum(d.y() - a.y());
+            int adz = Integer.signum(d.z() - a.z());
+
+            int width =
+                    Math.abs(b.x() - a.x()) +
+                            Math.abs(b.y() - a.y()) +
+                            Math.abs(b.z() - a.z());
+
+            int height =
+                    Math.abs(d.x() - a.x()) +
+                            Math.abs(d.y() - a.y()) +
+                            Math.abs(d.z() - a.z());
+
+            // Lines parallel to AB
+            for (int i = 0; i <= height; i++) {
+
+                Vector3i start = new Vector3i(
+                        a.x() + adx * i,
+                        a.y() + ady * i,
+                        a.z() + adz * i
+                );
+
+                Vector3i end = new Vector3i(
+                        start.x + abx * width,
+                        start.y + aby * width,
+                        start.z + abz * width
+                );
+
+                edges.add(normalize(new Edge(start, end)));
+            }
+
+            // Lines parallel to AD
+            for (int i = 0; i <= width; i++) {
+
+                Vector3i start = new Vector3i(
+                        a.x() + abx * i,
+                        a.y() + aby * i,
+                        a.z() + abz * i
+                );
+
+                Vector3i end = new Vector3i(
+                        start.x + adx * height,
+                        start.y + ady * height,
+                        start.z + adz * height
+                );
+
+                edges.add(normalize(new Edge(start, end)));
+            }
         }
+
+        return edges;
     }
 
-    private static void addUndirectedEdge(Set<Edge> set, Vector3ic p, Vector3ic q) {
-        if (p == null || q == null) return;
-        if (p.equals(q)) return; // ignore degenerate
+    private static Edge normalize(Edge edge) {
+        Vector3ic a = edge.a();
+        Vector3ic b = edge.b();
 
-        // Canonical ordering so (a,b) == (b,a)
-        if (compareVec3i(p, q) <= 0) set.add(new Edge(p, q));
-        else                         set.add(new Edge(q, p));
-    }
+        if (
+                a.x() < b.x() ||
+                        (a.x() == b.x() && a.y() < b.y()) ||
+                        (a.x() == b.x() && a.y() == b.y() && a.z() <= b.z())
+        ) {
+            return edge;
+        }
 
-    private static int compareVec3i(Vector3ic u, Vector3ic v) {
-        int cx = Integer.compare(u.x(), v.x());
-        if (cx != 0) return cx;
-        int cy = Integer.compare(u.y(), v.y());
-        if (cy != 0) return cy;
-        return Integer.compare(u.z(), v.z());
+        return new Edge(b, a);
     }
 }
