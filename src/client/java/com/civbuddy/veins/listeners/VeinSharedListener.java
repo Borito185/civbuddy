@@ -20,17 +20,19 @@ import static com.civbuddy.CivBuddyClient.WORKER;
 public final class VeinSharedListener {
 
     public static void initialize() {
-        ClientReceiveMessageEvents.GAME.register(VeinSharedListener::onChatMessage);
+        ClientReceiveMessageEvents.ALLOW_GAME.register(VeinSharedListener::onChatMessage);
     }
 
-    private static void onChatMessage(Component component, boolean b) {
-        if (!VeinShareClient.isSharing()) return;
+    private static boolean onChatMessage(Component component, boolean b) {
+        if (!VeinShareClient.isSharing()) return true;
 
         String msg = component.getString();
-        if (!msg.contains(VeinShareClient.PREPEND)) return;
+        if (!msg.contains(VeinShareClient.PREPEND)) return true;
 
         // Offload everything heavy
         WORKER.submit(() -> handleMessage(msg));
+
+        return false;
     }
 
     private static void handleMessage(String msg) {

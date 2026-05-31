@@ -2,11 +2,8 @@ package com.civbuddy.veins.render;
 
 import com.civbuddy.veins.geo.primitives.Edge;
 import com.civbuddy.veins.geo.primitives.Face;
-import com.civbuddy.veins.geo.primitives.UnitFace;
-import com.civbuddy.veins.geo.shapes.AlternativeCompoundShape;
 import com.civbuddy.veins.geo.shapes.VoxelShape;
-import com.civbuddy.veins.geo.util.Face2Edge;
-import com.civbuddy.veins.geo.util.GridAlignedFaceOptimizer;
+import com.civbuddy.veins.geo.util.ChunkedVoxelField;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
@@ -19,6 +16,7 @@ import org.joml.*;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 
 import static com.civbuddy.veins.render.RenderLayers.LINES;
@@ -29,9 +27,8 @@ public class ShapeRenderer {
 
     public static float grid_alpha = 1;
     private final static float NORMAL_BIAS = 0.001f;
-    private final AlternativeCompoundShape shape = new AlternativeCompoundShape();
-    private volatile Collection<Face> faces;
-    private volatile Collection<Edge> edges;
+    private final ChunkedVoxelField field = new ChunkedVoxelField();
+    private volatile Collection<ChunkedVoxelField.Chunk> chunks = List.of();
 
     private Vector4f color = new Vector4f(1,0,0,0.2f);
     private boolean hasGrid = true;
@@ -46,20 +43,13 @@ public class ShapeRenderer {
     }
 
     public Collection<VoxelShape> getInnerShapes() {
-        return new ArrayList<>(shape.getInnerShapes());
+        return new ArrayList<>(field.getInnerShapes());
     }
 
     public void setInnerShapes(Set<VoxelShape> shapes) {
         synchronized (lock) {
-            shape.set(shapes);
-            remesh();
+            chunks = field.set(shapes);
         }
-    }
-
-    private void remesh() {
-        Collection<UnitFace> unitFaces = shape.getFaces();
-        faces = GridAlignedFaceOptimizer.optimize(unitFaces);
-        edges = Face2Edge.generateEdges(faces);
     }
 
     private void draw(WorldRenderContext ctx) {
@@ -93,11 +83,11 @@ public class ShapeRenderer {
     }
 
     private boolean hasFaces() {
-        return faces != null && !faces.isEmpty();
+        return true;
     }
 
     private boolean hasGrid() {
-        return hasGrid && edges != null && !edges.isEmpty();
+        return hasGrid;
     }
 
     private void drawFaces(WorldRenderContext ctx, Matrix4f mat) {
@@ -109,34 +99,39 @@ public class ShapeRenderer {
                 .position();
         final float cx = (float) cp.x, cy = (float) cp.y, cz = (float) cp.z;
 
+        float drawDistanceSqr = getDrawDistanceSqr();
         final float r = color.x, g = color.y, b = color.z, a = color.w;
+        for (ChunkedVoxelField.Chunk chunk : chunks) {
+            if (chunk.center.distanceSquared((int)cx, (int)cy, (int)cz) > drawDistanceSqr)
+                continue;
 
-        for (Face f : faces) {
-            // normal (assumed normalized)
-            final Vector3fc n0 = f.normal();
-            float nx = n0.x(), ny = n0.y(), nz = n0.z();
+            for (Face f : chunk.faces) {
+                // normal (assumed normalized)
+                final Vector3fc n0 = f.normal();
+                float nx = n0.x(), ny = n0.y(), nz = n0.z();
 
-            // center
-            final Vector3fc ctr = f.center();
-            final float tx = cx - ctr.x();
-            final float ty = cy - ctr.y();
-            final float tz = cz - ctr.z();
+                // center
+                final Vector3fc ctr = f.center();
+                final float tx = cx - ctr.x();
+                final float ty = cy - ctr.y();
+                final float tz = cz - ctr.z();
 
-            // flip normal toward camera
-            if (nx * tx + ny * ty + nz * tz < 0f) {
-                nx = -nx; ny = -ny; nz = -nz;
+                // flip normal toward camera
+                if (nx * tx + ny * ty + nz * tz < 0f) {
+                    nx = -nx; ny = -ny; nz = -nz;
+                }
+
+                final float ox = nx * NORMAL_BIAS;
+                final float oy = ny * NORMAL_BIAS;
+                final float oz = nz * NORMAL_BIAS;
+
+                final Vector3ic A = f.a(), B = f.b(), C = f.c(), D = f.d();
+
+                vc.addVertex(mat, A.x() + ox, A.y() + oy, A.z() + oz).setColor(r, g, b, a);
+                vc.addVertex(mat, B.x() + ox, B.y() + oy, B.z() + oz).setColor(r, g, b, a);
+                vc.addVertex(mat, C.x() + ox, C.y() + oy, C.z() + oz).setColor(r, g, b, a);
+                vc.addVertex(mat, D.x() + ox, D.y() + oy, D.z() + oz).setColor(r, g, b, a);
             }
-
-            final float ox = nx * NORMAL_BIAS;
-            final float oy = ny * NORMAL_BIAS;
-            final float oz = nz * NORMAL_BIAS;
-
-            final Vector3ic A = f.a(), B = f.b(), C = f.c(), D = f.d();
-
-            vc.addVertex(mat, A.x() + ox, A.y() + oy, A.z() + oz).setColor(r, g, b, a);
-            vc.addVertex(mat, B.x() + ox, B.y() + oy, B.z() + oz).setColor(r, g, b, a);
-            vc.addVertex(mat, C.x() + ox, C.y() + oy, C.z() + oz).setColor(r, g, b, a);
-            vc.addVertex(mat, D.x() + ox, D.y() + oy, D.z() + oz).setColor(r, g, b, a);
         }
     }
 
@@ -151,26 +146,32 @@ public class ShapeRenderer {
 
         final float r = 0f, g = 0f, b = 0f, a = grid_alpha;
 
-        for (Edge e : edges) {
-            final Vector3ic A = e.a();
-            final Vector3ic Bp = e.b();
+        float drawDistanceSqr = getDrawDistanceSqr();
+        for (ChunkedVoxelField.Chunk chunk : chunks) {
+            if (chunk.center.distanceSquared((int)cx, (int)cy, (int)cz) > drawDistanceSqr)
+                continue;
 
-            // bias A toward camera
-            {
-                final float dx = cx - A.x();
-                final float dy = cy - A.y();
-                final float dz = cz - A.z();
-                final float inv = NORMAL_BIAS * invLen(dx, dy, dz);
-                vc.addVertex(mat, A.x() + dx * inv, A.y() + dy * inv, A.z() + dz * inv).setColor(r, g, b, a);
-            }
+            for (Edge e : chunk.edges) {
+                final Vector3ic A = e.a();
+                final Vector3ic Bp = e.b();
 
-            // bias B toward camera
-            {
-                final float dx = cx - Bp.x();
-                final float dy = cy - Bp.y();
-                final float dz = cz - Bp.z();
-                final float inv = NORMAL_BIAS * invLen(dx, dy, dz);
-                vc.addVertex(mat, Bp.x() + dx * inv, Bp.y() + dy * inv, Bp.z() + dz * inv).setColor(r, g, b, a);
+                // bias A toward camera
+                {
+                    final float dx = cx - A.x();
+                    final float dy = cy - A.y();
+                    final float dz = cz - A.z();
+                    final float inv = NORMAL_BIAS * invLen(dx, dy, dz);
+                    vc.addVertex(mat, A.x() + dx * inv, A.y() + dy * inv, A.z() + dz * inv).setColor(r, g, b, a);
+                }
+
+                // bias B toward camera
+                {
+                    final float dx = cx - Bp.x();
+                    final float dy = cy - Bp.y();
+                    final float dz = cz - Bp.z();
+                    final float inv = NORMAL_BIAS * invLen(dx, dy, dz);
+                    vc.addVertex(mat, Bp.x() + dx * inv, Bp.y() + dy * inv, Bp.z() + dz * inv).setColor(r, g, b, a);
+                }
             }
         }
     }
@@ -179,5 +180,15 @@ public class ShapeRenderer {
     private static float invLen(float x, float y, float z) {
         final float d2 = x * x + y * y + z * z;
         return d2 > 0f ? (float) (1.0 / Math.sqrt(d2)) : 0f;
+    }
+
+    private float getDrawDistanceSqr() {
+        Minecraft minecraft = Minecraft.getInstance();
+
+        int renderDistance = minecraft.options.getEffectiveRenderDistance();
+        renderDistance *= 16;
+        renderDistance *= renderDistance;
+
+        return renderDistance;
     }
 }

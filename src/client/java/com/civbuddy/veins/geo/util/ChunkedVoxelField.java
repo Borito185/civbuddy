@@ -1,7 +1,13 @@
 package com.civbuddy.veins.geo.util;
 
+import com.civbuddy.veins.geo.primitives.Edge;
+import com.civbuddy.veins.geo.primitives.Face;
 import com.civbuddy.veins.geo.primitives.UnitFace;
+import com.civbuddy.veins.geo.shapes.AABBShape;
+import com.civbuddy.veins.geo.shapes.VoxelShape;
+import org.apache.commons.lang3.NotImplementedException;
 import org.joml.Vector3i;
+import org.joml.Vector3ic;
 
 import java.util.*;
 
@@ -20,64 +26,88 @@ public class ChunkedVoxelField {
     public static final int VOLUME = SIZE * SIZE * SIZE;
 
     private final Map<Long, Chunk> chunks = new HashMap<>();
+    private final Set<VoxelShape> shapes = new HashSet<>();
 
     // =========================================================
     // PUBLIC API
     // =========================================================
-
-    public short get(int x, int y, int z) {
-        Chunk chunk = chunks.get(chunkKey(
-                floorDiv16(x),
-                floorDiv16(y),
-                floorDiv16(z)
-        ));
-
-        if (chunk == null) {
-            return 0;
+    public Collection<Chunk> set(Collection<VoxelShape> newShapes) {
+        if (newShapes == null || newShapes.isEmpty()) {
+            chunks.clear();
+            shapes.clear();
+            return List.of();
         }
 
-        return chunk.voxels[index(
-                x & MASK,
-                y & MASK,
-                z & MASK
-        )];
+        HashSet<VoxelShape> ref = new HashSet<>(newShapes);
+
+        HashSet<VoxelShape> toRemove = new HashSet<>(shapes);
+        toRemove.removeAll(ref);
+        for (VoxelShape voxelShape : toRemove)
+            shiftShape(voxelShape, false);
+
+        HashSet<VoxelShape> toAdd = new HashSet<>(ref);
+        toAdd.removeAll(shapes);
+        for (VoxelShape voxelShape : toAdd)
+            shiftShape(voxelShape, true);
+
+        return getChunks();
     }
 
-    public void set(int x, int y, int z, short value) {
+    public Collection<Chunk> getChunks() {
+        List<Chunk> chunks = new ArrayList<>();
 
-        int cx = floorDiv16(x);
-        int cy = floorDiv16(y);
-        int cz = floorDiv16(z);
+        for (Map.Entry<Long, Chunk> entry : this.chunks.entrySet()) {
 
-        long key = chunkKey(cx, cy, cz);
+            long key = entry.getKey();
+            Chunk chunk = entry.getValue();
 
-        Chunk chunk = chunks.computeIfAbsent(key, k -> new Chunk());
+            if (chunk.dirty) {
+                rebuildChunkMesh(
+                        unpackX(key),
+                        unpackY(key),
+                        unpackZ(key),
+                        chunk
+                );
+            }
 
-        int localX = x & MASK;
-        int localY = y & MASK;
-        int localZ = z & MASK;
-
-        int index = index(localX, localY, localZ);
-
-        if (chunk.voxels[index] == value) {
-            return;
+            chunks.add(chunk);
         }
 
-        chunk.voxels[index] = value;
-        chunk.dirty = true;
-
-        // Border edits affect neighboring chunk meshes
-        if (localX == 0) markDirty(cx - 1, cy, cz);
-        if (localX == 15) markDirty(cx + 1, cy, cz);
-
-        if (localY == 0) markDirty(cx, cy - 1, cz);
-        if (localY == 15) markDirty(cx, cy + 1, cz);
-
-        if (localZ == 0) markDirty(cx, cy, cz - 1);
-        if (localZ == 15) markDirty(cx, cy, cz + 1);
+        return chunks;
     }
 
-    public void shift(int x, int y, int z, short diff) {
+    public Collection<VoxelShape> getInnerShapes() {
+        return shapes;
+    }
+
+    // =========================================================
+    // SHAPE SHIFTING
+    // =========================================================
+
+    private void shiftShape(VoxelShape shape, boolean isAdd) {
+        if (isAdd) {
+            boolean add = shapes.add(shape);
+            if (!add) return;
+        } else {
+            boolean removed = shapes.remove(shape);
+            if (!removed) return;
+        }
+        short shiftAmount = (short)(isAdd ? 1 : -1);
+
+        if (shape instanceof AABBShape aabb) {
+            Vector3ic center = aabb.center();
+            Vector3ic radius = aabb.radius();
+
+            for (int x = center.x() - radius.x(); x <= center.x() + radius.x(); x++)
+                for (int y = center.y() - radius.y(); y <= center.y() + radius.y(); y++)
+                    for (int z = center.z() - radius.z(); z <= center.z() + radius.z(); z++)
+                        shift(x, y, z, shiftAmount);
+        } else {
+            throw new NotImplementedException();
+        }
+    }
+
+    private void shift(int x, int y, int z, short diff) {
         if (diff == 0) return;
 
         int cx = floorDiv16(x);
@@ -86,7 +116,13 @@ public class ChunkedVoxelField {
 
         long key = chunkKey(cx, cy, cz);
 
-        Chunk chunk = chunks.computeIfAbsent(key, k -> new Chunk());
+        Chunk chunk = chunks.computeIfAbsent(key, k ->
+                new Chunk(new Vector3i(
+                        (cx << 4) + 8,
+                        (cy << 4) + 8,
+                        (cz << 4) + 8
+                ))
+        );
 
         int localX = x & MASK;
         int localY = y & MASK;
@@ -108,34 +144,6 @@ public class ChunkedVoxelField {
         if (localZ == 15) markDirty(cx, cy, cz + 1);
     }
 
-    /**
-     * Returns merged mesh of all chunk meshes.
-     * Only dirty chunks are rebuilt.
-     */
-    public List<UnitFace> extractSurface() {
-
-        List<UnitFace> faces = new ArrayList<>();
-
-        for (Map.Entry<Long, Chunk> entry : chunks.entrySet()) {
-
-            long key = entry.getKey();
-            Chunk chunk = entry.getValue();
-
-            if (chunk.dirty) {
-                rebuildChunkMesh(
-                        unpackX(key),
-                        unpackY(key),
-                        unpackZ(key),
-                        chunk
-                );
-            }
-
-            faces.addAll(chunk.faces);
-        }
-
-        return faces;
-    }
-
     // =========================================================
     // CHUNK REBUILD
     // =========================================================
@@ -149,6 +157,8 @@ public class ChunkedVoxelField {
         int baseZ = cz << 4;
 
         short[] voxels = chunk.voxels;
+
+        List<UnitFace> faces = new ArrayList<>();
 
         for (int z = 0; z < SIZE; z++)
         for (int y = 0; y < SIZE; y++)
@@ -166,7 +176,7 @@ public class ChunkedVoxelField {
 
             // -X
             if (!isSolid(wx - 1, wy, wz)) {
-                chunk.faces.add(UnitFace.of(
+                faces.add(UnitFace.of(
                         new Vector3i(wx, wy, wz),
                         new Vector3i(wx, wy + 1, wz),
                         new Vector3i(wx, wy + 1, wz + 1),
@@ -176,7 +186,7 @@ public class ChunkedVoxelField {
 
             // +X
             if (!isSolid(wx + 1, wy, wz)) {
-                chunk.faces.add(UnitFace.of(
+                faces.add(UnitFace.of(
                         new Vector3i(wx + 1, wy, wz),
                         new Vector3i(wx + 1, wy, wz + 1),
                         new Vector3i(wx + 1, wy + 1, wz + 1),
@@ -186,7 +196,7 @@ public class ChunkedVoxelField {
 
             // -Y
             if (!isSolid(wx, wy - 1, wz)) {
-                chunk.faces.add(UnitFace.of(
+                faces.add(UnitFace.of(
                         new Vector3i(wx, wy, wz),
                         new Vector3i(wx, wy, wz + 1),
                         new Vector3i(wx + 1, wy, wz + 1),
@@ -196,7 +206,7 @@ public class ChunkedVoxelField {
 
             // +Y
             if (!isSolid(wx, wy + 1, wz)) {
-                chunk.faces.add(UnitFace.of(
+                faces.add(UnitFace.of(
                         new Vector3i(wx, wy + 1, wz),
                         new Vector3i(wx + 1, wy + 1, wz),
                         new Vector3i(wx + 1, wy + 1, wz + 1),
@@ -206,7 +216,7 @@ public class ChunkedVoxelField {
 
             // -Z
             if (!isSolid(wx, wy, wz - 1)) {
-                chunk.faces.add(UnitFace.of(
+                faces.add(UnitFace.of(
                         new Vector3i(wx, wy, wz),
                         new Vector3i(wx + 1, wy, wz),
                         new Vector3i(wx + 1, wy + 1, wz),
@@ -216,7 +226,7 @@ public class ChunkedVoxelField {
 
             // +Z
             if (!isSolid(wx, wy, wz + 1)) {
-                chunk.faces.add(UnitFace.of(
+                faces.add(UnitFace.of(
                         new Vector3i(wx, wy, wz + 1),
                         new Vector3i(wx, wy + 1, wz + 1),
                         new Vector3i(wx + 1, wy + 1, wz + 1),
@@ -224,6 +234,9 @@ public class ChunkedVoxelField {
                 ));
             }
         }
+
+        chunk.faces = GridAlignedFaceOptimizer.optimize(faces);
+        chunk.edges = new ArrayList<>(Face2Edge.generateEdges(chunk.faces));
 
         chunk.dirty = false;
     }
@@ -306,12 +319,18 @@ public class ChunkedVoxelField {
     // CHUNK
     // =========================================================
 
-    private static class Chunk {
+    public static class Chunk {
+        public Vector3i center;
 
         final short[] voxels = new short[VOLUME];
 
-        final List<UnitFace> faces = new ArrayList<>();
+        public List<Face> faces = new ArrayList<>();
+        public List<Edge> edges = new ArrayList<>();
 
         boolean dirty = true;
+
+        public Chunk(Vector3i center) {
+            this.center = center;
+        }
     }
 }
