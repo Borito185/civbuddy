@@ -55,34 +55,48 @@ public final class GridAlignedFaceOptimizer {
             }
 
             // Merge vertical: stack identical segments across consecutive v
-            int[] vs = segsByV.keySet().stream().mapToInt(x -> x).sorted().toArray();
+            int[] vs = new int[segsByV.size()];
+            {
+                int idx = 0;
+                for (Integer v : segsByV.keySet())
+                    vs[idx++] = v;
+            }
+            Arrays.sort(vs);
 
             HashMap<Seg, Active> active = new HashMap<>();
             int prevV = Integer.MIN_VALUE;
+            int stamp = 1;
 
             for (int v : vs) {
                 boolean contiguousRow = (prevV != Integer.MIN_VALUE && v == prevV + 1);
 
-                // If there is a gap, flush everything
                 if (!contiguousRow) {
                     flushAll(out, active, p);
                     active.clear();
                 }
 
-                HashSet<Seg> seenThisRow = new HashSet<>();
+                stamp++;
+
                 for (Seg s : segsByV.get(v)) {
-                    seenThisRow.add(s);
                     Active a = active.get(s);
-                    if (a == null) active.put(s, new Active(v, v + 1)); // [v0, v1)
-                    else a.v1 = v + 1;
+
+                    if (a == null) {
+                        a = new Active(v, v + 1);
+                        active.put(s, a);
+                    } else {
+                        a.v1 = v + 1;
+                    }
+
+                    a.stamp = stamp;
                 }
 
-                // Any active segment not present in this row must be flushed
                 if (contiguousRow) {
                     Iterator<Map.Entry<Seg, Active>> it = active.entrySet().iterator();
+
                     while (it.hasNext()) {
                         var ent = it.next();
-                        if (!seenThisRow.contains(ent.getKey())) {
+
+                        if (ent.getValue().stamp != stamp) {
                             emit(out, p, ent.getKey(), ent.getValue());
                             it.remove();
                         }
@@ -140,7 +154,16 @@ public final class GridAlignedFaceOptimizer {
     private enum Axis { X, Y, Z }
     private record Plane(Axis axis, int c) {}
     private record Seg(int u0, int u1) {}       // [u0,u1)
-    private static final class Active { int v0, v1; Active(int v0, int v1){this.v0=v0;this.v1=v1;} }
+    private static final class Active {
+        int v0;
+        int v1;
+        int stamp;
+
+        Active(int v0, int v1) {
+            this.v0 = v0;
+            this.v1 = v1;
+        }
+    }
 
     /** A unit cell on a plane: (axis, planeC) plus its lower-left (u,v). */
     private record Cell(Axis axis, int planeC, int u, int v) {

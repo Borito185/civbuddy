@@ -3,6 +3,7 @@ package com.civbuddy.veins.render;
 import com.civbuddy.veins.geo.primitives.Edge;
 import com.civbuddy.veins.geo.primitives.Face;
 import com.civbuddy.veins.geo.primitives.UnitFace;
+import com.civbuddy.veins.geo.shapes.AlternativeCompoundShape;
 import com.civbuddy.veins.geo.shapes.CompoundShape;
 import com.civbuddy.veins.geo.shapes.VoxelShape;
 import com.civbuddy.veins.geo.util.Face2Edge;
@@ -31,7 +32,7 @@ public class ShapeRenderer {
 
     public static float grid_alpha = 1;
     private final static float NORMAL_BIAS = 0.001f;
-    private final CompoundShape shape = new CompoundShape();
+    private final AlternativeCompoundShape shape = new AlternativeCompoundShape();
     private Collection<Face> faces;
     private Collection<Edge> edges;
 
@@ -60,10 +61,8 @@ public class ShapeRenderer {
 
     private void remesh() {
         Collection<UnitFace> unitFaces = shape.getFaces();
-        edges = Face2Edge.generateEdges(unitFaces);
-
         faces = GridAlignedFaceOptimizer.optimize(unitFaces);
-        edges = GridAlignedEdgeOptimizer.optimize(edges);
+        edges = Face2Edge.generateEdges(faces);
     }
 
     private void draw(WorldRenderContext ctx) {
