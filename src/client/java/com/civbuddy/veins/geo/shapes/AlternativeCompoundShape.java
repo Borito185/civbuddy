@@ -16,19 +16,15 @@ public class AlternativeCompoundShape implements VoxelShape {
     public void set(Collection<VoxelShape> newShapes) {
         HashSet<VoxelShape> ref = new HashSet<>(newShapes);
 
-        // remove some
-        for (VoxelShape shape : shapes) {
-            if (ref.contains(shape)) continue;
+        HashSet<VoxelShape> toRemove = new HashSet<>(shapes);
+        toRemove.removeAll(ref);
+        for (VoxelShape voxelShape : toRemove)
+            shiftShape(voxelShape, false);
 
-            shiftShape(shape, false);
-        }
-
-        // add some
-        for (VoxelShape shape : ref) {
-            if (shapes.contains(shape)) continue;
-
-            shiftShape(shape, true);
-        }
+        HashSet<VoxelShape> toAdd = new HashSet<>(ref);
+        toAdd.removeAll(shapes);
+        for (VoxelShape voxelShape : toAdd)
+            shiftShape(voxelShape, true);
 
         faces = field.extractSurface();
     }
