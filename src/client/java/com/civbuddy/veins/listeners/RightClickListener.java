@@ -16,6 +16,7 @@ import org.joml.Vector3i;
 import java.sql.SQLException;
 import java.util.Set;
 
+import static com.civbuddy.CivBuddyClient.WORKER;
 import static com.civbuddy.veins.VeinClient.config;
 
 public final class RightClickListener {
@@ -30,14 +31,10 @@ public final class RightClickListener {
     }
 
     public static void onTick(Minecraft client) {
-        try {
-            checkAction(client);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+        checkAction(client);
     }
 
-    private static void checkAction(Minecraft client) throws SQLException {
+    private static void checkAction(Minecraft client) {
         VeinConfig config = config();
         if (null == client.player) return;
         if (null == client.mouseHandler) return;
@@ -82,33 +79,45 @@ public final class RightClickListener {
         }
     }
 
-    private static void addSelection(Vector3i pos) throws SQLException {
-        VeinMarkingRow row = new VeinMarkingRow(VeinClient.getActiveVeinId(), pos, config().markRange);
-        VeinMarkingDao.upsert(row);
-        VeinClient.notifyChange();
+    private static void addSelection(Vector3i pos) {
+        WORKER.submit(() -> {
+            try {
+                VeinMarkingRow row = new VeinMarkingRow(VeinClient.getActiveVeinId(), pos, VeinClient.config().markRange);
+                VeinMarkingDao.upsert(row);
+                VeinClient.notifyChange();
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
-    private static void removeTargetedBlock(Vec3 cameraPos, Vec3 cameraDir) throws SQLException {
-        AABBShape closest = null;
-        float closestDist = Float.MAX_VALUE;
+    private static void removeTargetedBlock(Vec3 cameraPos, Vec3 cameraDir) {
+        WORKER.submit(() -> {
+            try {
+                AABBShape closest = null;
+                float closestDist = Float.MAX_VALUE;
 
-        Vec3 closeEnd = cameraPos.subtract(cameraDir);
-        Vec3 farEnd = cameraPos.add(cameraDir.scale(1000));
+                Vec3 closeEnd = cameraPos.subtract(cameraDir);
+                Vec3 farEnd = cameraPos.add(cameraDir.scale(1000));
 
-        for (VoxelShape shape : VeinClient.getInstance().getCurrentMarkings()) {
-            if (!(shape instanceof AABBShape bounds)) continue;
-            if (!bounds.intersectsCenter(closeEnd, farEnd)) continue;
+                for (VoxelShape shape : VeinClient.getInstance().getCurrentMarkings()) {
+                    if (!(shape instanceof AABBShape bounds)) continue;
+                    if (!bounds.intersectsCenter(closeEnd, farEnd)) continue;
 
-            float distance = new Vector3f(bounds.center()).add(0.5f,0.5f,0.5f).distance(cameraPos.toVector3f());
-            if (distance >= closestDist) continue;
+                    float distance = new Vector3f(bounds.center()).add(0.5f,0.5f,0.5f).distance(cameraPos.toVector3f());
+                    if (distance >= closestDist) continue;
 
-            closest = bounds;
-            closestDist = distance;
-        }
+                    closest = bounds;
+                    closestDist = distance;
+                }
 
-        if (closest == null) return;
+                if (closest == null) return;
 
-        VeinMarkingDao.delete(VeinClient.getActiveVeinId(), closest.center());
-        VeinClient.notifyChange();
+                VeinMarkingDao.delete(VeinClient.getActiveVeinId(), closest.center());
+                VeinClient.notifyChange();
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 }
