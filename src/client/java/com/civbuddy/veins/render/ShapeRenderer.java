@@ -4,10 +4,8 @@ import com.civbuddy.veins.geo.primitives.Edge;
 import com.civbuddy.veins.geo.primitives.Face;
 import com.civbuddy.veins.geo.primitives.UnitFace;
 import com.civbuddy.veins.geo.shapes.AlternativeCompoundShape;
-import com.civbuddy.veins.geo.shapes.CompoundShape;
 import com.civbuddy.veins.geo.shapes.VoxelShape;
 import com.civbuddy.veins.geo.util.Face2Edge;
-import com.civbuddy.veins.geo.util.GridAlignedEdgeOptimizer;
 import com.civbuddy.veins.geo.util.GridAlignedFaceOptimizer;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
@@ -22,7 +20,6 @@ import org.joml.*;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static com.civbuddy.veins.render.RenderLayers.LINES;
 import static com.civbuddy.veins.render.RenderLayers.TRANSLUCENT_QUADS;
