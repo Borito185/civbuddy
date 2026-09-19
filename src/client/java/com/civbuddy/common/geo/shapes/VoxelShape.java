@@ -1,15 +1,8 @@
-package com.civbuddy.veins.geo.shapes;
+package com.civbuddy.common.geo.shapes;
 
-import com.civbuddy.veins.geo.primitives.UnitFace;
-import com.civbuddy.veins.geo.util.VoxelConsumer;
+import com.civbuddy.common.geo.util.VoxelConsumer;
 import org.apache.commons.lang3.NotImplementedException;
-import org.joml.Vector3f;
-import org.joml.Vector3fc;
-import org.joml.Vector3i;
 import org.joml.Vector3ic;
-
-import java.util.Collection;
-import java.util.Iterator;
 
 public interface VoxelShape {
     public void AddVoxels(VoxelConsumer consumer);

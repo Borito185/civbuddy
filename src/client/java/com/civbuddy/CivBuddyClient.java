@@ -8,6 +8,7 @@ import com.civbuddy.commands.data.CommandMigrations;
 import com.civbuddy.compat.CompatManager;
 import com.civbuddy.migrations.LoadOldSave;
 import com.civbuddy.migrations.MigrateCommandsToSql;
+import com.civbuddy.snitch.SnitchClient;
 import com.civbuddy.storage.config.GlobalConfig;
 import com.civbuddy.storage.config.JsonConfig;
 import com.civbuddy.storage.sql.DatabaseManager;
@@ -46,9 +47,9 @@ public class CivBuddyClient implements ClientModInitializer {
         // --- Init Features ---
         VeinClient.onInitializeClient();
         CalculatorClient.onInitializeClient();
+        SnitchClient.onInitializeClient();
         HelpCommand.initialize();
         CommandClient.initialize();
-
 
         // --- Init (/)Commands ---
         CommandsHelper.initialize();

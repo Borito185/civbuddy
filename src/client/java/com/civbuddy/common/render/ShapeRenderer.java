@@ -1,13 +1,15 @@
-package com.civbuddy.veins.render;
+package com.civbuddy.common.render;
 
-import com.civbuddy.veins.geo.primitives.Edge;
-import com.civbuddy.veins.geo.primitives.Face;
-import com.civbuddy.veins.geo.shapes.VoxelShape;
-import com.civbuddy.veins.geo.util.ChunkedVoxelField;
+import com.civbuddy.common.geo.primitives.Edge;
+import com.civbuddy.common.geo.primitives.Face;
+import com.civbuddy.common.geo.shapes.VoxelShape;
+import com.civbuddy.common.geo.util.ChunkedVoxelField;
+import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.util.profiling.Profiler;
@@ -19,8 +21,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
-import static com.civbuddy.veins.render.RenderLayers.LINES;
-import static com.civbuddy.veins.render.RenderLayers.TRANSLUCENT_QUADS;
+import static com.civbuddy.common.render.RenderLayers.*;
 
 public class ShapeRenderer {
     private final Object lock = new Object();
@@ -32,14 +33,16 @@ public class ShapeRenderer {
 
     private Vector4f color = new Vector4f(1,0,0,0.2f);
     private boolean hasGrid = true;
+    private boolean seeThrough = false;
 
     public ShapeRenderer() {
         WorldRenderEvents.END_MAIN.register(this::draw);
     }
 
-    public void setStyle(Vector4f color, boolean hasGrid) {
+    public void setStyle(Vector4f color, boolean hasGrid, boolean seeThrough) {
         this.color = color;
         this.hasGrid = hasGrid;
+        this.seeThrough = seeThrough;
     }
 
     public Collection<VoxelShape> getInnerShapes() {
@@ -91,7 +94,8 @@ public class ShapeRenderer {
     }
 
     private void drawFaces(WorldRenderContext ctx, Matrix4f mat) {
-        final VertexConsumer vc = ctx.consumers().getBuffer(TRANSLUCENT_QUADS);
+        RenderType bufferType = this.seeThrough ? SEE_THROUGH_QUADS : TRANSLUCENT_QUADS;
+        final VertexConsumer vc = ctx.consumers().getBuffer(bufferType);
 
         final var camera = Minecraft.getInstance().gameRenderer.getMainCamera();
         final Vector3fc look = camera.forwardVector();

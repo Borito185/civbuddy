@@ -16,15 +16,13 @@ import com.civbuddy.veins.data.VeinMigrations;
 import com.civbuddy.veins.data.markings.VeinMarkingDao;
 import com.civbuddy.veins.data.markings.VeinMarkingMigrations;
 import com.civbuddy.veins.data.markings.VeinMarkingRow;
-import com.civbuddy.veins.geo.shapes.SphereShape;
 import com.civbuddy.veins.listeners.RightClickListener;
 import com.civbuddy.veins.listeners.DiaOreFoundListener;
 import com.civbuddy.veins.listeners.VeinSharedListener;
 import com.civbuddy.veins.listeners.WorldEventListener;
-import com.civbuddy.veins.render.ShapeRenderer;
+import com.civbuddy.common.render.ShapeRenderer;
 import org.joml.Vector3i;
-import com.civbuddy.veins.geo.shapes.AABBShape;
-import com.civbuddy.veins.geo.shapes.VoxelShape;
+import com.civbuddy.common.geo.shapes.VoxelShape;
 
 import static com.civbuddy.CivBuddyClient.WORKER;
 
@@ -94,8 +92,8 @@ public class VeinClient {
     /* ===================== INTERNAL ===================== */
     private void redraw() throws SQLException {
         VeinConfig config = config();
-        borderRenderer.setStyle(config.borderWallColor, config.borderHasGrid);
-        markingRenderer.setStyle(config.markingWallColor, config.markingHasGrid);
+        borderRenderer.setStyle(config.borderWallColor, config.borderHasGrid, false);
+        markingRenderer.setStyle(config.markingWallColor, config.markingHasGrid, false);
 
         if (!config.doRender) {
             borderRenderer.setInnerShapes(Set.of());

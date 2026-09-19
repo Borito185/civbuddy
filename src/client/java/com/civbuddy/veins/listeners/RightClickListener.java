@@ -4,9 +4,9 @@ import com.civbuddy.veins.VeinClient;
 import com.civbuddy.veins.config.VeinConfig;
 import com.civbuddy.veins.data.markings.VeinMarkingDao;
 import com.civbuddy.veins.data.markings.VeinMarkingRow;
-import com.civbuddy.veins.geo.shapes.AABBShape;
-import com.civbuddy.veins.geo.shapes.VoxelShape;
-import com.civbuddy.veins.render.ShapeRenderer;
+import com.civbuddy.common.geo.shapes.AABBShape;
+import com.civbuddy.common.geo.shapes.VoxelShape;
+import com.civbuddy.common.render.ShapeRenderer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.item.Item;
@@ -74,7 +74,7 @@ public final class RightClickListener {
         if (isHolding && isCharged) {
             AABBShape aabb = new AABBShape(new Vector3i(targetedBlock, 2), new Vector3i(0));
 
-            highlightRenderer.setStyle(config.highlightWallColor, config.highlightHasGrid);
+            highlightRenderer.setStyle(config.highlightWallColor, config.highlightHasGrid, false);
             highlightRenderer.setInnerShapes(Set.of(aabb));
         }
     }
