@@ -10,12 +10,16 @@ import io.wispforest.owo.ui.component.UIComponents;
 import io.wispforest.owo.ui.container.FlowLayout;
 import io.wispforest.owo.ui.container.UIContainers;
 import io.wispforest.owo.ui.core.*;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.NotNull;
-import javax.swing.*;
+import org.joml.Vector4f;
+
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import static com.civbuddy.ui.Inputs.*;
 
@@ -50,14 +54,16 @@ public class VeinConfigMenu extends BaseOwoScreen<FlowLayout> {
 
 
         root.child(
-                UIComponents.label(Component.literal("Vein Settings"))
+                UIComponents.label(Component.literal("Vein Settings").withStyle(ChatFormatting.BOLD))
+                        .shadow(true)
+                        .margins(Insets.bottom(8))
         );
 
         var options = UIContainers.verticalFlow(
                 Sizing.fill(100),
                 Sizing.content()
         );
-        options.gap(4);
+        options.gap(6);
 
         root.child(
                 UIContainers.verticalScroll(
@@ -121,56 +127,52 @@ public class VeinConfigMenu extends BaseOwoScreen<FlowLayout> {
     }
 
     public void display(FlowLayout options) {
-        VeinConfig config = config();
-
         header(options, "Display");
 
-        FlowLayout row = UIContainers.horizontalFlow(Sizing.fill(100), Sizing.content());
+        var columns = UIContainers.horizontalFlow(
+                Sizing.fill(100),
+                Sizing.content()
+        );
 
-        FlowLayout col = UIContainers.verticalFlow(Sizing.fill(33), Sizing.content());
-        FlowLayout head = UIContainers.horizontalFlow(Sizing.fill(100), Sizing.content());
-        head.child(UIComponents.label(Component.literal("Border")));
-        head.child(toggleButton(() -> config.borderHasGrid, "Grid", "No Grid", b -> {
-            update(c -> c.veins.borderHasGrid = b);
-        }));
-        col.child(head);
-        col.child(colorInput(() -> config.borderWallColor, v -> {
-            update(c -> c.veins.borderWallColor = v);
-        }));
-        row.child(col);
+        columns.gap(8);
 
-        col = UIContainers.verticalFlow(Sizing.fill(33), Sizing.content());
-        head = UIContainers.horizontalFlow(Sizing.fill(100), Sizing.content());
-        head.child(UIComponents.label(Component.literal("Marking")));
-        head.child(toggleButton(() -> config.markingHasGrid, "Grid", "No Grid", b -> {
-            update(c -> c.veins.markingHasGrid = b);
-        }));
-        col.child(head);
-        col.child(colorInput(() -> config.markingWallColor, v -> {
-            update(c -> c.veins.markingWallColor = v);
-        }));
-        row.child(col);
+        columns.child(displayColumn(
+                "Border",
+                () -> config().borderHasGrid,
+                value -> update(c -> c.veins.borderHasGrid = value),
+                () -> config().borderWallColor,
+                value -> update(c -> c.veins.borderWallColor = value)
+        ));
 
-        col = UIContainers.verticalFlow(Sizing.fill(33), Sizing.content());
-        head = UIContainers.horizontalFlow(Sizing.fill(100), Sizing.content());
-        head.child(UIComponents.label(Component.literal("Highlight")));
-        head.child(toggleButton(() -> config.highlightHasGrid, "Grid", "No Grid", b -> {
-            update(c -> c.veins.highlightHasGrid = b);
-        }));
-        col.child(head);
-        col.child(colorInput(() -> config.highlightWallColor, v -> {
-            update(c -> c.veins.highlightWallColor = v);
-        }));
-        row.child(col);
-        options.child(row);
-    }
+        columns.child(displayColumn(
+                "Marking",
+                () -> config().markingHasGrid,
+                value -> update(c -> c.veins.markingHasGrid = value),
+                () -> config().markingWallColor,
+                value -> update(c -> c.veins.markingWallColor = value)
+        ));
 
-    private UIComponent seperator() {
-        return UIComponents.label(Component.literal(""));
+        columns.child(displayColumn(
+                "Highlight",
+                () -> config().highlightHasGrid,
+                value -> update(c -> c.veins.highlightHasGrid = value),
+                () -> config().highlightWallColor,
+                value -> update(c -> c.veins.highlightWallColor = value)
+        ));
+
+        options.child(columns);
     }
 
     private void header(FlowLayout options, String text) {
-        options.child(UIComponents.label(Component.literal(text)));
+        options.child(
+                UIComponents.label(
+                                Component.literal(text)
+                                        .withStyle(ChatFormatting.BOLD)
+                        )
+                        .shadow(true)
+                        .margins(Insets.top(12).withBottom(4))
+                        .horizontalSizing(Sizing.fill(100))
+        );
     }
 
     private FlowLayout row(String name, UIComponent control) {
@@ -180,11 +182,80 @@ public class VeinConfigMenu extends BaseOwoScreen<FlowLayout> {
         );
 
         row.verticalAlignment(VerticalAlignment.CENTER);
+        row.gap(8);
 
-        row.child(UIComponents.label(Component.literal(name)));
-        row.child(control);
+        var labelArea = UIContainers.horizontalFlow(
+                Sizing.fill(30),
+                Sizing.content()
+        );
+
+        labelArea.verticalAlignment(VerticalAlignment.CENTER);
+        labelArea.child(UIComponents.label(Component.literal(name)));
+
+        var controlArea = UIContainers.horizontalFlow(
+                Sizing.fill(70),
+                Sizing.content()
+        );
+
+        control.horizontalSizing(Sizing.fill(100));
+
+        controlArea.verticalAlignment(VerticalAlignment.CENTER);
+        controlArea.child(control);
+
+        row.child(labelArea);
+        row.child(controlArea);
 
         return row;
+    }
+
+    private FlowLayout displayColumn(
+            String name,
+            Supplier<Boolean> grid,
+            Consumer<Boolean> setGrid,
+            Supplier<Vector4f> color,
+            Consumer<Vector4f> setColor
+    ) {
+        var column = UIContainers.verticalFlow(
+                Sizing.fill(33),
+                Sizing.content()
+        );
+
+        column
+                .gap(6)
+                .padding(Insets.of(6));
+
+        var header = UIContainers.horizontalFlow(
+                Sizing.fill(100),
+                Sizing.content()
+        );
+
+        header.verticalAlignment(VerticalAlignment.CENTER);
+        header.gap(6);
+
+        header.child(
+                UIComponents.label(
+                                Component.literal(name)
+                        )
+                        .horizontalSizing(Sizing.expand())
+        );
+
+        header.child(
+                toggleButton(
+                        grid,
+                        "Grid",
+                        "No Grid",
+                        setGrid
+                ).horizontalSizing(Sizing.fixed(70))
+        );
+
+        column.child(header);
+
+        var picker = colorInput(color, setColor);
+        picker.horizontalSizing(Sizing.fill(100));
+
+        column.child(picker);
+
+        return column;
     }
 
     @Override

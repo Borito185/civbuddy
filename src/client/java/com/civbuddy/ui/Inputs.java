@@ -31,11 +31,10 @@ public class Inputs {
             Consumer<String> onChanged
     ) {
         return UIComponents.button(Component.literal(value.get()), btn -> {
-            String v = value.get();
-            int index = options.indexOf(v);
-            index = index+1 % options.size();
-            onChanged.accept(options.get(index));
+            int index = options.indexOf(value.get());
+            String newValue = options.get((index + 1) % options.size());
 
+            onChanged.accept(newValue);
             btn.setMessage(Component.literal(value.get()));
         });
     }

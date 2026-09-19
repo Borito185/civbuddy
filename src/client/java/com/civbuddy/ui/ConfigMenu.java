@@ -7,6 +7,8 @@ import io.wispforest.owo.ui.component.UIComponents;
 import io.wispforest.owo.ui.container.FlowLayout;
 import io.wispforest.owo.ui.container.UIContainers;
 import io.wispforest.owo.ui.core.*;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.NotNull;
@@ -32,18 +34,20 @@ public class ConfigMenu extends BaseOwoScreen<FlowLayout> {
                 .padding(Insets.of(10))
                 .surface(Surface.optionsBackground());
 
+        rootComponent.child(UIComponents.label(Component.literal("CivBuddy").withStyle(ChatFormatting.BOLD)).shadow(true));
+
         rootComponent.child(
                 UIComponents.button(
-                        Component.literal("Commands"),
-                        button -> minecraft.setScreen(new CommandManagerScreen(this))
-                )
+                        Component.literal("Vein Settings"),
+                        button -> minecraft.setScreen(new VeinConfigMenu(this))
+                ).sizing(Sizing.fill(40), Sizing.content())
         );
 
         rootComponent.child(
                 UIComponents.button(
-                        Component.literal("Veins"),
-                        button -> minecraft.setScreen(new VeinConfigMenu(this))
-                )
+                        Component.literal("Commands"),
+                        button -> minecraft.setScreen(new CommandManagerScreen(this))
+                ).active(Minecraft.getInstance().level != null).sizing(Sizing.fill(40), Sizing.content())
         );
     }
 
