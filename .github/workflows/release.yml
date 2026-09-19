@@ -2,20 +2,22 @@ name: Release
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 permissions:
   contents: write
   packages: read
 
 jobs:
-  build-and-publish:
+  release:
     if: github.repository == 'Borito185/civbuddy'
-
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        shell: bash
+    outputs:
+      created: ${{ steps.release.outputs.created }}
+      version: ${{ steps.release.outputs.version }}
 
     steps:
       - uses: actions/checkout@v4
@@ -35,16 +37,16 @@ jobs:
           @semantic-release/commit-analyzer
           @semantic-release/release-notes-generator
           @semantic-release/github
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract released version
         run: |
-          set -euo pipefail
-
           TAG="$(git describe --tags --abbrev=0)"
-          MOD_VERSION="${TAG#v}"
-
-          echo "TAG=${TAG}" >> "$GITHUB_ENV"
-          echo "MOD_VERSION=${MOD_VERSION}" >> "$GITHUB_ENV"
+          VERSION="${TAG#v}"
+          
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Set up JDK
         uses: actions/setup-java@v4
@@ -56,18 +58,32 @@ jobs:
       - name: Build mod JAR
         run: ./gradlew -S -i -Pmod_version="${MOD_VERSION}" assemble
 
-      - name: Publish to Modrinth, CurseForge & GitHub
+      - name: Store JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-jar
+          path: build/libs/*.jar
+
+
+  publish:
+    needs: release
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Download JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: release-jar
+          path: build/libs
+
+      - name: Publish to Modrinth & CurseForge
         uses: Kir-Antipov/mc-publish@v3.3
         with:
-          name: CivBuddy ${{ env.MOD_VERSION }}
+          name: CivBuddy ${{ needs.release.outputs.version }}
 
-          # Modrinth
           modrinth-id: TvWyaX7o
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
 
-          # CurseForge
           curseforge-id: 1373036
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
-
-          # GitHub
-          github-token: ${{ secrets.GITHUB_TOKEN }}
