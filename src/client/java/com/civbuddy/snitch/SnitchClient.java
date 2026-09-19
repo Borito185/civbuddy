@@ -13,21 +13,12 @@ import java.util.Set;
 
 public class SnitchClient {
     private static final ShapeRenderer renderer = new ShapeRenderer();
-    private static final Set<Vector3i> positions = new HashSet<>();
+    public static final Set<Vector3i> positions = new HashSet<>();
+    public static boolean filterByPositions = false;
 
     public static void onInitializeClient() {
         CommandHandler.initialize();
         WorldDisconnectListener.initialize();
-    }
-
-    public static void clear() {
-        positions.clear();
-        redraw();
-    }
-
-    public static void add(Vector3i pos) {
-        positions.add(pos);
-        redraw();
     }
 
     public static void redraw() {

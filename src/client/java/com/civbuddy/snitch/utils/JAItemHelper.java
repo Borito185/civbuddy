@@ -1,5 +1,6 @@
 package com.civbuddy.snitch.utils;
 
+import com.civbuddy.snitch.SnitchClient;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
@@ -13,15 +14,19 @@ import java.util.regex.Pattern;
 
 public final class JAItemHelper {
     private final static Map<String, Integer> EventColorMap = Map.ofEntries(
-            Map.entry("Break",  0x80FF3B30), // red
-            Map.entry("Place",  0x80FFD60A), // yellow
-            Map.entry("Killed",   0x808B0000), // dark red
-            Map.entry("Opened", 0x80FF6B35), // red-orange
-            Map.entry("Enter",  0x8034C759), // green
-            Map.entry("Exit",   0x800A84FF)  // blue
+            Map.entry("Break ",        0x80FF3B30), // red
+            Map.entry("Place ",        0x80FFD60A), // yellow
+            Map.entry("Killed ",       0x80900030), // deep crimson
+            Map.entry("Opened ",       0x80AF52DE), // purple
+            Map.entry("Enter ",        0x8000B8A9), // teal
+            Map.entry("Leave ",        0x800A84FF), // blue
+            Map.entry("ItemExchange ", 0x8034C759)  // green
     );
     private static final Pattern POSITION_PATTERN =
             Pattern.compile("^\\[(-?\\d+) (-?\\d+) (-?\\d+)]$");
+
+    private static final Pattern LOCATION_PATTERN =
+            Pattern.compile("^Location:\\s+\\S+\\s+(-?\\d+)\\s+(-?\\d+)\\s+(-?\\d+)$");
 
 
     public static Optional<Integer> getHighlight(ItemStack stack) {
@@ -50,7 +55,15 @@ public final class JAItemHelper {
     }
 
     private static Optional<Integer> toHighlightColor(ItemStack stack) {
-        String name = stack.getHoverName().getString();
+        // if filtering and this aint it. skip
+        if (SnitchClient.filterByPositions && !SnitchClient.positions.isEmpty()) {
+            Optional<Vector3i> position = getPosition(stack);
+
+            if (position.isEmpty()) return Optional.empty();
+            if (!SnitchClient.positions.contains(position.get())) return Optional.empty();
+        }
+
+        String name = stack.getHoverName().getString() + " ";
 
         for (Map.Entry<String, Integer> entry : EventColorMap.entrySet()) {
             if (name.startsWith(entry.getKey())) {
@@ -69,7 +82,13 @@ public final class JAItemHelper {
         if (lore == null) return Optional.empty();
 
         for (Component line : lore.lines()) {
-            Matcher matcher = POSITION_PATTERN.matcher(line.getString().trim());
+            String text = line.getString().trim();
+
+            Matcher matcher = POSITION_PATTERN.matcher(text);
+
+            if (!matcher.matches()) {
+                matcher = LOCATION_PATTERN.matcher(text);
+            }
 
             if (matcher.matches()) {
                 return Optional.of(new Vector3i(

@@ -27,15 +27,21 @@ public class ItemClickMixin {
         if (slot == null || slot.getItem().isEmpty())
             return;
 
+        ItemStack stack = slot.getItem();
+
+        if (!JAItemHelper.isJAItem(stack)) return;
+
+        Optional<Vector3i> position = JAItemHelper.getPosition(stack);
+        if (position.isEmpty()) return;
+
         if (button == 0) {
-            ItemStack stack = slot.getItem();
+            SnitchClient.positions.add(position.get());
+            SnitchClient.redraw();
+        }
 
-            if (JAItemHelper.isJAItem(stack)) {
-                Optional<Vector3i> position = JAItemHelper.getPosition(stack);
-                if (position.isEmpty()) return;
-
-                SnitchClient.add(position.get());
-            }
+        if (button == 1) {
+            SnitchClient.positions.remove(position.get());
+            SnitchClient.redraw();
         }
     }
 }

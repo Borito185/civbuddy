@@ -8,7 +8,9 @@ public final class WorldDisconnectListener {
 
     public static void initialize() {
         ClientPlayConnectionEvents.DISCONNECT.register((a, b) -> {
-            SnitchClient.clear();
+            SnitchClient.positions.clear();
+            SnitchClient.filterByPositions = false;
+            SnitchClient.redraw();
         });
     }
 }
