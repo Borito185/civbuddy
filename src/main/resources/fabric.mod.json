@@ -22,6 +22,9 @@
 		],
 		"client": [
 			"com.civbuddy.CivBuddyClient"
+		],
+		"modmenu": [
+			"com.civbuddy.compat.ModMenuIntegration"
 		]
 	},
 	"mixins": [
@@ -34,6 +37,7 @@
 		"fabric-api": "*"
 	},
 	"suggests": {
-		"iris": "*"
+		"iris": "*",
+		"modmenu": "*"
 	}
 }
