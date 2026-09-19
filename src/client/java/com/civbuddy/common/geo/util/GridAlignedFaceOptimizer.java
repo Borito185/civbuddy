@@ -1,7 +1,7 @@
-package com.civbuddy.veins.geo.util;
+package com.civbuddy.common.geo.util;
 
-import com.civbuddy.veins.geo.primitives.Face;
-import com.civbuddy.veins.geo.primitives.UnitFace;
+import com.civbuddy.common.geo.primitives.Face;
+import com.civbuddy.common.geo.primitives.UnitFace;
 import org.joml.Vector3i;
 import org.joml.Vector3ic;
 

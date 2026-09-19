@@ -25,6 +25,7 @@
 		]
 	},
 	"mixins": [
+		"civbuddy.snitchbuddy.mixin.json"
 	],
 	"depends": {
 		"fabricloader": ">=0.16.14",

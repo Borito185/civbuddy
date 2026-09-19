@@ -1,8 +1,9 @@
-package com.civbuddy.veins.render;
+package com.civbuddy.common.render;
 
 import com.civbuddy.CivBuddyClient;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.rendertype.LayeringTransform;
@@ -29,7 +30,15 @@ public final class RenderLayers {
             .withDepthWrite(false)
             .withCull(false)
             .build();
-
+    public static final RenderPipeline SEE_THROUGH_QUADS_PIPELINE = RenderPipeline
+            .builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .withLocation(Identifier.fromNamespaceAndPath(CivBuddyClient.MODID, "pipeline/see_through_quads"))
+            .withBlend(BlendFunction.TRANSLUCENT)
+            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+            .withDepthWrite(false)
+            .withCull(false)
+            .build();
 
     public static final RenderType TRANSLUCENT_QUADS = RenderType.create("civbuddy_translucent_quads", RenderSetup
             .builder(TRANSLUCENT_QUADS_PIPELINE)
@@ -38,4 +47,10 @@ public final class RenderLayers {
     public static final RenderType LINES = RenderType.create("civbuddy_lines", RenderSetup
             .builder(LINES_PIPELINE)
             .createRenderSetup());
+    public static final RenderType SEE_THROUGH_QUADS = RenderType.create(
+            "civbuddy_see_through_quads",
+            RenderSetup
+                    .builder(SEE_THROUGH_QUADS_PIPELINE)
+                    .createRenderSetup()
+    );
 }

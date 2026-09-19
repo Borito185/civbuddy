@@ -1,4 +1,4 @@
-package com.civbuddy.veins.geo.util;
+package com.civbuddy.common.geo.util;
 
 @FunctionalInterface
 public interface VoxelConsumer {

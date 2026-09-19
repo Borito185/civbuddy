@@ -1,6 +1,6 @@
-package com.civbuddy.veins.geo.shapes;
+package com.civbuddy.common.geo.shapes;
 
-import com.civbuddy.veins.geo.util.VoxelConsumer;
+import com.civbuddy.common.geo.util.VoxelConsumer;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;

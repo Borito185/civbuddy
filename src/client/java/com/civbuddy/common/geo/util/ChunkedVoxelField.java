@@ -1,13 +1,10 @@
-package com.civbuddy.veins.geo.util;
+package com.civbuddy.common.geo.util;
 
-import com.civbuddy.veins.geo.primitives.Edge;
-import com.civbuddy.veins.geo.primitives.Face;
-import com.civbuddy.veins.geo.primitives.UnitFace;
-import com.civbuddy.veins.geo.shapes.AABBShape;
-import com.civbuddy.veins.geo.shapes.VoxelShape;
-import org.apache.commons.lang3.NotImplementedException;
+import com.civbuddy.common.geo.primitives.Edge;
+import com.civbuddy.common.geo.primitives.Face;
+import com.civbuddy.common.geo.primitives.UnitFace;
+import com.civbuddy.common.geo.shapes.VoxelShape;
 import org.joml.Vector3i;
-import org.joml.Vector3ic;
 
 import java.util.*;
 

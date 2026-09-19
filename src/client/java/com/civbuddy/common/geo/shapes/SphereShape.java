@@ -1,6 +1,6 @@
-package com.civbuddy.veins.geo.shapes;
+package com.civbuddy.common.geo.shapes;
 
-import com.civbuddy.veins.geo.util.VoxelConsumer;
+import com.civbuddy.common.geo.util.VoxelConsumer;
 import org.joml.Vector3ic;
 
 public record SphereShape(Vector3ic center, Vector3ic radius) implements VoxelShape {
