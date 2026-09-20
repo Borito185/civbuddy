@@ -4,6 +4,7 @@ import com.civbuddy.common.geo.primitives.Edge;
 import com.civbuddy.common.geo.primitives.Face;
 import com.civbuddy.common.geo.shapes.VoxelShape;
 import com.civbuddy.common.geo.util.ChunkedVoxelField;
+import com.civbuddy.storage.config.RendererConfig;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
@@ -31,18 +32,14 @@ public class ShapeRenderer {
     private final ChunkedVoxelField field = new ChunkedVoxelField();
     private volatile Collection<ChunkedVoxelField.Chunk> chunks = List.of();
 
-    private Vector4f color = new Vector4f(1,0,0,0.2f);
-    private boolean hasGrid = true;
-    private boolean seeThrough = false;
+    private RendererConfig config = new RendererConfig(new Vector4f(), false, false);
 
     public ShapeRenderer() {
         WorldRenderEvents.END_MAIN.register(this::draw);
     }
 
-    public void setStyle(Vector4f color, boolean hasGrid, boolean seeThrough) {
-        this.color = color;
-        this.hasGrid = hasGrid;
-        this.seeThrough = seeThrough;
+    public void setStyle(RendererConfig config) {
+        this.config = config;
     }
 
     public Collection<VoxelShape> getInnerShapes() {
@@ -90,11 +87,11 @@ public class ShapeRenderer {
     }
 
     private boolean hasGrid() {
-        return hasGrid;
+        return config.grid;
     }
 
     private void drawFaces(WorldRenderContext ctx, Matrix4f mat) {
-        RenderType bufferType = this.seeThrough ? SEE_THROUGH_QUADS : TRANSLUCENT_QUADS;
+        RenderType bufferType = this.config.see_through ? SEE_THROUGH_QUADS : TRANSLUCENT_QUADS;
         final VertexConsumer vc = ctx.consumers().getBuffer(bufferType);
 
         final var camera = Minecraft.getInstance().gameRenderer.getMainCamera();
@@ -104,7 +101,7 @@ public class ShapeRenderer {
         final float lz = look.z();
         final Vec3 cp = camera.position();
         final float cx = (float) cp.x, cy = (float) cp.y, cz = (float) cp.z;
-        final float r = color.x, g = color.y, b = color.z, a = color.w;
+        final float r = config.color.x, g = config.color.y, b = config.color.z, a = config.color.w;
 
         float drawDistanceSqr = getDrawDistanceSqr();
         for (ChunkedVoxelField.Chunk chunk : chunks) {

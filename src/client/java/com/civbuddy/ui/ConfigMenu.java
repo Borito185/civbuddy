@@ -1,6 +1,7 @@
 package com.civbuddy.ui;
 
 import com.civbuddy.commands.ui.CommandManagerScreen;
+import com.civbuddy.snitch.ui.SnitchConfigMenu;
 import com.civbuddy.veins.ui.VeinConfigMenu;
 import io.wispforest.owo.ui.base.BaseOwoScreen;
 import io.wispforest.owo.ui.component.UIComponents;
@@ -40,6 +41,13 @@ public class ConfigMenu extends BaseOwoScreen<FlowLayout> {
                 UIComponents.button(
                         Component.literal("Vein Settings"),
                         button -> minecraft.setScreen(new VeinConfigMenu(this))
+                ).sizing(Sizing.fill(40), Sizing.content())
+        );
+
+        rootComponent.child(
+                UIComponents.button(
+                        Component.literal("Snitch Inspect Settings"),
+                        button -> minecraft.setScreen(new SnitchConfigMenu(this))
                 ).sizing(Sizing.fill(40), Sizing.content())
         );
 

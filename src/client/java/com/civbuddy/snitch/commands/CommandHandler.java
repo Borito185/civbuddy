@@ -6,11 +6,7 @@ import com.civbuddy.utils.arguments.Vector3IArgument;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
-import net.minecraft.commands.arguments.coordinates.Coordinates;
-import net.minecraft.commands.arguments.coordinates.WorldCoordinates;
-import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3i;
 
 import static com.civbuddy.utils.CommandsHelper.andRespondWith;
@@ -41,7 +37,7 @@ public class CommandHandler implements CommandsHelper.CommandProvider{
 
     public static Component clear(CommandContext<FabricClientCommandSource> ctx) {
         SnitchClient.positions.clear();
-        SnitchClient.redraw();
+        SnitchClient.notifyChange();
 
         return Component.literal("§aRemoved JA markings");
     }
@@ -60,7 +56,7 @@ public class CommandHandler implements CommandsHelper.CommandProvider{
         Vector3i pos = Vector3IArgument.getVector3i(ctx, "pos");
 
         SnitchClient.positions.add(pos);
-        SnitchClient.redraw();
+        SnitchClient.notifyChange();
 
         return Component.literal(String.format("Added a position to markings: %d %d %d", pos.x, pos.y, pos.z));
     }

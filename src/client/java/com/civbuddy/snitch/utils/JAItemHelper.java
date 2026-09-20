@@ -13,15 +13,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public final class JAItemHelper {
-    private final static Map<String, Integer> EventColorMap = Map.ofEntries(
-            Map.entry("Break ",        0x80FF3B30), // red
-            Map.entry("Place ",        0x80FFD60A), // yellow
-            Map.entry("Killed ",       0x80900030), // deep crimson
-            Map.entry("Opened ",       0x80AF52DE), // purple
-            Map.entry("Enter ",        0x8000B8A9), // teal
-            Map.entry("Leave ",        0x800A84FF), // blue
-            Map.entry("ItemExchange ", 0x8034C759)  // green
-    );
     private static final Pattern POSITION_PATTERN =
             Pattern.compile("^\\[(-?\\d+) (-?\\d+) (-?\\d+)]$");
 
@@ -65,7 +56,7 @@ public final class JAItemHelper {
 
         String name = stack.getHoverName().getString() + " ";
 
-        for (Map.Entry<String, Integer> entry : EventColorMap.entrySet()) {
+        for (Map.Entry<String, Integer> entry : SnitchClient.eventColorMap.entrySet()) {
             if (name.startsWith(entry.getKey())) {
                 return Optional.of(entry.getValue());
             }

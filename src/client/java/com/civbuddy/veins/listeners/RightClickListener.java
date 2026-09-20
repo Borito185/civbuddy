@@ -74,7 +74,7 @@ public final class RightClickListener {
         if (isHolding && isCharged) {
             AABBShape aabb = new AABBShape(new Vector3i(targetedBlock, 2), new Vector3i(0));
 
-            highlightRenderer.setStyle(config.highlightWallColor, config.highlightHasGrid, false);
+            highlightRenderer.setStyle(config.highlight);
             highlightRenderer.setInnerShapes(Set.of(aabb));
         }
     }

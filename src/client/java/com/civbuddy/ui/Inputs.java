@@ -1,13 +1,13 @@
 package com.civbuddy.ui;
 
+import com.civbuddy.storage.config.RendererConfig;
 import io.wispforest.owo.ui.component.ButtonComponent;
 import io.wispforest.owo.ui.component.ColorPickerComponent;
 import io.wispforest.owo.ui.component.TextBoxComponent;
 import io.wispforest.owo.ui.component.UIComponents;
 import io.wispforest.owo.ui.container.FlowLayout;
 import io.wispforest.owo.ui.container.UIContainers;
-import io.wispforest.owo.ui.core.Color;
-import io.wispforest.owo.ui.core.Sizing;
+import io.wispforest.owo.ui.core.*;
 import net.minecraft.network.chat.Component;
 import org.joml.Vector3i;
 import org.joml.Vector4f;
@@ -119,11 +119,19 @@ public class Inputs {
             Supplier<Vector4f> value,
             Consumer<Vector4f> onChanged
     ) {
+        return colorInput(value, onChanged, true);
+    }
+
+    public static ColorPickerComponent colorInput(
+            Supplier<Vector4f> value,
+            Consumer<Vector4f> onChanged,
+            boolean alpha
+    ) {
         var current = value.get();
 
         var picker = new ColorPickerComponent();
 
-        picker.showAlpha(true)
+        picker.showAlpha(alpha)
                 .selectedColor(new Color(
                         current.x,
                         current.y,
@@ -145,5 +153,47 @@ public class Inputs {
         );
 
         return picker;
+    }
+
+    public static UIComponent renderer(
+            String name,
+            Supplier<RendererConfig> value,
+            Consumer<RendererConfig> onChanged
+    ) {
+        var whole = UIContainers.verticalFlow(Sizing.fill(100), Sizing.content());
+        whole.gap(6);
+        var header = UIContainers.horizontalFlow(Sizing.fill(100), Sizing.content());
+        header.verticalAlignment(VerticalAlignment.CENTER);
+        header.gap(6);
+
+        var title = UIComponents.label(Component.literal(name))
+                .horizontalSizing(Sizing.content());
+
+        var spacer = UIContainers.horizontalFlow(
+                Sizing.expand(),
+                Sizing.fixed(0)
+        );
+        var see_through = toggleButton(() -> value.get().see_through, "X-Ray", "No X-Ray", b -> {
+            RendererConfig v = value.get();
+            v.see_through = b;
+            onChanged.accept(v);
+        }).horizontalSizing(Sizing.fixed(50));
+        var grid = toggleButton(() -> value.get().grid, "Grid", "No Grid", b -> {
+            RendererConfig v = value.get();
+            v.grid = b;
+            onChanged.accept(v);
+        }).horizontalSizing(Sizing.fixed(50));
+        var colorpicker = colorInput(() -> value.get().color, color -> {
+            RendererConfig v = value.get();
+            v.color = color;
+            onChanged.accept(v);
+        }).horizontalSizing(Sizing.fill(100));
+        header.child(title);
+        header.child(spacer);
+        header.child(grid);
+        header.child(see_through);
+        whole.child(header);
+        whole.child(colorpicker);
+        return whole.padding(Insets.of(4));
     }
 }

@@ -10,7 +10,7 @@ public final class WorldDisconnectListener {
         ClientPlayConnectionEvents.DISCONNECT.register((a, b) -> {
             SnitchClient.positions.clear();
             SnitchClient.filterByPositions = false;
-            SnitchClient.redraw();
+            SnitchClient.notifyChange();
         });
     }
 }

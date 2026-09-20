@@ -92,8 +92,8 @@ public class VeinClient {
     /* ===================== INTERNAL ===================== */
     private void redraw() throws SQLException {
         VeinConfig config = config();
-        borderRenderer.setStyle(config.borderWallColor, config.borderHasGrid, false);
-        markingRenderer.setStyle(config.markingWallColor, config.markingHasGrid, false);
+        borderRenderer.setStyle(config.border);
+        markingRenderer.setStyle(config.marking);
 
         if (!config.doRender) {
             borderRenderer.setInnerShapes(Set.of());
