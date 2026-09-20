@@ -4,3 +4,4 @@ package com.civbuddy.common.geo.util;
 public interface VoxelConsumer {
     void accept(int x, int y, int z);
 }
+

@@ -110,13 +110,13 @@ public class VeinClient {
         }
 
         List<VeinMarkingRow> rows = VeinMarkingDao.findAllForVein(getActiveVeinId());
+        Set<VoxelShape> markingsShapes = rows // do markings first as borders can take a long time
+                .stream()
+                .map(r -> VoxelShape.of(r.pos(), new Vector3i(0), 0))
+                .collect(Collectors.toSet());
         Set<VoxelShape> bordersShapes = rows
                 .stream()
                 .map(r -> VoxelShape.of(r.pos(), r.range(), config.shapeMode.ordinal()))
-                .collect(Collectors.toSet());
-        Set<VoxelShape> markingsShapes = rows
-                .stream()
-                .map(r -> VoxelShape.of(r.pos(), new Vector3i(0), 0))
                 .collect(Collectors.toSet());
 
         borderRenderer.setInnerShapes(bordersShapes);

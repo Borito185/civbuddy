@@ -90,9 +90,15 @@ public class ChunkedVoxelField {
             if (!removed) return;
         }
         short shiftAmount = (short)(isAdd ? 1 : -1);
-        VoxelConsumer c = (x,y,z) -> shift(x,y,z, shiftAmount);
+        VoxelConsumer vc = (x,y,z) -> shift(x,y,z, shiftAmount);
+        RegionConsumer rc = (minX, minY, minZ, maxX, maxY, maxZ) ->
+                shiftRegion(
+                        minX, minY, minZ,
+                        maxX, maxY, maxZ,
+                        shiftAmount
+                );
 
-        shape.AddVoxels(c);
+        shape.addVoxels(rc, vc);
     }
 
     private void shift(int x, int y, int z, short diff) {
@@ -130,6 +136,90 @@ public class ChunkedVoxelField {
 
         if (localZ == 0) markDirty(cx, cy, cz - 1);
         if (localZ == 15) markDirty(cx, cy, cz + 1);
+    }
+
+    private void shiftRegion(
+            int minX, int minY, int minZ,
+            int maxX, int maxY, int maxZ,
+            short diff
+    ) {
+        if (diff == 0) return;
+
+        int minCX = floorDiv16(minX);
+        int minCY = floorDiv16(minY);
+        int minCZ = floorDiv16(minZ);
+
+        int maxCX = floorDiv16(maxX);
+        int maxCY = floorDiv16(maxY);
+        int maxCZ = floorDiv16(maxZ);
+
+        for (int cx = minCX; cx <= maxCX; cx++) {
+            for (int cy = minCY; cy <= maxCY; cy++) {
+                for (int cz = minCZ; cz <= maxCZ; cz++) {
+                    shiftChunkRegion(
+                            cx, cy, cz,
+                            minX, minY, minZ,
+                            maxX, maxY, maxZ,
+                            diff
+                    );
+                }
+            }
+        }
+    }
+
+    private void shiftChunkRegion(
+            int cx, int cy, int cz,
+            int minX, int minY, int minZ,
+            int maxX, int maxY, int maxZ,
+            short diff
+    ) {
+        int baseX = cx << 4;
+        int baseY = cy << 4;
+        int baseZ = cz << 4;
+
+        // Intersection expressed in chunk-local coordinates.
+        int fromX = Math.max(0, minX - baseX);
+        int fromY = Math.max(0, minY - baseY);
+        int fromZ = Math.max(0, minZ - baseZ);
+
+        int toX = Math.min(15, maxX - baseX);
+        int toY = Math.min(15, maxY - baseY);
+        int toZ = Math.min(15, maxZ - baseZ);
+
+        Chunk chunk = chunks.computeIfAbsent(
+                chunkKey(cx, cy, cz),
+                k -> new Chunk(new Vector3i(
+                        baseX + 8,
+                        baseY + 8,
+                        baseZ + 8
+                ))
+        );
+
+        // Entire chunk is covered.
+        if (fromX == 0 && fromY == 0 && fromZ == 0
+                && toX == 15 && toY == 15 && toZ == 15) {
+            chunk.full += diff;
+        } else {
+            for (int x = fromX; x <= toX; x++) {
+                for (int y = fromY; y <= toY; y++) {
+                    for (int z = fromZ; z <= toZ; z++) {
+                        chunk.voxels[index(x, y, z)] += diff;
+                    }
+                }
+            }
+        }
+
+        chunk.dirty = true;
+
+        // Only neighboring meshes sharing an edited face are affected.
+        if (fromX == 0)  markDirty(cx - 1, cy, cz);
+        if (toX == 15)   markDirty(cx + 1, cy, cz);
+
+        if (fromY == 0)  markDirty(cx, cy - 1, cz);
+        if (toY == 15)   markDirty(cx, cy + 1, cz);
+
+        if (fromZ == 0)  markDirty(cx, cy, cz - 1);
+        if (toZ == 15)   markDirty(cx, cy, cz + 1);
     }
 
     // =========================================================
@@ -241,11 +331,11 @@ public class ChunkedVoxelField {
             return false;
         }
 
-        return chunk.voxels[index(
+        return (chunk.voxels[index(
                 x & MASK,
                 y & MASK,
                 z & MASK
-        )] > 0;
+        )] + chunk.full) >= 1;
     }
 
     // =========================================================
@@ -307,6 +397,7 @@ public class ChunkedVoxelField {
     public static class Chunk {
         public Vector3i center;
 
+        int full = 0;
         final short[] voxels = new short[VOLUME];
 
         public List<Face> faces = new ArrayList<>();
