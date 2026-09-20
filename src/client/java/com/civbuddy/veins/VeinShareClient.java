@@ -11,6 +11,7 @@ import org.joml.Vector3i;
 import org.jspecify.annotations.NonNull;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.civbuddy.CivBuddyClient.WORKER;
 
@@ -65,8 +66,8 @@ public final class VeinShareClient {
 
             drawSharingIndicator();
 
-            // only run every 20 ticks
-            if (tick++ % 20 == 0) {
+            // only run every 30 ticks
+            if (tick++ % 30 == 0) {
                 WORKER.submit(() -> {
                     try {
                         if (!isSameVein()) return;
@@ -102,30 +103,67 @@ public final class VeinShareClient {
     }
 
     private static void findNewChanges() throws SQLException {
-        // compare what is currently in db with what is known and add to stage
-        Set<VeinMarkingRow> current = new HashSet<>(VeinMarkingDao.findAllForVein(sharingVein));
+        Map<Pos, VeinMarkingRow> current = VeinMarkingDao.findAllForVein(sharingVein)
+                .stream()
+                .collect(Collectors.toMap(r -> Pos.of(r.pos()), r -> r));
 
-        Set<VeinMarkingRow> added = new HashSet<>(current); added.removeAll(known);
-        Set<VeinMarkingRow> removed = new HashSet<>(known); removed.removeAll(current);
+        Map<Pos, VeinMarkingRow> previous = known.stream()
+                .collect(Collectors.toMap(r -> Pos.of(r.pos()), r -> r));
 
-        for (VeinMarkingRow row : added)   stage.add(new ShareMarking(row, false));
-        for (VeinMarkingRow row : removed) stage.add(new ShareMarking(row, true));
+        Map<Pos, ShareMarking> changes = new HashMap<>();
 
-        // remove elements from stage if they are no longer in db
+        // Added or updated
+        for (var entry : current.entrySet()) {
+            Pos pos = entry.getKey();
+            VeinMarkingRow row = entry.getValue();
+
+            VeinMarkingRow old = previous.get(pos);
+
+            if (old == null) {
+                changes.put(pos, new ShareMarking(row, false));
+            } else if (!old.range().equals(row.range())) {
+                changes.put(pos, new ShareMarking(row, false));
+            }
+        }
+
+        // Removed
+        for (var entry : previous.entrySet()) {
+            if (!current.containsKey(entry.getKey())) {
+                changes.put(
+                        entry.getKey(),
+                        new ShareMarking(entry.getValue(), true)
+                );
+            }
+        }
+
+        // Remove staged changes that are no longer relevant
         stage.removeIf(s -> {
-            VeinMarkingRow row = new VeinMarkingRow(sharingVein, s.pos, s.range);
-            if (!s.isRemove && !added.contains(row)) return true;
-            if (s.isRemove && !removed.contains(row)) return true;
-            return false;
+            Pos pos = Pos.of(s.pos);
+            ShareMarking expected = changes.get(pos);
+
+            if (expected == null) return true;
+
+            return expected.isRemove != s.isRemove
+                    || !expected.range.equals(s.range);
         });
 
-        // commit staged diff's above threshold
+        // Add newly discovered changes
+        for (var entry : changes.entrySet()) {
+            boolean alreadyStaged = stage.stream().anyMatch(s ->
+                    Pos.of(s.pos).equals(entry.getKey())
+            );
+
+            if (!alreadyStaged) {
+                stage.add(entry.getValue());
+            }
+        }
+
+        // Commit stable changes
         stage.removeIf(s -> {
-            if (s.age <= 5) return false;
+            if (s.age <= 2) return false;
 
             addToKnown(s, true);
-
-            return true; // remove from stage
+            return true;
         });
     }
 
@@ -218,5 +256,11 @@ public final class VeinShareClient {
 
         Minecraft mc = Minecraft.getInstance();
         mc.player.displayClientMessage(text, true);
+    }
+
+    private record Pos(int x, int y, int z) {
+        static Pos of(Vector3i v) {
+            return new Pos(v.x, v.y, v.z);
+        }
     }
 }

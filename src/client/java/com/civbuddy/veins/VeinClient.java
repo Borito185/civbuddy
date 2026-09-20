@@ -23,6 +23,7 @@ import com.civbuddy.veins.listeners.DiaOreFoundListener;
 import com.civbuddy.veins.listeners.VeinSharedListener;
 import com.civbuddy.veins.listeners.WorldEventListener;
 import com.civbuddy.common.render.ShapeRenderer;
+import com.civbuddy.veins.session.VeinSessionClient;
 import org.joml.Vector3i;
 import com.civbuddy.common.geo.shapes.VoxelShape;
 
@@ -63,7 +64,6 @@ public class VeinClient {
         group.add(new DigRadiusCommands());
         group.add(new InfoCommands());
         group.add(new ModifyCommands());
-        group.add(new ShareCommands());
         CommandManager.register(group);
 
         // --- Init SQL database ---
@@ -78,6 +78,9 @@ public class VeinClient {
         // --- Init Vein Share Client ---
         VeinShareClient.initialize();
         VeinSharedListener.initialize();
+
+        // --- Init Vein Session Client ---
+        VeinSessionClient.initialize(group);
     }
 
     public static void notifyChange() {

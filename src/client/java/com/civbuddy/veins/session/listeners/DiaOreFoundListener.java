@@ -1,0 +1,79 @@
+package com.civbuddy.veins.session.listeners;
+
+import com.civbuddy.veins.data.VeinDao;
+import com.civbuddy.veins.data.VeinKVStore;
+import com.civbuddy.veins.session.VeinSessionClient;
+import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
+
+import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * VeinBuddy Count - Lightweight vein tracking for miners
+ * 
+ * Tracks ore discoveries per vein using simple keys.
+ * Miners set a key for their vein, and discoveries auto-update the count.
+ * 
+ * Commands:
+ *   /civbuddy group <name>   - Set group to send count updates to
+ *   /civbuddy name <key>     - Set key for current vein (e.g., "f2da")
+ *   /civbuddy reset          - Reset current vein count to 0
+ *   /civbuddy listnames      - List all tracked veins
+ */
+public class DiaOreFoundListener {
+    private static final Minecraft mc = Minecraft.getInstance();
+
+    
+    // Ore detection pattern - detects "You sense a diamond nearby 2 DEEPSLATE_DIAMOND_ORE nearby"
+    private static final Pattern ORE_SENSE_PATTERN = Pattern.compile(
+        "You sense a diamond nearby\\s+(\\d+)\\s+.*",
+        Pattern.CASE_INSENSITIVE
+    );
+    private static final String[] IGNORE_MSG_CHARACTERS = new String[] {"<", ">", "[", "]", "joined", "left", "From", "to", "combat", "brand new!"};
+
+    private DiaOreFoundListener() {}
+
+    public static void initialize() {
+        // Register chat listener
+        ClientReceiveMessageEvents.GAME.register(DiaOreFoundListener::onChatMessage);
+    }
+
+    /**
+     * Handle incoming chat messages
+     */
+    private static void onChatMessage(Component message, boolean overlay) {
+        if (overlay) return;
+
+        String msg = message.getString();
+
+        try {
+            checkMessage(msg);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static void checkMessage(String message) throws SQLException {
+        // Filter out player chat messages (they contain player names with <> or brackets)
+        // Only process system messages (ore detection from the server)
+        if (Arrays.stream(IGNORE_MSG_CHARACTERS).anyMatch(message::contains)) {
+            // This is likely a player chat message, ignore it
+            return;
+        }
+
+        Matcher matcher = ORE_SENSE_PATTERN.matcher(message);
+        if (matcher.matches()) {
+            // Parse the count from the message
+            // "You sense a diamond nearby 1 DEEPSLATE_DIAMOND_ORE nearby" = 1
+            // "You sense a diamond nearby 3 DEEPSLATE_DIAMOND_ORE nearby" = 3
+            String countStr = matcher.group(1);
+            int amount = Integer.parseInt(countStr);
+
+            VeinSessionClient.foundDiamonds(amount);
+        }
+    }
+}
