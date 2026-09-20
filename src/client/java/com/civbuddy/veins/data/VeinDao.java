@@ -1,6 +1,6 @@
 package com.civbuddy.veins.data;
 
-import com.civbuddy.storage.sql.DatabaseManager;
+import com.civbuddy.common.storage.sql.DatabaseManager;
 
 import java.sql.SQLException;
 import java.util.ArrayList;

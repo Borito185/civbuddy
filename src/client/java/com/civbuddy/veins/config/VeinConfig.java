@@ -1,6 +1,6 @@
 package com.civbuddy.veins.config;
 
-import com.civbuddy.storage.config.RendererConfig;
+import com.civbuddy.common.storage.config.RendererConfig;
 import org.joml.Vector3i;
 import org.joml.Vector4f;
 

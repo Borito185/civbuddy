@@ -7,7 +7,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.civbuddy.CivBuddyClient;
-import com.civbuddy.storage.sql.DatabaseManager;
+import com.civbuddy.common.storage.sql.DatabaseManager;
 import com.civbuddy.veins.commands.CommandHandler;
 import com.civbuddy.veins.config.VeinConfig;
 import com.civbuddy.veins.data.VeinDao;

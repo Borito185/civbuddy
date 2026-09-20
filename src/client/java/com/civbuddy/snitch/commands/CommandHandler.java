@@ -1,15 +1,15 @@
 package com.civbuddy.snitch.commands;
 
 import com.civbuddy.snitch.SnitchClient;
-import com.civbuddy.utils.CommandsHelper;
-import com.civbuddy.utils.arguments.Vector3IArgument;
+import com.civbuddy.common.utils.CommandsHelper;
+import com.civbuddy.common.utils.arguments.Vector3IArgument;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.network.chat.Component;
 import org.joml.Vector3i;
 
-import static com.civbuddy.utils.CommandsHelper.andRespondWith;
+import static com.civbuddy.common.utils.CommandsHelper.andRespondWith;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.argument;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.literal;
 

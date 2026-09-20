@@ -1,6 +1,6 @@
 package com.civbuddy.veins.data.markings;
 
-import com.civbuddy.storage.sql.DatabaseManager;
+import com.civbuddy.common.storage.sql.DatabaseManager;
 import org.joml.Vector3i;
 import org.joml.Vector3ic;
 

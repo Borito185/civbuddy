@@ -1,6 +1,6 @@
 package com.civbuddy.calc;
 
-import com.civbuddy.utils.CommandsHelper;
+import com.civbuddy.common.utils.CommandsHelper;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
@@ -15,7 +15,7 @@ import net.objecthunter.exp4j.ExpressionBuilder;
 import java.math.BigDecimal;
 import java.util.Map;
 
-import static com.civbuddy.utils.CommandsHelper.andRespondWith;
+import static com.civbuddy.common.utils.CommandsHelper.andRespondWith;
 import static com.mojang.brigadier.arguments.StringArgumentType.greedyString;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.argument;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.literal;

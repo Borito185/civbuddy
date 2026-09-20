@@ -18,8 +18,8 @@ import org.joml.Vector4f;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import static com.civbuddy.ui.Inputs.*;
-import static com.civbuddy.ui.Layout.*;
+import static com.civbuddy.common.ui.Inputs.*;
+import static com.civbuddy.common.ui.Layout.*;
 import static io.wispforest.owo.ui.component.UIComponents.button;
 
 public class SnitchConfigMenu extends BaseOwoScreen<FlowLayout> {

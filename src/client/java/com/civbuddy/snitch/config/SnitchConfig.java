@@ -1,6 +1,6 @@
 package com.civbuddy.snitch.config;
 
-import com.civbuddy.storage.config.RendererConfig;
+import com.civbuddy.common.storage.config.RendererConfig;
 import org.joml.Vector4f;
 
 import java.util.Map;

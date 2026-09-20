@@ -1,6 +1,6 @@
 package com.civbuddy.veins.commands;
 
-import com.civbuddy.utils.CommandsHelper;
+import com.civbuddy.common.utils.CommandsHelper;
 import com.civbuddy.veins.data.VeinDao;
 import com.civbuddy.veins.data.VeinRow;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -17,7 +17,7 @@ import net.minecraft.client.multiplayer.ClientSuggestionProvider;
 import java.sql.SQLException;
 import java.util.concurrent.CompletableFuture;
 
-import static com.civbuddy.utils.CommandsHelper.andRespondWith;
+import static com.civbuddy.common.utils.CommandsHelper.andRespondWith;
 import static com.mojang.brigadier.arguments.IntegerArgumentType.integer;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.argument;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.literal;

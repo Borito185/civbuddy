@@ -1,8 +1,8 @@
 package com.civbuddy.veins.ui;
 
 import com.civbuddy.CivBuddyClient;
-import com.civbuddy.storage.config.GlobalConfig;
-import com.civbuddy.storage.config.JsonConfig;
+import com.civbuddy.common.storage.config.GlobalConfig;
+import com.civbuddy.common.storage.config.JsonConfig;
 import com.civbuddy.veins.VeinClient;
 import com.civbuddy.veins.config.VeinConfig;
 import io.wispforest.owo.ui.base.BaseOwoScreen;
@@ -17,9 +17,8 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 import java.util.Objects;
-
-import static com.civbuddy.ui.Inputs.*;
-import static com.civbuddy.ui.Layout.*;
+import static com.civbuddy.common.ui.Inputs.*;
+import static com.civbuddy.common.ui.Layout.*;
 
 public class VeinConfigMenu extends BaseOwoScreen<FlowLayout> {
 

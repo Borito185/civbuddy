@@ -1,9 +1,8 @@
 package com.civbuddy.veins.data;
 
-import com.civbuddy.storage.sql.KeyValueDao;
+import com.civbuddy.common.storage.sql.KeyValueDao;
 
 import java.sql.SQLException;
-import java.util.Optional;
 
 public final class VeinKVStore {
     private VeinKVStore() {}
