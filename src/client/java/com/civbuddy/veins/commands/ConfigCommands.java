@@ -1,41 +1,56 @@
 package com.civbuddy.veins.commands;
 
+import com.civbuddy.common.commands.Command;
 import com.civbuddy.veins.VeinClient;
 import com.civbuddy.veins.data.VeinDao;
 import com.civbuddy.veins.data.VeinKVStore;
 import com.civbuddy.veins.data.VeinRow;
-import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.network.chat.Component;
-import org.joml.Vector3i;
 
 import java.sql.SQLException;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 import static com.civbuddy.CivBuddyClient.config;
+import static com.civbuddy.common.commands.CommandUtils.*;
 
-public final class ConfigCommands {
-    public static Component setDigRange(CommandContext<FabricClientCommandSource> ctx) {
-        int x = IntegerArgumentType.getInteger(ctx, "x");
-        int y = IntegerArgumentType.getInteger(ctx, "y");
-        int z = IntegerArgumentType.getInteger(ctx, "z");
+public final class ConfigCommands implements Command {
+    @Override
+    public void bind(Consumer<List<ArgumentBuilder<FabricClientCommandSource, ?>>> add) {
+        add.accept(List.of(
+                literal("toggle").executes(andRespondWith(ConfigCommands::toggle))
+        ));
 
-        config.updateAndSave(c -> c.veins.markRange = new Vector3i(x,y,z));
-        return Component.literal(String.format("§aChanged dig range to: %d %d %d", x, y, z));
-    }
+        add.accept(List.of(
+                literal("set"),
+                argument("veinName", StringArgumentType.string())
+                        .suggests(ConfigCommands::veinSuggestions)
+                        .executes(andRespondWith(ConfigCommands::setVein))
+        ));
 
-    public static Component setDigRadius(CommandContext<FabricClientCommandSource> ctx) {
-        int radius = IntegerArgumentType.getInteger(ctx, "radius");
-        config.updateAndSave(c -> c.veins.markRange = new Vector3i(radius,radius,radius));
 
-        return Component.literal(String.format("§aChanged dig range to: %d %d %d", radius, radius, radius));
     }
 
     public static Component toggle(CommandContext<FabricClientCommandSource> ctx) {
         config.updateAndSave(c -> c.veins.doRender = !c.veins.doRender);
         VeinClient.notifyChange();
         return Component.literal(String.format("§aVein rendering turned %s", config.get().veins.doRender ? "on" : "off"));
+    }
+
+    private static CompletableFuture<Suggestions> veinSuggestions(CommandContext<FabricClientCommandSource> ctx, SuggestionsBuilder builder){
+        try {
+            VeinDao.top(100).stream().map(VeinRow::name).sorted().forEach(builder::suggest);
+            return builder.buildFuture();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**

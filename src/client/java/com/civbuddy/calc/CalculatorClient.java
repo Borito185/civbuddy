@@ -1,8 +1,9 @@
 package com.civbuddy.calc;
 
-import com.civbuddy.common.utils.CommandsHelper;
+import com.civbuddy.common.commands.Command;
+import com.civbuddy.common.commands.CommandManager;
 import com.mojang.brigadier.arguments.StringArgumentType;
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.network.chat.ClickEvent;
@@ -13,14 +14,14 @@ import net.minecraft.ChatFormatting;
 import net.objecthunter.exp4j.ExpressionBuilder;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
-import static com.civbuddy.common.utils.CommandsHelper.andRespondWith;
+import static com.civbuddy.common.commands.CommandUtils.*;
 import static com.mojang.brigadier.arguments.StringArgumentType.greedyString;
-import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.argument;
-import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.literal;
 
-public class CalculatorClient implements CommandsHelper.CommandProvider {
+public class CalculatorClient implements Command {
     private CalculatorClient() {}
     private static final Map<String, Double> shortcuts = Map.of(
         "s", 64.0d,
@@ -30,23 +31,20 @@ public class CalculatorClient implements CommandsHelper.CommandProvider {
         "k", 1000d
     );
 
-    public static void onInitializeClient() {
-        CalculatorClient instance = new CalculatorClient();
-        CommandsHelper.register(instance);
-    }
-
     @Override
-    public LiteralArgumentBuilder<FabricClientCommandSource> commands() {
-        return literal("calc").then(
+    public void bind(Consumer<List<ArgumentBuilder<FabricClientCommandSource, ?>>> add) {
+        add.accept(List.of(
+                literal("calc"),
                 argument("expression", greedyString())
                         .executes(andRespondWith(CalculatorClient::calc))
-        );
+        ));
     }
 
-    @Override
-    public boolean commandsAlias() {
-        return true;
+    public static void onInitializeClient() {
+        CalculatorClient instance = new CalculatorClient();
+        CommandManager.register(instance);
     }
+
 
     public static Component calc(CommandContext<FabricClientCommandSource> ctx) {
         String exp = StringArgumentType.getString(ctx, "expression");

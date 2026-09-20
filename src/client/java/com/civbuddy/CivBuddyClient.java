@@ -2,9 +2,9 @@ package com.civbuddy;
 
 import com.civbuddy.calc.CalculatorClient;
 import com.civbuddy.commands.CommandClient;
-import com.civbuddy.commands.HelpCommand;
 import com.civbuddy.commands.data.CommandDao;
 import com.civbuddy.commands.data.CommandMigrations;
+import com.civbuddy.common.commands.CommandManager;
 import com.civbuddy.common.compat.CompatManager;
 import com.civbuddy.common.compat.migrations.LoadOldSave;
 import com.civbuddy.common.compat.migrations.MigrateCommandsToSql;
@@ -14,7 +14,6 @@ import com.civbuddy.common.storage.config.JsonConfig;
 import com.civbuddy.common.storage.sql.DatabaseManager;
 import com.civbuddy.common.storage.sql.KeyValueMigrations;
 import com.civbuddy.common.ui.MenuListener;
-import com.civbuddy.common.utils.CommandsHelper;
 import com.civbuddy.veins.VeinClient;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -57,11 +56,13 @@ public class CivBuddyClient implements ClientModInitializer {
         VeinClient.onInitializeClient();
         CalculatorClient.onInitializeClient();
         SnitchClient.onInitializeClient();
-        HelpCommand.initialize();
         CommandClient.initialize();
 
         // --- Init (/)Commands ---
-        CommandsHelper.initialize();
+        CommandManager.addRoot("civbuddy");
+        CommandManager.addRoot("cb");
+        CommandManager.addRoot("");
+        CommandManager.initialize();
 
         // --- Init Migrations ---
         ClientPlayConnectionEvents.JOIN.register((a, b, c) -> {

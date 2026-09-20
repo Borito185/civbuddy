@@ -7,8 +7,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.civbuddy.CivBuddyClient;
+import com.civbuddy.common.commands.CommandGroup;
+import com.civbuddy.common.commands.CommandManager;
 import com.civbuddy.common.storage.sql.DatabaseManager;
-import com.civbuddy.veins.commands.CommandHandler;
+import com.civbuddy.veins.commands.*;
 import com.civbuddy.veins.config.VeinConfig;
 import com.civbuddy.veins.data.VeinDao;
 import com.civbuddy.veins.data.VeinKVStore;
@@ -56,7 +58,13 @@ public class VeinClient {
         instance = new VeinClient();
 
         // --- Register Commands ---
-        CommandHandler.initialize();
+        CommandGroup group = new CommandGroup("veins");
+        group.add(new ConfigCommands());
+        group.add(new DigRadiusCommands());
+        group.add(new InfoCommands());
+        group.add(new ModifyCommands());
+        group.add(new ShareCommands());
+        CommandManager.register(group);
 
         // --- Init SQL database ---
         DatabaseManager.register(VeinMigrations.migrations());

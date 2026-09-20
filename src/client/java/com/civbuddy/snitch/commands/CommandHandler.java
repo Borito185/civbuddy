@@ -1,39 +1,46 @@
 package com.civbuddy.snitch.commands;
 
+import com.civbuddy.common.commands.Command;
+import com.civbuddy.common.commands.CommandManager;
 import com.civbuddy.snitch.SnitchClient;
-import com.civbuddy.common.utils.CommandsHelper;
 import com.civbuddy.common.utils.arguments.Vector3IArgument;
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.network.chat.Component;
 import org.joml.Vector3i;
 
-import static com.civbuddy.common.utils.CommandsHelper.andRespondWith;
-import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.argument;
-import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.literal;
+import java.util.List;
+import java.util.function.Consumer;
 
-public class CommandHandler implements CommandsHelper.CommandProvider{
+import static com.civbuddy.common.commands.CommandUtils.*;
+
+
+public class CommandHandler implements Command {
     public static void initialize() {
-        CommandsHelper.register(new CommandHandler());
+        CommandManager.register(new CommandHandler());
     }
 
     @Override
-    public LiteralArgumentBuilder<FabricClientCommandSource> commands() {
-        return literal("snitch")
-                .then(literal("clear_markings")
-                        .executes(andRespondWith(CommandHandler::clear)))
-                .then(literal("toggle_filter")
-                        .executes(andRespondWith(CommandHandler::toggleFilter)))
-                .then(literal("add_marking")
-                        .then(argument("pos", Vector3IArgument.vector3i())
-                                .executes(andRespondWith(CommandHandler::search))));
+    public void bind(Consumer<List<ArgumentBuilder<FabricClientCommandSource, ?>>> add) {
+        add.accept(List.of(
+                literal("snitch"),
+                literal("clear_markings").executes(andRespondWith(CommandHandler::clear))
+        ));
+
+        add.accept(List.of(
+                literal("snitch"),
+                literal("toggle_filter").executes(andRespondWith(CommandHandler::toggleFilter))
+        ));
+
+        add.accept(List.of(
+                literal("snitch"),
+                literal("add_marking"),
+                argument("pos", Vector3IArgument.vector3i())
+                        .executes(andRespondWith(CommandHandler::search)))
+        );
     }
 
-    @Override
-    public boolean commandsAlias() {
-        return true;
-    }
 
     public static Component clear(CommandContext<FabricClientCommandSource> ctx) {
         SnitchClient.positions.clear();
