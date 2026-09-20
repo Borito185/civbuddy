@@ -25,6 +25,8 @@ public class ChunkedVoxelField {
     private final Map<Long, Chunk> chunks = new HashMap<>();
     private final Set<VoxelShape> shapes = new HashSet<>();
 
+    private int threshold = 1;
+
     // =========================================================
     // PUBLIC API
     // =========================================================
@@ -75,6 +77,15 @@ public class ChunkedVoxelField {
 
     public Collection<VoxelShape> getInnerShapes() {
         return shapes;
+    }
+
+    public void setThreshold(int threshold) {
+        if (this.threshold == threshold) return;
+
+        this.threshold = threshold;
+        for (Chunk value : chunks.values()) {
+            value.dirty = true;
+        }
     }
 
     // =========================================================
@@ -231,23 +242,18 @@ public class ChunkedVoxelField {
         int baseY = cy << 4;
         int baseZ = cz << 4;
 
-        short[] voxels = chunk.voxels;
+        int maxX = baseX + SIZE;
+        int maxY = baseY + SIZE;
+        int maxZ = baseZ + SIZE;
 
         List<UnitFace> faces = new ArrayList<>();
 
-        for (int z = 0; z < SIZE; z++)
-        for (int y = 0; y < SIZE; y++)
-        for (int x = 0; x < SIZE; x++) {
-
-            int i = index(x, y, z);
-
-            if (voxels[i] <= 0) {
+        for (int wz = baseZ; wz < maxZ; wz++)
+        for (int wy = baseY; wy < maxY; wy++)
+        for (int wx = baseX; wx < maxX; wx++) {
+            if (!isSolid(chunk, wx, wy, wz)) {
                 continue;
             }
-
-            int wx = baseX + x;
-            int wy = baseY + y;
-            int wz = baseZ + z;
 
             // -X
             if (!isSolid(wx - 1, wy, wz)) {
@@ -327,6 +333,10 @@ public class ChunkedVoxelField {
                 floorDiv16(z)
         ));
 
+        return isSolid(chunk, x, y, z);
+    }
+
+    private boolean isSolid(Chunk chunk, int x, int y, int z) {
         if (chunk == null) {
             return false;
         }
@@ -335,7 +345,7 @@ public class ChunkedVoxelField {
                 x & MASK,
                 y & MASK,
                 z & MASK
-        )] + chunk.full) >= 1;
+        )] + chunk.full) >= threshold;
     }
 
     // =========================================================

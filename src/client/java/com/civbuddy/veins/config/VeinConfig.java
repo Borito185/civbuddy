@@ -7,6 +7,7 @@ import org.joml.Vector4f;
 public final class VeinConfig {
     public boolean doRender = true;
     public ShapeMode shapeMode = ShapeMode.Cuboid;
+    public int borderThreshold = 1;
 
     public float placeMoveSpeed = 0.2f;
     public float placeRange = 6.0f;

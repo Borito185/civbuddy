@@ -6,6 +6,7 @@ import com.civbuddy.veins.VeinClient;
 import com.civbuddy.veins.VeinShareClient;
 import com.civbuddy.veins.config.VeinConfig;
 import com.civbuddy.veins.data.markings.VeinMarkingDao;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
@@ -21,6 +22,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 import static com.civbuddy.common.commands.CommandUtils.*;
+import static com.mojang.brigadier.arguments.IntegerArgumentType.integer;
 
 public class ModifyCommands implements Command {
     @Override
@@ -37,11 +39,24 @@ public class ModifyCommands implements Command {
 
         add.accept(List.of(
                 literal("modify"),
+                literal("borderThreshold"),
+                argument("threshold", integer(1, 32)).executes(andRespondWith(ModifyCommands::borderThreshold))
+        ));
+
+        add.accept(List.of(
+                literal("modify"),
                 literal("shape"),
                 argument("type", StringArgumentType.word())
                         .suggests(ModifyCommands::suggestShapeModes)
                         .executes(andRespondWith(ModifyCommands::setShapeType))
         ));
+    }
+
+    private static Component borderThreshold(CommandContext<FabricClientCommandSource> ctx) {
+        int v = IntegerArgumentType.getInteger(ctx, "threshold");
+        CivBuddyClient.config.updateAndSave(c -> c.veins.borderThreshold = v);
+        VeinClient.notifyChange();
+        return Component.literal(String.format("§aChanged the border threshold to %d. Borders will start to show when fewer than %d markings are around.", v, v));
     }
 
     private static Component clear(CommandContext<FabricClientCommandSource> ctx) throws SQLException {

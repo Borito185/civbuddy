@@ -101,6 +101,7 @@ public class VeinClient {
     private void redraw() throws SQLException {
         VeinConfig config = config();
         borderRenderer.setStyle(config.border);
+        borderRenderer.getField().setThreshold(config.borderThreshold);
         markingRenderer.setStyle(config.marking);
 
         if (!config.doRender) {
@@ -110,7 +111,7 @@ public class VeinClient {
         }
 
         List<VeinMarkingRow> rows = VeinMarkingDao.findAllForVein(getActiveVeinId());
-        Set<VoxelShape> markingsShapes = rows // do markings first as borders can take a long time
+        Set<VoxelShape> markingsShapes = rows
                 .stream()
                 .map(r -> VoxelShape.of(r.pos(), new Vector3i(0), 0))
                 .collect(Collectors.toSet());
@@ -119,7 +120,7 @@ public class VeinClient {
                 .map(r -> VoxelShape.of(r.pos(), r.range(), config.shapeMode.ordinal()))
                 .collect(Collectors.toSet());
 
+        markingRenderer.setInnerShapes(markingsShapes); // do markings first as borders can take a long time
         borderRenderer.setInnerShapes(bordersShapes);
-        markingRenderer.setInnerShapes(markingsShapes);
     }
 }

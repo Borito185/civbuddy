@@ -93,6 +93,12 @@ public class VeinConfigMenu extends BaseOwoScreen<FlowLayout> {
         options.child(row("Marking Shape", enumButton(() -> config().shapeMode.name(), shapes, newValue -> {
             update(c -> c.veins.shapeMode = VeinConfig.ShapeMode.valueOf(newValue));
         })));
+
+        options.child(row("Border Threshold", numberInput(() -> config().borderThreshold, vRaw -> {
+            int v = vRaw.intValue();
+            if (v <= 0) return;
+            update(c -> c.veins.borderThreshold = v);
+        })));
     }
 
     public void controls(FlowLayout options) {

@@ -40,6 +40,9 @@ public class ShapeRenderer {
     public void setStyle(RendererConfig config) {
         this.config = config;
     }
+    public ChunkedVoxelField getField() {
+        return field;
+    }
 
     public Collection<VoxelShape> getInnerShapes() {
         return new ArrayList<>(field.getInnerShapes());
