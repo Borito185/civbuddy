@@ -5,10 +5,12 @@ import com.civbuddy.common.commands.CommandGroup;
 import com.civbuddy.veins.VeinClient;
 import com.civbuddy.veins.VeinShareClient;
 import com.civbuddy.veins.config.VeinConfig;
+import com.civbuddy.veins.data.VeinKVStore;
 import com.civbuddy.veins.session.listeners.DiaOreFoundListener;
 import com.civbuddy.veins.session.listeners.MessageListener;
 import net.minecraft.client.Minecraft;
 
+import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -45,10 +47,10 @@ public class VeinSessionClient {
         activeSession.playerDimmies.put(name, n);
     }
 
-    public static void startSession(String namelayer) {
-        SessionConfig cfg = SessionConfig.create(namelayer);
+    public static void startSession(String namelayer) throws SQLException {
+        SessionConfig cfg = SessionConfig.create(namelayer, true);
         setSession(cfg);
-        sendConfig();
+        sendConfig(cfg);
     }
 
     public static void setSession(SessionConfig scfg) {
@@ -56,6 +58,14 @@ public class VeinSessionClient {
             if (scfg == null) {
                 activeSession = null;
                 VeinShareClient.setGroup("");
+
+                return;
+            }
+
+            // if no session or diff. Create new one
+            if (!isActive() || !Objects.equals(activeSession.namelayer, scfg.namelayer)) {
+                activeSession = new SessionData();
+                activeSession.namelayer = scfg.namelayer;
 
                 String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
                 Random random = new Random();
@@ -65,14 +75,6 @@ public class VeinSessionClient {
                         + chars.charAt(random.nextInt(chars.length()))
                         + " "
                         + Minecraft.getInstance().player.getDisplayName().getString();
-
-                return;
-            }
-
-            // if no session or diff. Create new one
-            if (!isActive() || !Objects.equals(activeSession.namelayer, scfg.namelayer)) {
-                activeSession = new SessionData();
-                activeSession.namelayer = scfg.namelayer;
             }
 
             VeinConfig config = VeinClient.config();
@@ -85,14 +87,15 @@ public class VeinSessionClient {
 
             CivBuddyClient.config.save();
             foundDiamonds(0);
+
+            VeinKVStore.setActiveVeinName(scfg.key);
             VeinClient.notifyChange();
         } catch (Exception e) {}
     }
 
-    public static void sendConfig() {
+    public static void sendConfig(SessionConfig cfg) {
         if (!isActive()) return;
 
-        SessionConfig cfg = SessionConfig.create(activeSession.namelayer);
         Messenger.sendSessionConfig(cfg);
     }
 

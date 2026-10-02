@@ -19,7 +19,7 @@ public class Messenger {
     }
 
     public static void sendSessionConfig(SessionConfig cfg) {
-        String encoded = SessionSerializer.encode(cfg);
+        String encoded = SessionConfig.encode(cfg);
         sendToNL(cfg.namelayer, encoded);
     }
 

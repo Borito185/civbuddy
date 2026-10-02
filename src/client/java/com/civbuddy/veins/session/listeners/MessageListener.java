@@ -3,7 +3,6 @@ package com.civbuddy.veins.session.listeners;
 import com.civbuddy.common.utils.ChatHelper;
 import com.civbuddy.veins.serializers.Base91;
 import com.civbuddy.veins.session.SessionConfig;
-import com.civbuddy.veins.session.SessionSerializer;
 import com.civbuddy.veins.session.VeinSessionClient;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.network.chat.ClickEvent;
@@ -49,14 +48,14 @@ public class MessageListener {
     }
 
     private static boolean checkForConfig(String namelayer, String playerName, String message) {
-        SessionConfig decoded = SessionSerializer.decode(namelayer, message);
+        SessionConfig decoded = SessionConfig.decode(namelayer, message);
         if (decoded == null) return false;
 
         VeinSessionClient.seenConfigs.put(namelayer, decoded);
 
         if (VeinSessionClient.isActive()) {
             VeinSessionClient.setSession(decoded);
-        } else {
+        } else if (decoded.invite) {
             ChatHelper.say(
                     Component.literal(String.format(
                             "§aYou have been invited to a mining session by §f%s §aon §e%s§a. Click to join!",

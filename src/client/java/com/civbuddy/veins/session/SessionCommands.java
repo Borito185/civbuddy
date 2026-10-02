@@ -53,7 +53,7 @@ public class SessionCommands implements Command {
 
         add.accept(List.of(
                 literal("session"),
-                literal("shareAll").executes(andRespondWith(SessionCommands::shareAll))
+                literal("sync").executes(andRespondWith(SessionCommands::sync))
         ));
 
         add.accept(List.of(
@@ -82,32 +82,36 @@ public class SessionCommands implements Command {
         return suggestionsBuilder.buildFuture();
     }
 
-    private static Component start(CommandContext<FabricClientCommandSource> ctx) {
+    private static Component start(CommandContext<FabricClientCommandSource> ctx) throws SQLException {
         String namelayer = StringArgumentType.getString(ctx, "nl");
         namelayer = namelayer.strip();
-        if (namelayer == "!") {
-            return Component.literal("Hell nah, you're not sharing anything with global...");
+        if (namelayer.equals("!")) {
+            return Component.literal("§cHell nah, you're not sharing anything with global...");
         }
 
         VeinSessionClient.startSession(namelayer);
         return Component.literal(String.format("§aStarted a new session on §e%s!", namelayer));
     }
 
-    private static Component invite(CommandContext<FabricClientCommandSource> ctx) {
-        VeinSessionClient.sendConfig();
+    private static Component invite(CommandContext<FabricClientCommandSource> ctx) throws SQLException {
+        if (!VeinSessionClient.isActive()) {
+            return Component.literal("§aStart a session first!");
+        }
+
+        VeinSessionClient.sendConfig(SessionConfig.create(true));
         return Component.literal("§aResend the invitation to the namelayer!");
     }
 
     private static Component join(CommandContext<FabricClientCommandSource> ctx) {
         String namelayer = StringArgumentType.getString(ctx, "nl");
         namelayer = namelayer.strip();
-        if (namelayer == "!") {
-            return Component.literal("§aHell nah, you're not sharing anything with global...");
+        if (namelayer.equals("!")) {
+            return Component.literal("§cHell nah, you're not sharing anything with global...");
         }
 
         SessionConfig session = VeinSessionClient.seenConfigs.getOrDefault(namelayer, null);
         if (session == null) {
-            return Component.literal("§aHaven't received an invite yet...");
+            return Component.literal("§cHaven't received an invite yet...");
         }
 
         VeinSessionClient.setSession(session);
@@ -115,7 +119,13 @@ public class SessionCommands implements Command {
         return Component.literal(String.format("§aJoined session on §e%s!", session.namelayer));
     }
 
-    public static Component shareAll(CommandContext<FabricClientCommandSource> ctx) throws SQLException {
+    public static Component sync(CommandContext<FabricClientCommandSource> ctx) throws SQLException {
+        if (!VeinSessionClient.isActive()) {
+            return Component.literal("§cStart a session first!");
+        }
+
+        VeinSessionClient.sendConfig(SessionConfig.create(false));
+
         VeinShareClient.resendAll();
         return Component.literal("§aSharing all markings!");
     }
