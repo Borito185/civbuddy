@@ -13,21 +13,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public final class JAItemHelper {
-    private final static Map<String, Integer> EventColorMap = Map.ofEntries(
-            Map.entry("Break ",        0x80FF3B30), // red
-            Map.entry("Place ",        0x80FFD60A), // yellow
-            Map.entry("Killed ",       0x80900030), // deep crimson
-            Map.entry("Opened ",       0x80AF52DE), // purple
-            Map.entry("Enter ",        0x8000B8A9), // teal
-            Map.entry("Leave ",        0x800A84FF), // blue
-            Map.entry("ItemExchange ", 0x8034C759)  // green
-    );
     private static final Pattern POSITION_PATTERN =
             Pattern.compile("^\\[(-?\\d+) (-?\\d+) (-?\\d+)]$");
 
     private static final Pattern LOCATION_PATTERN =
             Pattern.compile("^Location:\\s+\\S+\\s+(-?\\d+)\\s+(-?\\d+)\\s+(-?\\d+)$");
-
+    private static final Pattern PLAYER_PATTERN =
+            Pattern.compile("^Player:\\s+(\\S+)$");
 
     public static Optional<Integer> getHighlight(ItemStack stack) {
         if (!isJAItem(stack)) {
@@ -64,8 +56,14 @@ public final class JAItemHelper {
         }
 
         String name = stack.getHoverName().getString() + " ";
+// player name filtering
+        if (SnitchClient.filterByName && SnitchClient.targetPlayerName != null) {
+            Optional player = getPlayer(stack);
 
-        for (Map.Entry<String, Integer> entry : EventColorMap.entrySet()) {
+            if (player.isEmpty()) return Optional.empty();
+            if (!((String) player.get()).equalsIgnoreCase(SnitchClient.targetPlayerName)) return Optional.empty();
+        }
+        for (Map.Entry<String, Integer> entry : SnitchClient.eventColorMap.entrySet()) {
             if (name.startsWith(entry.getKey())) {
                 return Optional.of(entry.getValue());
             }
@@ -74,6 +72,7 @@ public final class JAItemHelper {
         System.out.println(name);
         return Optional.empty();
     }
+
 
     public static Optional<Vector3i> getPosition(ItemStack stack) {
         if (!isJAItem(stack)) return Optional.empty();
@@ -101,4 +100,23 @@ public final class JAItemHelper {
 
         return Optional.empty();
     }
+    public static Optional<String> getPlayer(ItemStack stack) {
+        if (!isJAItem(stack)) return Optional.empty();
+
+        ItemLore lore = stack.get(DataComponents.LORE);
+        if (lore == null) return Optional.empty();
+
+        for (Component line : lore.lines()) {
+            String text = line.getString().trim();
+
+            Matcher matcher = PLAYER_PATTERN.matcher(text);
+
+            if (matcher.matches()) {
+                return Optional.of(matcher.group(1));
+            }
+        }
+
+        return Optional.empty();
+    }
+
 }

@@ -7,8 +7,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.civbuddy.CivBuddyClient;
-import com.civbuddy.storage.sql.DatabaseManager;
-import com.civbuddy.veins.commands.CommandHandler;
+import com.civbuddy.common.commands.CommandGroup;
+import com.civbuddy.common.commands.CommandManager;
+import com.civbuddy.common.storage.sql.DatabaseManager;
+import com.civbuddy.veins.commands.*;
 import com.civbuddy.veins.config.VeinConfig;
 import com.civbuddy.veins.data.VeinDao;
 import com.civbuddy.veins.data.VeinKVStore;
@@ -21,6 +23,7 @@ import com.civbuddy.veins.listeners.DiaOreFoundListener;
 import com.civbuddy.veins.listeners.VeinSharedListener;
 import com.civbuddy.veins.listeners.WorldEventListener;
 import com.civbuddy.common.render.ShapeRenderer;
+import com.civbuddy.veins.session.VeinSessionClient;
 import org.joml.Vector3i;
 import com.civbuddy.common.geo.shapes.VoxelShape;
 
@@ -56,7 +59,12 @@ public class VeinClient {
         instance = new VeinClient();
 
         // --- Register Commands ---
-        CommandHandler.initialize();
+        CommandGroup group = new CommandGroup("veins");
+        group.add(new ConfigCommands());
+        group.add(new DigRadiusCommands());
+        group.add(new InfoCommands());
+        group.add(new ModifyCommands());
+        CommandManager.register(group);
 
         // --- Init SQL database ---
         DatabaseManager.register(VeinMigrations.migrations());
@@ -70,6 +78,9 @@ public class VeinClient {
         // --- Init Vein Share Client ---
         VeinShareClient.initialize();
         VeinSharedListener.initialize();
+
+        // --- Init Vein Session Client ---
+        VeinSessionClient.initialize(group);
     }
 
     public static void notifyChange() {
@@ -92,8 +103,9 @@ public class VeinClient {
     /* ===================== INTERNAL ===================== */
     private void redraw() throws SQLException {
         VeinConfig config = config();
-        borderRenderer.setStyle(config.borderWallColor, config.borderHasGrid, false);
-        markingRenderer.setStyle(config.markingWallColor, config.markingHasGrid, false);
+        borderRenderer.setStyle(config.border);
+        borderRenderer.getField().setThreshold(config.borderThreshold);
+        markingRenderer.setStyle(config.marking);
 
         if (!config.doRender) {
             borderRenderer.setInnerShapes(Set.of());
@@ -102,16 +114,16 @@ public class VeinClient {
         }
 
         List<VeinMarkingRow> rows = VeinMarkingDao.findAllForVein(getActiveVeinId());
-        Set<VoxelShape> bordersShapes = rows
-                .stream()
-                .map(r -> VoxelShape.of(r.pos(), r.range(), config.shapeMode.ordinal()))
-                .collect(Collectors.toSet());
         Set<VoxelShape> markingsShapes = rows
                 .stream()
                 .map(r -> VoxelShape.of(r.pos(), new Vector3i(0), 0))
                 .collect(Collectors.toSet());
+        Set<VoxelShape> bordersShapes = rows
+                .stream()
+                .map(r -> VoxelShape.of(r.pos(), r.range(), config.shapeMode.ordinal()))
+                .collect(Collectors.toSet());
 
+        markingRenderer.setInnerShapes(markingsShapes); // do markings first as borders can take a long time
         borderRenderer.setInnerShapes(bordersShapes);
-        markingRenderer.setInnerShapes(markingsShapes);
     }
 }

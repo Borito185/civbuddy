@@ -1,6 +1,6 @@
 package com.civbuddy.commands.data;
 
-import com.civbuddy.storage.sql.Migration;
+import com.civbuddy.common.storage.sql.Migration;
 
 public final class CommandMigrations {
     private CommandMigrations() {}

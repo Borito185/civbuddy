@@ -1,5 +1,6 @@
 package com.civbuddy.common.geo.shapes;
 
+import com.civbuddy.common.geo.util.RegionConsumer;
 import com.civbuddy.common.geo.util.VoxelConsumer;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.core.BlockPos;
@@ -9,11 +10,27 @@ import org.joml.*;
 
 public record AABBShape(Vector3ic center, Vector3ic radius) implements VoxelShape {
     @Override
-    public void AddVoxels(VoxelConsumer consumer) {
+    public void addVoxels(VoxelConsumer consumer) {
         for (int x = center.x() - radius.x(); x <= center.x() + radius.x(); x++)
         for (int y = center.y() - radius.y(); y <= center.y() + radius.y(); y++)
         for (int z = center.z() - radius.z(); z <= center.z() + radius.z(); z++)
             consumer.accept(x, y, z);
+    }
+
+    @Override
+    public void addVoxels(
+            RegionConsumer regionConsumer,
+            VoxelConsumer voxelConsumer
+    ) {
+        regionConsumer.accept(
+                center.x() - radius.x(),
+                center.y() - radius.y(),
+                center.z() - radius.z(),
+
+                center.x() + radius.x(),
+                center.y() + radius.y(),
+                center.z() + radius.z()
+        );
     }
 
     public boolean intersectsCenter(Vec3 a, Vec3 b) {

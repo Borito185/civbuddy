@@ -24,7 +24,7 @@
 			"com.civbuddy.CivBuddyClient"
 		],
 		"modmenu": [
-			"com.civbuddy.compat.ModMenuIntegration"
+			"com.civbuddy.common.compat.ModMenuIntegration"
 		]
 	},
 	"mixins": [

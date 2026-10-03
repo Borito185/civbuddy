@@ -36,12 +36,12 @@ public class ItemClickMixin {
 
         if (button == 0) {
             SnitchClient.positions.add(position.get());
-            SnitchClient.redraw();
+            SnitchClient.notifyChange();
         }
 
         if (button == 1) {
             SnitchClient.positions.remove(position.get());
-            SnitchClient.redraw();
+            SnitchClient.notifyChange();
         }
     }
 }

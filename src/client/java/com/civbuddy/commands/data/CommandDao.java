@@ -1,7 +1,7 @@
 package com.civbuddy.commands.data;
 
 import com.civbuddy.CivBuddyClient;
-import com.civbuddy.storage.sql.DatabaseManager;
+import com.civbuddy.common.storage.sql.DatabaseManager;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;

@@ -1,47 +1,61 @@
 package com.civbuddy.snitch.commands;
 
+import com.civbuddy.common.commands.Command;
+import com.civbuddy.common.commands.CommandManager;
 import com.civbuddy.snitch.SnitchClient;
-import com.civbuddy.utils.CommandsHelper;
-import com.civbuddy.utils.arguments.Vector3IArgument;
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.civbuddy.common.utils.arguments.Vector3IArgument;
+import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
-import net.minecraft.commands.arguments.coordinates.Coordinates;
-import net.minecraft.commands.arguments.coordinates.WorldCoordinates;
-import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3i;
+import com.mojang.brigadier.arguments.StringArgumentType;
+import java.util.List;
+import java.util.function.Consumer;
 
-import static com.civbuddy.utils.CommandsHelper.andRespondWith;
-import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.argument;
-import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.literal;
+import static com.civbuddy.common.commands.CommandUtils.*;
 
-public class CommandHandler implements CommandsHelper.CommandProvider{
+
+public class CommandHandler implements Command {
     public static void initialize() {
-        CommandsHelper.register(new CommandHandler());
+        CommandManager.register(new CommandHandler());
     }
 
     @Override
-    public LiteralArgumentBuilder<FabricClientCommandSource> commands() {
-        return literal("snitch")
-                .then(literal("clear_markings")
-                        .executes(andRespondWith(CommandHandler::clear)))
-                .then(literal("toggle_filter")
-                        .executes(andRespondWith(CommandHandler::toggleFilter)))
-                .then(literal("add_marking")
-                        .then(argument("pos", Vector3IArgument.vector3i())
-                                .executes(andRespondWith(CommandHandler::search))));
+    public void bind(Consumer<List<ArgumentBuilder<FabricClientCommandSource, ?>>> add) {
+        add.accept(List.of(
+                literal("snitch"),
+                literal("clear_markings").executes(andRespondWith(CommandHandler::clear))
+        ));
+        add.accept(List.of(
+                literal("snitch"),
+                literal("filterName").executes(andRespondWith(CommandHandler::resetNameFilter))
+        ));
+
+        add.accept(List.of(
+                literal("snitch"),
+                literal("filterName"),
+                argument("player", StringArgumentType.word())
+                        .executes(andRespondWith(CommandHandler::setFilterName))
+        ));
+
+        add.accept(List.of(
+                literal("snitch"),
+                literal("toggle_filter").executes(andRespondWith(CommandHandler::toggleFilter))
+        ));
+
+        add.accept(List.of(
+                literal("snitch"),
+                literal("add_marking"),
+                argument("pos", Vector3IArgument.vector3i())
+                        .executes(andRespondWith(CommandHandler::search)))
+        );
     }
 
-    @Override
-    public boolean commandsAlias() {
-        return true;
-    }
 
     public static Component clear(CommandContext<FabricClientCommandSource> ctx) {
         SnitchClient.positions.clear();
-        SnitchClient.redraw();
+        SnitchClient.notifyChange();
 
         return Component.literal("§aRemoved JA markings");
     }
@@ -60,8 +74,22 @@ public class CommandHandler implements CommandsHelper.CommandProvider{
         Vector3i pos = Vector3IArgument.getVector3i(ctx, "pos");
 
         SnitchClient.positions.add(pos);
-        SnitchClient.redraw();
+        SnitchClient.notifyChange();
 
         return Component.literal(String.format("Added a position to markings: %d %d %d", pos.x, pos.y, pos.z));
+    }
+    public static Component setFilterName(CommandContext ctx) {
+        String name = StringArgumentType.getString(ctx, "player");
+        SnitchClient.targetPlayerName = name;
+        SnitchClient.filterByName = true;
+
+        return Component.literal(String.format("§aFiltering JA by player: %s", name));
+    }
+
+    public static Component resetNameFilter(CommandContext ctx) {
+        SnitchClient.targetPlayerName = null;
+        SnitchClient.filterByName = false;
+
+        return Component.literal("§aReset player name filter.");
     }
 }

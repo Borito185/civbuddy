@@ -1,6 +1,6 @@
 package com.civbuddy.veins.data.markings;
 
-import com.civbuddy.storage.sql.Migration;
+import com.civbuddy.common.storage.sql.Migration;
 
 public final class VeinMarkingMigrations {
     private VeinMarkingMigrations() {}

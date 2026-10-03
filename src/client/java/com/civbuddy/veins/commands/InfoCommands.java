@@ -1,49 +1,32 @@
 package com.civbuddy.veins.commands;
 
-import com.civbuddy.veins.VeinClient;
+import com.civbuddy.common.commands.Command;
 import com.civbuddy.veins.data.VeinDao;
 import com.civbuddy.veins.data.VeinKVStore;
 import com.civbuddy.veins.data.VeinRow;
 import com.civbuddy.veins.data.markings.VeinMarkingDao;
 import com.civbuddy.veins.data.markings.VeinMarkingRow;
+import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
-import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Component;
-import net.minecraft.ChatFormatting;
 import org.joml.Vector3f;
 import org.joml.Vector3i;
 
 import java.sql.SQLException;
 import java.util.List;
-import java.util.Objects;
+import java.util.function.Consumer;
 
-public class InfoCommands {
-    /**
-     * Command: List all veins
-     */
-    public static Component listVeins(CommandContext<FabricClientCommandSource> ctx) throws SQLException {
-        List<VeinRow> veins = VeinDao.top(10);
-        VeinRow currentVein = VeinDao.getOrCreate(VeinKVStore.getActiveVeinName());
-        if (!veins.contains(currentVein)) veins.add(currentVein);
+import static com.civbuddy.common.commands.CommandUtils.*;
 
-        veins.removeIf(v -> Objects.equals(v.name(), "default"));
-
-        if (veins.isEmpty()) {
-            return Component.literal("§7No veins tracked yet");
-        }
-        MutableComponent text = Component.literal("\n§b━━━ Tracked Veins ━━━\n");
-        veins.stream()
-                .sorted((a, b) -> Long.compare(b.count(), a.count()))
-                .limit(10)
-                .forEach(vein -> {
-                    String active = vein.equals(currentVein) ? " §a✓" : "";
-                    text.append(Component.literal(String.format("§7Key: §e%s §a%s\n",
-                            vein.name(), active)));
-                });
-        text.append(Component.literal("§b━━━━━━━━━━━━━━━━━━"));
-        return text;
+public class InfoCommands implements Command {
+    @Override
+    public void bind(Consumer<List<ArgumentBuilder<FabricClientCommandSource, ?>>> add) {
+        add.accept(List.of(
+                literal("info").executes(andRespondWith(InfoCommands::writeInfo))
+        ));
     }
+
 
     public static Component writeInfo(CommandContext<FabricClientCommandSource> ctx) throws SQLException {
         String veinName = VeinKVStore.getActiveVeinName();
