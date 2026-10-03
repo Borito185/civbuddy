@@ -102,6 +102,22 @@ public class SnitchConfigMenu extends BaseOwoScreen<FlowLayout> {
                     SnitchClient.notifyChange();
                 }))
         );
+
+        var playerFilterBox = UIComponents.textBox(Sizing.fixed(120));
+        playerFilterBox.text(SnitchClient.targetPlayerName == null ? "" : SnitchClient.targetPlayerName);
+        playerFilterBox.setMaxLength(16);
+        playerFilterBox.onChanged().subscribe(value -> {
+            String trimmed = value.trim();
+            if (trimmed.isEmpty()) {
+                SnitchClient.targetPlayerName = null;
+                SnitchClient.filterByName = false;
+            } else {
+                SnitchClient.targetPlayerName = trimmed;
+                SnitchClient.filterByName = true;
+            }
+        });
+        options.child(row("Filter by Player", playerFilterBox));
+
         options.child(renderer("Highlight", () -> config().highlight, v -> update(c -> c.highlight = v)));
         options.child(button(Component.literal("Clear Highlights"), btn -> {
             SnitchClient.positions.clear();

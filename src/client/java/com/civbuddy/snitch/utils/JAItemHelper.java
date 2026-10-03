@@ -18,7 +18,8 @@ public final class JAItemHelper {
 
     private static final Pattern LOCATION_PATTERN =
             Pattern.compile("^Location:\\s+\\S+\\s+(-?\\d+)\\s+(-?\\d+)\\s+(-?\\d+)$");
-
+    private static final Pattern PLAYER_PATTERN =
+            Pattern.compile("^Player:\\s+(\\S+)$");
 
     public static Optional<Integer> getHighlight(ItemStack stack) {
         if (!isJAItem(stack)) {
@@ -55,7 +56,13 @@ public final class JAItemHelper {
         }
 
         String name = stack.getHoverName().getString() + " ";
+// player name filtering
+        if (SnitchClient.filterByName && SnitchClient.targetPlayerName != null) {
+            Optional player = getPlayer(stack);
 
+            if (player.isEmpty()) return Optional.empty();
+            if (!((String) player.get()).equalsIgnoreCase(SnitchClient.targetPlayerName)) return Optional.empty();
+        }
         for (Map.Entry<String, Integer> entry : SnitchClient.eventColorMap.entrySet()) {
             if (name.startsWith(entry.getKey())) {
                 return Optional.of(entry.getValue());
@@ -65,6 +72,7 @@ public final class JAItemHelper {
         System.out.println(name);
         return Optional.empty();
     }
+
 
     public static Optional<Vector3i> getPosition(ItemStack stack) {
         if (!isJAItem(stack)) return Optional.empty();
@@ -92,4 +100,23 @@ public final class JAItemHelper {
 
         return Optional.empty();
     }
+    public static Optional<String> getPlayer(ItemStack stack) {
+        if (!isJAItem(stack)) return Optional.empty();
+
+        ItemLore lore = stack.get(DataComponents.LORE);
+        if (lore == null) return Optional.empty();
+
+        for (Component line : lore.lines()) {
+            String text = line.getString().trim();
+
+            Matcher matcher = PLAYER_PATTERN.matcher(text);
+
+            if (matcher.matches()) {
+                return Optional.of(matcher.group(1));
+            }
+        }
+
+        return Optional.empty();
+    }
+
 }

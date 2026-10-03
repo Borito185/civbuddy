@@ -9,7 +9,7 @@ import com.mojang.brigadier.context.CommandContext;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.network.chat.Component;
 import org.joml.Vector3i;
-
+import com.mojang.brigadier.arguments.StringArgumentType;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -26,6 +26,17 @@ public class CommandHandler implements Command {
         add.accept(List.of(
                 literal("snitch"),
                 literal("clear_markings").executes(andRespondWith(CommandHandler::clear))
+        ));
+        add.accept(List.of(
+                literal("snitch"),
+                literal("filterName").executes(andRespondWith(CommandHandler::resetNameFilter))
+        ));
+
+        add.accept(List.of(
+                literal("snitch"),
+                literal("filterName"),
+                argument("player", StringArgumentType.word())
+                        .executes(andRespondWith(CommandHandler::setFilterName))
         ));
 
         add.accept(List.of(
@@ -66,5 +77,19 @@ public class CommandHandler implements Command {
         SnitchClient.notifyChange();
 
         return Component.literal(String.format("Added a position to markings: %d %d %d", pos.x, pos.y, pos.z));
+    }
+    public static Component setFilterName(CommandContext ctx) {
+        String name = StringArgumentType.getString(ctx, "player");
+        SnitchClient.targetPlayerName = name;
+        SnitchClient.filterByName = true;
+
+        return Component.literal(String.format("§aFiltering JA by player: %s", name));
+    }
+
+    public static Component resetNameFilter(CommandContext ctx) {
+        SnitchClient.targetPlayerName = null;
+        SnitchClient.filterByName = false;
+
+        return Component.literal("§aReset player name filter.");
     }
 }

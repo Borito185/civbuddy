@@ -19,7 +19,8 @@ public class SnitchClient {
     private static final ShapeRenderer renderer = new ShapeRenderer();
     public static final Set<Vector3i> positions = new HashSet<>();
     public static boolean filterByPositions = false;
-
+    public static String targetPlayerName = null;
+    public static boolean filterByName = false;
     public static final Map<String, Integer> eventColorMap = new HashMap<>();
 
     public static void onInitializeClient() {
